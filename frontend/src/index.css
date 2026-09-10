@@ -18,8 +18,8 @@ body {
 
 .sidebar {
     width: 240px;
-    background-color: #1f2937;
-    color: white;
+    background-color: #e8d8c3;
+    color: #4a3728;
     padding: 20px;
     display: flex;
     flex-direction: column;
@@ -41,7 +41,7 @@ body {
 }
 
 .sidebar nav li:hover {
-    background-color: #374151;
+    background-color: #d9bea0;
 }
 
 .sidebar-bottom {
@@ -67,4 +67,90 @@ body {
 .main-content > p {
     color: #666;
     margin-bottom: 30px;
+}
+/* TARJETAS DEL DASHBOARD */
+
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+}
+
+.stat-card {
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+.stat-icon {
+    font-size: 30px;
+}
+
+.stat-card p {
+    color: #666;
+    margin-bottom: 5px;
+}
+
+.stat-card h2 {
+    font-size: 24px;
+}
+/* COMANDAS PENDIENTES */
+
+.pending-orders {
+    background-color: white;
+    margin-top: 30px;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.section-header h2 {
+    font-size: 20px;
+}
+
+.section-header button {
+    border: none;
+    background-color: transparent;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.orders-table {
+    width: 100%;
+}
+
+.order-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr 1fr 1fr;
+    padding: 15px 10px;
+    border-bottom: 1px solid #eee;
+    align-items: center;
+}
+
+.order-header {
+    font-weight: bold;
+    color: #666;
+}
+
+.status {
+    font-weight: bold;
+}
+
+.status.pending {
+    color: #d97706;
+}
+
+.status.preparing {
+    color: #2563eb;
 }
