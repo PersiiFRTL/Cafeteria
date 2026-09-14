@@ -154,3 +154,40 @@ body {
 .status.preparing {
     color: #2563eb;
 }
+/* TOPBAR */
+
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.topbar h2 {
+    font-size: 24px;
+}
+
+.topbar-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.topbar-user div {
+    display: flex;
+    flex-direction: column;
+}
+
+.topbar-user small {
+    color: #666;
+    margin-top: 3px;
+}
+.dashboard-content > p {
+    color: #666;
+    margin-bottom: 30px;
+}
+.sidebar a {
+    color: #4a3728;
+    text-decoration: none;
+    display: block;
+}
