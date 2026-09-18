@@ -191,3 +191,160 @@ body {
     text-decoration: none;
     display: block;
 }
+/* MESAS */
+
+.mesas-header {
+    margin-bottom: 30px;
+}
+
+.mesas-header h1 {
+    margin-bottom: 8px;
+}
+
+.mesas-header p {
+    color: #666;
+}
+
+.mesas-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+}
+
+.mesa-card {
+    background-color: white;
+    padding: 25px;
+    border-radius: 12px;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+    transition: 0.2s;
+}
+
+.mesa-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 12px rgba(0, 0, 0, 0.12);
+}
+
+.mesa-card.libre {
+    border-left: 5px solid #22c55e;
+}
+
+.mesa-card.ocupada {
+    border-left: 5px solid #ef4444;
+}
+
+.mesa-numero {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.mesa-capacidad {
+    color: #666;
+    margin-bottom: 15px;
+}
+
+.mesa-estado {
+    font-weight: bold;
+}
+/* PANEL DE MESA */
+
+.mesa-panel {
+    position: fixed;
+    top: 0;
+    left: 240px;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.35);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+}
+
+.mesa-panel-content {
+    width: 450px;
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.mesa-panel-header {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.mesa-panel-header h2 {
+    margin-bottom: 5px;
+}
+
+.mesa-panel-header p {
+    color: #666;
+}
+
+.close-button {
+    border: none;
+    background: none;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 5px;
+}
+
+.mesa-panel-body {
+    padding: 25px;
+}
+
+.mesa-panel-status {
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.mesa-panel-status.libre {
+    color: #16a34a;
+}
+
+.mesa-panel-status.ocupada {
+    color: #dc2626;
+}
+
+.mesa-panel-body p {
+    color: #666;
+    margin-bottom: 20px;
+}
+
+.mesa-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.primary-button,
+.secondary-button {
+    width: 100%;
+    padding: 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.primary-button {
+    border: none;
+    background-color: #1f2937;
+    color: white;
+}
+
+.primary-button:hover {
+    background-color: #374151;
+}
+
+.secondary-button {
+    border: 1px solid #ddd;
+    background-color: white;
+}
+
+.secondary-button:hover {
+    background-color: #f5f5f5;
+}
