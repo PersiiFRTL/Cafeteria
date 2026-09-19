@@ -1,0 +1,50 @@
+[
+    {
+        "id": 1,
+        "numero": 1,
+        "capacidad": 4,
+        "estado": "libre"
+    },
+    {
+        "id": 2,
+        "numero": 2,
+        "capacidad": 2,
+        "estado": "libre"
+    },
+    {
+        "id": 3,
+        "numero": 3,
+        "capacidad": 4,
+        "estado": "ocupada"
+    },
+    {
+        "id": 4,
+        "numero": 4,
+        "capacidad": 2,
+        "estado": "libre"
+    },
+    {
+        "id": 5,
+        "numero": 5,
+        "capacidad": 4,
+        "estado": "libre"
+    },
+    {
+        "id": 6,
+        "numero": 6,
+        "capacidad": 6,
+        "estado": "ocupada"
+    },
+    {
+        "id": 7,
+        "numero": 7,
+        "capacidad": 4,
+        "estado": "libre"
+    },
+    {
+        "id": 8,
+        "numero": 8,
+        "capacidad": 2,
+        "estado": "libre"
+    }
+]

@@ -1,0 +1,20 @@
+[
+    {
+        "id": 1,
+        "nombre": "Tostado",
+        "precio": 3500,
+        "sector": "Cocina"
+    },
+    {
+        "id": 2,
+        "nombre": "Café con leche",
+        "precio": 2500,
+        "sector": "Cafetería"
+    },
+    {
+        "id": 3,
+        "nombre": "Medialuna",
+        "precio": 1200,
+        "sector": "Cocina"
+    }
+]

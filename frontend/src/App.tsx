@@ -1,26 +1,45 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Layout from "./components/Layout";
+
 import Dashboard from "./pages/Dashboard";
 import Mesas from "./pages/Mesas";
+import NuevaComanda from "./pages/NuevaComanda";
+
+import { CafeteriaProvider } from "./context/CafeteriaContext";
 
 function App() {
     return (
-        <BrowserRouter>
+        <CafeteriaProvider>
 
-            <Routes>
+            <BrowserRouter>
 
-                <Route element={<Layout />}>
+                <Routes>
 
-                    <Route path="/" element={<Dashboard />} />
+                    <Route element={<Layout />}>
 
-                    <Route path="/mesas" element={<Mesas />} />
+                        <Route
+                            path="/"
+                            element={<Dashboard />}
+                        />
 
-                </Route>
+                        <Route
+                            path="/mesas"
+                            element={<Mesas />}
+                        />
 
-            </Routes>
+                        <Route
+                            path="/nueva-comanda"
+                            element={<NuevaComanda />}
+                        />
 
-        </BrowserRouter>
+                    </Route>
+
+                </Routes>
+
+            </BrowserRouter>
+
+        </CafeteriaProvider>
     );
 }
 

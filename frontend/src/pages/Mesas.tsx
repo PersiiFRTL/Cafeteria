@@ -1,25 +1,23 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+import { useCafeteria } from "../context/CafeteriaContext";
 
 interface Mesa {
+    id: number;
     numero: number;
     capacidad: number;
     estado: "libre" | "ocupada";
 }
 
-const mesas: Mesa[] = [    // provisorio 
-    { numero: 1, capacidad: 4, estado: "libre" },
-    { numero: 2, capacidad: 2, estado: "libre" },
-    { numero: 3, capacidad: 4, estado: "ocupada" },
-    { numero: 4, capacidad: 2, estado: "libre" },
-    { numero: 5, capacidad: 4, estado: "libre" },
-    { numero: 6, capacidad: 6, estado: "ocupada" },
-    { numero: 7, capacidad: 4, estado: "libre" },
-    { numero: 8, capacidad: 2, estado: "libre" },
-];
-
 function Mesas() {
 
-    const [mesaSeleccionada, setMesaSeleccionada] = useState<Mesa | null>(null);
+    const navigate = useNavigate();
+
+    const { mesas } = useCafeteria();
+
+    const [mesaSeleccionada, setMesaSeleccionada] =
+        useState<Mesa | null>(null);
 
     const seleccionarMesa = (mesa: Mesa) => {
         setMesaSeleccionada(mesa);
@@ -35,11 +33,13 @@ function Mesas() {
             <div className="mesas-header">
 
                 <div>
+
                     <h1>Mesas</h1>
 
                     <p>
                         Estado actual de las mesas de la cafetería.
                     </p>
+
                 </div>
 
             </div>
@@ -49,7 +49,7 @@ function Mesas() {
                 {mesas.map((mesa) => (
 
                     <div
-                        key={mesa.numero}
+                        key={mesa.id}
                         className={`mesa-card ${mesa.estado}`}
                         onClick={() => seleccionarMesa(mesa)}
                     >
@@ -63,10 +63,12 @@ function Mesas() {
                         </div>
 
                         <div className="mesa-estado">
+
                             {mesa.estado === "libre"
                                 ? "🟢 Libre"
                                 : "🔴 Ocupada"
                             }
+
                         </div>
 
                     </div>
@@ -84,6 +86,7 @@ function Mesas() {
                         <div className="mesa-panel-header">
 
                             <div>
+
                                 <h2>
                                     Mesa {mesaSeleccionada.numero}
                                 </h2>
@@ -91,6 +94,7 @@ function Mesas() {
                                 <p>
                                     👥 {mesaSeleccionada.capacidad} personas
                                 </p>
+
                             </div>
 
                             <button
@@ -115,7 +119,14 @@ function Mesas() {
                                         Esta mesa no tiene una comanda activa.
                                     </p>
 
-                                    <button className="primary-button">
+                                    <button
+                                        className="primary-button"
+                                        onClick={() =>
+                                            navigate(
+                                                `/nueva-comanda?mesa=${mesaSeleccionada.numero}`
+                                            )
+                                        }
+                                    >
                                         📋 Generar comanda
                                     </button>
                                 </>
@@ -137,7 +148,14 @@ function Mesas() {
                                             📋 Ver comanda
                                         </button>
 
-                                        <button className="secondary-button">
+                                        <button
+                                            className="secondary-button"
+                                            onClick={() =>
+                                                navigate(
+                                                    `/nueva-comanda?mesa=${mesaSeleccionada.numero}`
+                                                )
+                                            }
+                                        >
                                             ➕ Agregar productos
                                         </button>
 
@@ -146,6 +164,7 @@ function Mesas() {
                                         </button>
 
                                     </div>
+
                                 </>
 
                             )}
