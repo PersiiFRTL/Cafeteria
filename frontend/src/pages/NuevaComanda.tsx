@@ -222,7 +222,8 @@ function NuevaComanda() {
                              const productosComanda = Object.entries(cantidades).map(
                                 ([productoId, cantidad]) => ({
                                 productoId: Number(productoId),
-                                cantidad: cantidad
+                                cantidad: cantidad,
+                                estado: "pendiente" as const
                             })
                             );
                             crearComanda(

@@ -461,3 +461,109 @@ body {
     opacity: 0.5;
     cursor: not-allowed;
 }
+/* COMANDAS */
+
+.comandas-header {
+    margin-bottom: 30px;
+}
+
+.comandas-header h1 {
+    margin-bottom: 8px;
+}
+
+.comandas-header p {
+    color: #666;
+}
+
+.comandas-container {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.comanda-card {
+    background-color: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+.comanda-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.comanda-card-header h2 {
+    margin-bottom: 5px;
+}
+
+.comanda-card-header p {
+    color: #666;
+}
+
+.comanda-estado {
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.comanda-estado.pendiente {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.comanda-estado.preparando {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+}
+
+.comanda-estado.lista {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.comanda-estado.finalizada {
+    background-color: #e5e7eb;
+    color: #374151;
+}
+
+.comanda-card-productos {
+    margin-bottom: 20px;
+}
+
+.comanda-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.comandas-vacio {
+    background-color: white;
+    padding: 40px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.comandas-vacio h2 {
+    margin-bottom: 10px;
+}
+
+.comandas-vacio p {
+    color: #666;
+}
+
+.sector-comanda {
+    margin-bottom: 20px;
+}
+
+.sector-comanda h3 {
+    font-size: 15px;
+    margin-bottom: 5px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #eee;
+}

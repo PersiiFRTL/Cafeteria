@@ -1,11 +1,9 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-
 import Layout from "./components/Layout";
-
 import Dashboard from "./pages/Dashboard";
 import Mesas from "./pages/Mesas";
 import NuevaComanda from "./pages/NuevaComanda";
-
+import Comandas from "./pages/Comandas";
 import { CafeteriaProvider } from "./context/CafeteriaContext";
 
 function App() {
@@ -32,6 +30,10 @@ function App() {
                             path="/nueva-comanda"
                             element={<NuevaComanda />}
                         />
+                        <Route
+                            path="/comandas"
+                            element={<Comandas />}
+                            />
 
                     </Route>
 

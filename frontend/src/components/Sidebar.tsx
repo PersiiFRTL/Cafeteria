@@ -20,7 +20,11 @@ function Sidebar() {
                         </Link>
                     </li>
 
-                    <li>📋 Comandas</li>
+                    <li>
+                        <Link to="/comandas">
+                            📋 Comandas
+                        </Link>
+</li>
                     <li>🛍 Productos</li>
                     <li>📦 Stock</li>
                     <li>💰 Facturación</li>

@@ -17,6 +17,7 @@ interface Mesa {
 interface ProductoComanda {
     productoId: number;
     cantidad: number;
+    estado: "pendiente" | "preparando" | "listo";
 }
 
 interface Comanda {
@@ -38,6 +39,13 @@ interface CafeteriaContextType {
     obtenerComandaDeMesa: (
         mesaId: number
     ) => Comanda | undefined;
+
+    cambiarEstadoProducto: (
+    comandaId: number,
+    productoId: number,
+    estado: "pendiente" | "preparando" | "listo"
+) => void;
+
 }
 
 const CafeteriaContext =
@@ -94,13 +102,43 @@ export function CafeteriaProvider({
 
     };
 
+    const cambiarEstadoProducto = (
+        comandaId: number,
+        productoId: number,
+        estado: "pendiente" | "preparando" | "listo"
+    ) => {
+
+        setComandas((comandasActuales) =>
+            comandasActuales.map((comanda) => {
+
+                if (comanda.id !== comandaId) {
+                    return comanda;
+                }
+
+                return {
+                    ...comanda,
+                    productos: comanda.productos.map((producto) =>
+                        producto.productoId === productoId
+                            ? {
+                                ...producto,
+                                estado: estado
+                            }
+                            : producto
+                    )
+                };
+
+            })
+        );
+    };
+
     return (
         <CafeteriaContext.Provider
             value={{
                 mesas,
                 comandas,
                 crearComanda,
-                obtenerComandaDeMesa
+                obtenerComandaDeMesa,
+                cambiarEstadoProducto
             }}
         >
             {children}
