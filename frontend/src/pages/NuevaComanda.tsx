@@ -223,7 +223,7 @@ function NuevaComanda() {
                                 ([productoId, cantidad]) => ({
                                 productoId: Number(productoId),
                                 cantidad: cantidad,
-                                estado: "pendiente" as const
+                                estado: "preparando" as const
                             })
                             );
                             crearComanda(

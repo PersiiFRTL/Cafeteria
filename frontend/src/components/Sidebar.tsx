@@ -24,10 +24,14 @@ function Sidebar() {
                         <Link to="/comandas">
                             📋 Comandas
                         </Link>
-</li>
+                    </li>
+                    <li>
+                        <Link to="/preparacion">
+                            🕒 Preparación
+                        </Link>
+                    </li>
                     <li>🛍 Productos</li>
                     <li>📦 Stock</li>
-                    <li>💰 Facturación</li>
                     <li>📊 Informes</li>
 
                 </ul>

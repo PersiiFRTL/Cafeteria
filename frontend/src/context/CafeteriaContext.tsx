@@ -102,6 +102,22 @@ export function CafeteriaProvider({
 
     };
 
+    const calcularEstadoComanda = (
+        productos: ProductoComanda[]
+    ): Comanda["estado"] => {
+        if (productos.length === 0) return "pendiente";
+
+        if (productos.every((producto) => producto.estado === "listo")) {
+            return "lista";
+        }
+
+        if (productos.some((producto) => producto.estado === "preparando")) {
+            return "preparando";
+        }
+
+        return "pendiente";
+    };
+
     const cambiarEstadoProducto = (
         comandaId: number,
         productoId: number,
@@ -115,16 +131,19 @@ export function CafeteriaProvider({
                     return comanda;
                 }
 
+                const productosActualizados = comanda.productos.map((producto) =>
+                    producto.productoId === productoId
+                        ? {
+                            ...producto,
+                            estado: estado
+                        }
+                        : producto
+                );
+
                 return {
                     ...comanda,
-                    productos: comanda.productos.map((producto) =>
-                        producto.productoId === productoId
-                            ? {
-                                ...producto,
-                                estado: estado
-                            }
-                            : producto
-                    )
+                    productos: productosActualizados,
+                    estado: calcularEstadoComanda(productosActualizados)
                 };
 
             })

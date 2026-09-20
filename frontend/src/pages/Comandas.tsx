@@ -14,6 +14,17 @@ function Comandas() {
 
     const { comandas } = useCafeteria();
 
+    const comandasOrdenadas = [...comandas].sort((comandaA, comandaB) => {
+        const prioridad = {
+            preparando: 0,
+            pendiente: 1,
+            lista: 2,
+            finalizada: 3
+        };
+
+        return prioridad[comandaA.estado] - prioridad[comandaB.estado];
+    });
+
     const obtenerProducto = (productoId: number) => {
 
         return productos.find(
@@ -52,7 +63,7 @@ function Comandas() {
 
                 <div className="comandas-container">
 
-                    {comandas.map((comanda) => {
+                    {comandasOrdenadas.map((comanda) => {
 
                         // La sectorización separa una comanda y la muestra agrupada por sector correspondiente.
                         // Esto permite que cada sector pueda ver únicamente los productos que le corresponden.
@@ -144,9 +155,14 @@ function Comandas() {
                                                                 {producto.nombre}
                                                             </span>
 
-                                                            <strong>
-                                                                x{item?.cantidad}
-                                                            </strong>
+                                                            <div className="comanda-item-meta">
+                                                                <strong>
+                                                                    x{item?.cantidad}
+                                                                </strong>
+                                                                <small>
+                                                                    {item?.estado}
+                                                                </small>
+                                                            </div>
 
                                                         </div>
 
