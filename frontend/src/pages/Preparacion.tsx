@@ -1,15 +1,5 @@
 import { useState } from "react";
 import { useCafeteria } from "../context/CafeteriaContext";
-import productosData from "../data/productos.json";
-
-interface Producto {
-    id: number;
-    nombre: string;
-    precio: number;
-    sector: string;
-}
-
-const productos: Producto[] = productosData;
 
 interface Sector {
     nombre: string;
@@ -35,6 +25,7 @@ function Preparacion() {
 
     const {
         comandas,
+        productos,
         cambiarEstadoProducto
     } = useCafeteria();
 

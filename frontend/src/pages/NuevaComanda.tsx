@@ -1,42 +1,34 @@
 import { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useCafeteria } from "../context/CafeteriaContext";
-import productosData from "../data/productos.json";
-
-interface Producto {
-    id: number;
-    nombre: string;
-    precio: number;
-    sector: string;
-}
-
-const productos: Producto[] = productosData;
 
 function NuevaComanda() {
+    const [cantidades, setCantidades] =
+        useState<Record<number, number>>({});
 
-    const [cantidades, setCantidades] = useState<Record<number, number>>({});
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+
     const numeroMesa = searchParams.get("mesa");
-    const { crearComanda } = useCafeteria();
+
+    const {
+        crearComanda,
+        productos
+    } = useCafeteria();
 
     const agregarProducto = (productoId: number) => {
-
         setCantidades((actuales) => ({
             ...actuales,
             [productoId]: (actuales[productoId] || 0) + 1
         }));
-
     };
 
     const quitarProducto = (productoId: number) => {
-
         setCantidades((actuales) => {
-
-            const nuevaCantidad = (actuales[productoId] || 0) - 1;
+            const nuevaCantidad =
+                (actuales[productoId] || 0) - 1;
 
             if (nuevaCantidad <= 0) {
-
                 const copia = { ...actuales };
 
                 delete copia[productoId];
@@ -48,28 +40,48 @@ function NuevaComanda() {
                 ...actuales,
                 [productoId]: nuevaCantidad
             };
-
         });
-
     };
 
     const obtenerTotal = () => {
-
         return productos.reduce((total, producto) => {
-
-            const cantidad = cantidades[producto.id] || 0;
+            const cantidad =
+                cantidades[producto.id] || 0;
 
             return total + producto.precio * cantidad;
-
         }, 0);
+    };
 
+    const confirmarComanda = () => {
+        if (!numeroMesa) {
+            return;
+        }
+
+        const productosComanda =
+            Object.entries(cantidades).map(
+                ([productoId, cantidad]) => ({
+                    productoId: Number(productoId),
+                    cantidad: cantidad,
+                    estado: "pendiente" as const
+                })
+            );
+
+        crearComanda(
+            Number(numeroMesa),
+            productosComanda
+        );
+
+        alert(
+            `Comanda creada para la Mesa ${numeroMesa}`
+        );
+
+        navigate("/mesas");
     };
 
     return (
         <div className="dashboard-content">
 
             <div className="comanda-header">
-
                 <div>
                     <h1>Nueva comanda</h1>
 
@@ -77,7 +89,6 @@ function NuevaComanda() {
                         Mesa {numeroMesa}
                     </p>
                 </div>
-
             </div>
 
             <div className="comanda-layout">
@@ -88,64 +99,74 @@ function NuevaComanda() {
 
                     <div className="productos-container">
 
-                        {productos.map((producto) => {
+                        {productos
+                            .filter(
+                                (producto) =>
+                                    producto.activo
+                            )
+                            .map((producto) => {
 
-                            const cantidad = cantidades[producto.id] || 0;
+                                const cantidad =
+                                    cantidades[producto.id] || 0;
 
-                            return (
-                                <div
-                                    key={producto.id}
-                                    className="producto-card"
-                                >
+                                return (
+                                    <div
+                                        key={producto.id}
+                                        className="producto-card"
+                                    >
 
-                                    <div>
+                                        <div>
 
-                                        <h3>
-                                            {producto.nombre}
-                                        </h3>
+                                            <h3>
+                                                {producto.nombre}
+                                            </h3>
 
-                                        <p>
-                                            {producto.sector}
-                                        </p>
+                                            <p>
+                                                {producto.sector}
+                                            </p>
 
-                                        <strong>
-                                            ${producto.precio.toLocaleString()}
-                                        </strong>
+                                            <strong>
+                                                $
+                                                {producto.precio.toLocaleString()}
+                                            </strong>
+
+                                        </div>
+
+                                        <div className="producto-controls">
+
+                                            {cantidad > 0 && (
+                                                <>
+                                                    <button
+                                                        onClick={() =>
+                                                            quitarProducto(
+                                                                producto.id
+                                                            )
+                                                        }
+                                                    >
+                                                        −
+                                                    </button>
+
+                                                    <span>
+                                                        {cantidad}
+                                                    </span>
+                                                </>
+                                            )}
+
+                                            <button
+                                                onClick={() =>
+                                                    agregarProducto(
+                                                        producto.id
+                                                    )
+                                                }
+                                            >
+                                                +
+                                            </button>
+
+                                        </div>
 
                                     </div>
-
-                                    <div className="producto-controls">
-
-                                        {cantidad > 0 && (
-                                            <>
-                                                <button
-                                                    onClick={() =>
-                                                        quitarProducto(producto.id)
-                                                    }
-                                                >
-                                                    −
-                                                </button>
-
-                                                <span>
-                                                    {cantidad}
-                                                </span>
-                                            </>
-                                        )}
-
-                                        <button
-                                            onClick={() =>
-                                                agregarProducto(producto.id)
-                                            }
-                                        >
-                                            +
-                                        </button>
-
-                                    </div>
-
-                                </div>
-                            );
-
-                        })}
+                                );
+                            })}
 
                     </div>
 
@@ -165,7 +186,8 @@ function NuevaComanda() {
 
                         productos.map((producto) => {
 
-                            const cantidad = cantidades[producto.id];
+                            const cantidad =
+                                cantidades[producto.id];
 
                             if (!cantidad) {
                                 return null;
@@ -178,18 +200,21 @@ function NuevaComanda() {
                                 >
 
                                     <span>
-                                        {cantidad} x {producto.nombre}
+                                        {cantidad} x{" "}
+                                        {producto.nombre}
                                     </span>
 
                                     <strong>
-                                        ${(producto.precio * cantidad).toLocaleString()}
+                                        $
+                                        {(
+                                            producto.precio *
+                                            cantidad
+                                        ).toLocaleString()}
                                     </strong>
 
                                 </div>
                             );
-
                         })
-
                     )}
 
                     <div className="comanda-total">
@@ -199,43 +224,34 @@ function NuevaComanda() {
                         </span>
 
                         <strong>
-                            ${obtenerTotal().toLocaleString()}
+                            $
+                            {obtenerTotal().toLocaleString()}
                         </strong>
 
                     </div>
 
                     <div className="comanda-actions">
+
                         <button
                             className="secondary-button cancelar-button"
-                            onClick={() => navigate("/mesas")}
+                            onClick={() =>
+                                navigate("/mesas")
+                            }
                         >
                             Cancelar
                         </button>
 
                         <button
                             className="primary-button confirmar-button"
-                            disabled={Object.keys(cantidades).length === 0}
-                            onClick={() => {
-                            if (!numeroMesa) {
-                            return;
+                            disabled={
+                                Object.keys(cantidades)
+                                    .length === 0
                             }
-                             const productosComanda = Object.entries(cantidades).map(
-                                ([productoId, cantidad]) => ({
-                                productoId: Number(productoId),
-                                cantidad: cantidad,
-                                estado: "preparando" as const
-                            })
-                            );
-                            crearComanda(
-                                Number(numeroMesa),
-                                productosComanda
-                            );
-                            alert(`Comanda creada para la Mesa ${numeroMesa}`);
-                            navigate("/mesas");
-                        }}
-                            >
+                            onClick={confirmarComanda}
+                        >
                             ✓ Confirmar comanda
                         </button>
+
                     </div>
 
                 </div>

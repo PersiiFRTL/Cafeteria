@@ -1,18 +1,8 @@
 import { useCafeteria } from "../context/CafeteriaContext";
-import productosData from "../data/productos.json";
-
-interface Producto {
-    id: number;
-    nombre: string;
-    precio: number;
-    sector: string;
-}
-
-const productos: Producto[] = productosData;
 
 function Comandas() {
 
-    const { comandas } = useCafeteria();
+    const { comandas, productos } = useCafeteria();
 
     const comandasOrdenadas = [...comandas].sort((comandaA, comandaB) => {
         const prioridad = {

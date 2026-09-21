@@ -794,3 +794,100 @@ body {
 .sector-vacio p {
     color: #666;
 }
+/* PRODUCTOS */
+
+.productos-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+}
+
+.productos-header h1 {
+    margin-bottom: 8px;
+}
+
+.productos-header p {
+    color: #666;
+}
+
+.producto-nuevo-button {
+    width: auto;
+}
+
+.producto-form {
+    background-color: white;
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 25px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+.producto-form h2 {
+    margin-bottom: 20px;
+}
+
+.producto-form input,
+.producto-form select {
+    width: 100%;
+    padding: 11px;
+    margin-bottom: 12px;
+
+    border: 1px solid #ddd;
+    border-radius: 6px;
+
+    font-size: 15px;
+}
+
+.producto-form-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.producto-form-actions button {
+    width: auto;
+}
+
+.productos-table {
+    background-color: white;
+    border-radius: 12px;
+    overflow: hidden;
+
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+}
+
+.producto-row {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr 1fr;
+
+    padding: 18px 20px;
+
+    border-bottom: 1px solid #eee;
+
+    align-items: center;
+}
+
+.producto-row-header {
+    font-weight: bold;
+    color: #666;
+    background-color: #fafafa;
+}
+
+.estado-activo,
+.estado-inactivo {
+    border: none;
+    border-radius: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.estado-activo {
+    background-color: #dcfce7;
+    color: #166534;
+}
+
+.estado-inactivo {
+    background-color: #fee2e2;
+    color: #991b1b;
+}

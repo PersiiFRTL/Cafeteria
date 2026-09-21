@@ -30,7 +30,11 @@ function Sidebar() {
                             🕒 Preparación
                         </Link>
                     </li>
-                    <li>🛍 Productos</li>
+                    <li>
+                        <Link to="/productos">
+                            🛍 Productos
+                        </Link>
+                    </li>
                     <li>📦 Stock</li>
                     <li>📊 Informes</li>
 

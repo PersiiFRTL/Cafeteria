@@ -5,6 +5,7 @@ import Mesas from "./pages/Mesas";
 import NuevaComanda from "./pages/NuevaComanda";
 import Comandas from "./pages/Comandas";
 import Preparacion from "./pages/Preparacion";
+import Productos from "./pages/Productos";
 import { CafeteriaProvider } from "./context/CafeteriaContext";
 
 function App() {
@@ -38,6 +39,10 @@ function App() {
                         <Route
                             path="/preparacion"
                             element={<Preparacion />}
+                            />
+                            <Route
+                            path="/productos"
+                            element={<Productos />}
                             />
                     </Route>
 
