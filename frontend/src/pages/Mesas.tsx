@@ -15,7 +15,8 @@ function Mesas() {
 
     const {
         mesas,
-        obtenerComandaDeMesa
+        obtenerComandaDeMesa,
+        finalizarComanda
     } = useCafeteria();
 
     const [mesaSeleccionada, setMesaSeleccionada] =
@@ -174,9 +175,36 @@ function Mesas() {
                                             ➕ Agregar productos
                                         </button>
 
-                                        <button className="secondary-button">
-                                            💰 Cobrar
-                                        </button>
+                                        {(() => {
+                                            const comanda =
+                                                obtenerComandaDeMesa(
+                                                    mesaSeleccionada.id
+                                                );
+
+                                            if (!comanda) {
+                                                return null;
+                                            }
+
+                                            return (
+                                                <button
+                                                    className="secondary-button"
+                                                    onClick={() => {
+                                                        const confirmar = window.confirm(
+                                                            `¿Dejar disponible la Mesa ${mesaSeleccionada.numero}?`
+                                                        );
+
+                                                        if (confirmar) {
+                                                            finalizarComanda(
+                                                                comanda.id
+                                                            );
+                                                            cerrarPanel();
+                                                        }
+                                                    }}
+                                                >
+                                                    ✓ Dejar mesa disponible
+                                                </button>
+                                            );
+                                        })()}
 
                                     </div>
 

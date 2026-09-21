@@ -569,6 +569,12 @@ body {
     padding-bottom: 8px;
     border-bottom: 2px solid #eee;
 }
+.comanda-finalizar {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+}
+
 /* PREPARACIÓN */
 
 .preparacion-header {
@@ -724,19 +730,20 @@ body {
 /* PEDIDOS DEL SECTOR */
 
 .pedidos-sector {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 10px;
 
-    max-width: 900px;
+    width: 100%;
+    max-width: none;
 }
 
 .pedido-preparacion {
     background-color: white;
 
-    padding: 20px;
+    padding: 8px 10px;
 
-    border-radius: 12px;
+    border-radius: 8px;
 
     display: flex;
     justify-content: space-between;
@@ -749,25 +756,27 @@ body {
     font-size: 14px;
     font-weight: bold;
 
-    margin-bottom: 8px;
+    margin-bottom: 4px;
 }
 
 .pedido-info h3 {
-    font-size: 20px;
-    margin-bottom: 5px;
+    font-size: 16px;
+    margin-bottom: 3px;
 }
 
 .pedido-info p {
     color: #666;
-    margin-bottom: 10px;
+    margin-bottom: 5px;
 }
 
 .pedido-acciones {
-    min-width: 200px;
+    min-width: 170px;
 }
 
 .pedido-acciones button {
     width: 100%;
+    padding: 8px;
+    font-size: 13px;
 }
 
 /* SECTOR SIN PEDIDOS */

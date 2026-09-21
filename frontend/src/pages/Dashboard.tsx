@@ -18,7 +18,7 @@ function Dashboard() {
         const fechaComanda = new Date(comanda.fechaCreacion);
 
         return (
-            comanda.estado === "lista" &&
+            comanda.estado === "finalizada" &&
             fechaComanda.getFullYear() === hoy.getFullYear() &&
             fechaComanda.getMonth() === hoy.getMonth() &&
             fechaComanda.getDate() === hoy.getDate()
@@ -47,7 +47,7 @@ function Dashboard() {
                 />
 
                 <StatCard
-                    titulo="Ventas del día"
+                    titulo="Comandas del día"
                     valor={String(comandasListasHoy)}
                     icono="✅"
                 />

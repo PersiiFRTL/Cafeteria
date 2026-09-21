@@ -58,6 +58,10 @@ interface CafeteriaContextType {
     crearComanda: (
         mesaId: number,
         productos: ProductoComanda[]
+    ) => void; 
+
+    finalizarComanda: (
+        comandaId: number
     ) => void;
 
     agregarProductosAComanda: (
@@ -174,6 +178,39 @@ export function CafeteriaProvider({
             )
         );
     };
+
+    // Finalizar una comanda
+    const finalizarComanda = (comandaId: number) => {
+    const comanda = comandas.find(
+        (comanda) => comanda.id === comandaId
+    );
+
+    if (!comanda) {
+        return;
+    }
+
+    setComandas((comandasActuales) =>
+        comandasActuales.map((comandaActual) =>
+            comandaActual.id === comandaId
+                ? {
+                    ...comandaActual,
+                    estado: "finalizada"
+                }
+                : comandaActual
+        )
+    );
+
+    setMesas((mesasActuales) =>
+        mesasActuales.map((mesa) =>
+            mesa.id === comanda.mesaId
+                ? {
+                    ...mesa,
+                    estado: "libre"
+                }
+                : mesa
+        )
+    );
+};
 
 
     // Agregar productos a una comanda activa
@@ -451,6 +488,8 @@ export function CafeteriaProvider({
                 comandas,
 
                 crearComanda,
+
+                finalizarComanda,
 
                 agregarProductosAComanda,
 

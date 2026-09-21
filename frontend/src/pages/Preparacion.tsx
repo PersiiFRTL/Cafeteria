@@ -127,7 +127,15 @@ function Preparacion() {
                         )
 
                 }))
-    );
+    ).sort((pedidoA, pedidoB) => {
+        const prioridad = {
+            pendiente: 0,
+            preparando: 1,
+            listo: 2
+        };
+
+        return prioridad[pedidoA.item.estado] - prioridad[pedidoB.item.estado];
+    });
 
     return (
         <div className="dashboard-content">

@@ -7,7 +7,8 @@ function Comandas() {
     const {
         comandas,
         mesas,
-        productos
+        productos,
+        finalizarComanda
     } = useCafeteria();
 
     const comandaSeleccionadaId = Number(
@@ -162,7 +163,24 @@ function Comandas() {
                                     )}
 
                                 </div>
+                                {comanda.estado === "lista" && (
+                                    <div className="comanda-finalizar">
+                                        <button
+                                            className="primary-button"
+                                            onClick={() => {
+                                                const confirmar = window.confirm(
+                                                    `¿Dejar disponible la Mesa ${mesa?.numero}?`
+                                                );
 
+                                                if (confirmar) {
+                                                    finalizarComanda(comanda.id);
+                                                }
+                                            }}
+                                        >
+                                            ✓ Dejar mesa disponible
+                                        </button>
+                                    </div>
+                                )}
                             </div>
                         );
                     })}
