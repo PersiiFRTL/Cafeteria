@@ -26,7 +26,9 @@ body {
 }
 
 .sidebar h2 {
-    margin-bottom: 30px;
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(74, 55, 40, 0.28);
 }
 
 .sidebar nav ul {

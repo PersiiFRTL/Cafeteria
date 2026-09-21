@@ -10,9 +10,12 @@ function NuevaComanda() {
     const navigate = useNavigate();
 
     const numeroMesa = searchParams.get("mesa");
+    const modoAgregar = searchParams.get("agregar") === "true";
 
     const {
         crearComanda,
+        agregarProductosAComanda,
+        obtenerComandaDeMesa,
         productos
     } = useCafeteria();
 
@@ -66,13 +69,24 @@ function NuevaComanda() {
                 })
             );
 
-        crearComanda(
-            Number(numeroMesa),
-            productosComanda
-        );
+        const comandaActiva = obtenerComandaDeMesa(Number(numeroMesa));
+
+        if (modoAgregar && comandaActiva) {
+            agregarProductosAComanda(
+                comandaActiva.id,
+                productosComanda
+            );
+        } else {
+            crearComanda(
+                Number(numeroMesa),
+                productosComanda
+            );
+        }
 
         alert(
-            `Comanda creada para la Mesa ${numeroMesa}`
+            modoAgregar && comandaActiva
+                ? `Productos agregados a la comanda de la Mesa ${numeroMesa}`
+                : `Comanda creada para la Mesa ${numeroMesa}`
         );
 
         navigate("/mesas");

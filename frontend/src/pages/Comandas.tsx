@@ -1,183 +1,173 @@
 import { useCafeteria } from "../context/CafeteriaContext";
+import { useSearchParams } from "react-router-dom";
 
 function Comandas() {
+    const [searchParams] = useSearchParams();
 
-    const { comandas, productos } = useCafeteria();
+    const {
+        comandas,
+        mesas,
+        productos
+    } = useCafeteria();
 
-    const comandasOrdenadas = [...comandas].sort((comandaA, comandaB) => {
-        const prioridad = {
-            preparando: 0,
-            pendiente: 1,
-            lista: 2,
-            finalizada: 3
-        };
+    const comandaSeleccionadaId = Number(
+        searchParams.get("comanda")
+    );
 
-        return prioridad[comandaA.estado] - prioridad[comandaB.estado];
-    });
+    const comandasVisibles = comandaSeleccionadaId
+        ? comandas.filter(
+            (comanda) => comanda.id === comandaSeleccionadaId
+        )
+        : comandas;
 
     const obtenerProducto = (productoId: number) => {
-
         return productos.find(
-            (producto) => producto.id === productoId
+            (producto) =>
+                producto.id === productoId
         );
+    };
 
+    const obtenerMesa = (mesaId: number) => {
+        return mesas.find(
+            (mesa) =>
+                mesa.id === mesaId
+        );
     };
 
     return (
         <div className="dashboard-content">
 
             <div className="comandas-header">
-
-                <h1>Comandas</h1>
-
-                <p>
-                    Comandas activas de la cafetería.
-                </p>
-
-            </div>
-
-            {comandas.length === 0 ? (
-
-                <div className="comandas-vacio">
-
-                    <h2>No hay comandas activas</h2>
+                <div>
+                    <h1>Comandas</h1>
 
                     <p>
-                        Las comandas creadas desde una mesa
-                        aparecerán aquí.
+                        Historial y estado de las comandas.
                     </p>
+                </div>
+            </div>
 
+            {comandasVisibles.length === 0 ? (
+
+                <div className="comandas-empty">
+                    <h2>No hay comandas</h2>
+
+                    <p>
+                        Todavía no se ha creado ninguna comanda.
+                    </p>
                 </div>
 
             ) : (
 
                 <div className="comandas-container">
 
-                    {comandasOrdenadas.map((comanda) => {
+                    {comandasVisibles.map((comanda) => {
 
-                        // La sectorización separa una comanda y la muestra agrupada por sector correspondiente.
-                        // Esto permite que cada sector pueda ver únicamente los productos que le corresponden.
-                        const productosPorSector: {
-                            [sector: string]: Producto[]
-                        } = {};
-
-                        comanda.productos.forEach((item) => {
-
-                            const producto =
-                                obtenerProducto(item.productoId);
-
-                            if (!producto) {
-                                return;
-                            }
-
-                            if (!productosPorSector[producto.sector]) {
-                                productosPorSector[producto.sector] = [];
-                            }
-
-                            productosPorSector[producto.sector].push(
-                                producto
-                            );
-
-                        });
+                        const mesa =
+                            obtenerMesa(comanda.mesaId);
 
                         return (
-
                             <div
-                                className="comanda-card"
                                 key={comanda.id}
+                                className="comanda-card"
                             >
 
                                 <div className="comanda-card-header">
 
                                     <div>
-
                                         <h2>
                                             Comanda #{comanda.id}
                                         </h2>
 
                                         <p>
-                                            Mesa {comanda.mesaId}
+                                            Mesa{" "}
+                                            {mesa?.numero ?? "-"}
                                         </p>
-
                                     </div>
 
                                     <span
                                         className={`comanda-estado ${comanda.estado}`}
                                     >
-                                        {comanda.estado}
+                                        {comanda.estado === "pendiente" &&
+                                            "Pendiente"}
+
+                                        {comanda.estado === "preparando" &&
+                                            "Preparando"}
+
+                                        {comanda.estado === "lista" &&
+                                            "Lista"}
+
+                                        {comanda.estado === "finalizada" &&
+                                            "Finalizada"}
                                     </span>
 
                                 </div>
 
+                                <div className="comanda-card-body">
 
-                                {Object.entries(
-                                    productosPorSector
-                                ).map(
-                                    ([sector, productosSector]) => (
+                                    <h3>
+                                        Productos
+                                    </h3>
 
-                                        <div
-                                            className="sector-comanda"
-                                            key={sector}
-                                        >
+                                    {comanda.productos.map(
+                                        (item) => {
 
-                                            <h3>
-                                                {sector}
-                                            </h3>
+                                            const producto =
+                                                obtenerProducto(
+                                                    item.productoId
+                                                );
 
-                                            {productosSector.map(
-                                                (producto) => {
+                                            if (!producto) {
+                                                return null;
+                                            }
 
-                                                    const item =
-                                                        comanda.productos.find(
-                                                            (item) =>
-                                                                item.productoId ===
-                                                                producto.id
-                                                        );
+                                            return (
+                                                <div
+                                                    key={
+                                                        item.productoId
+                                                    }
+                                                    className="comanda-producto"
+                                                >
 
-                                                    return (
+                                                    <div>
+                                                        <strong>
+                                                            {item.cantidad} x{" "}
+                                                            {producto.nombre}
+                                                        </strong>
 
-                                                        <div
-                                                            className="comanda-item"
-                                                            key={producto.id}
-                                                        >
+                                                        <p>
+                                                            {producto.sector}
+                                                        </p>
+                                                    </div>
 
-                                                            <span>
-                                                                {producto.nombre}
-                                                            </span>
+                                                    <span
+                                                        className={`producto-estado ${item.estado}`}
+                                                    >
+                                                        {item.estado ===
+                                                            "pendiente" &&
+                                                            "Pendiente"}
 
-                                                            <div className="comanda-item-meta">
-                                                                <strong>
-                                                                    x{item?.cantidad}
-                                                                </strong>
-                                                                <small>
-                                                                    {item?.estado}
-                                                                </small>
-                                                            </div>
+                                                        {item.estado ===
+                                                            "preparando" &&
+                                                            "Preparando"}
 
-                                                        </div>
+                                                        {item.estado ===
+                                                            "listo" &&
+                                                            "Listo"}
+                                                    </span>
 
-                                                    );
+                                                </div>
+                                            );
+                                        }
+                                    )}
 
-                                                }
-                                            )}
-
-                                        </div>
-
-                                    )
-                                )}
-
-                                <button className="secondary-button">
-                                    Ver comanda
-                                </button>
+                                </div>
 
                             </div>
-
                         );
-
                     })}
 
                 </div>
-
             )}
 
         </div>

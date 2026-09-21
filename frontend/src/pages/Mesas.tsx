@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
 import { useCafeteria } from "../context/CafeteriaContext";
 
 interface Mesa {
@@ -14,7 +13,10 @@ function Mesas() {
 
     const navigate = useNavigate();
 
-    const { mesas } = useCafeteria();
+    const {
+        mesas,
+        obtenerComandaDeMesa
+    } = useCafeteria();
 
     const [mesaSeleccionada, setMesaSeleccionada] =
         useState<Mesa | null>(null);
@@ -144,7 +146,20 @@ function Mesas() {
 
                                     <div className="mesa-actions">
 
-                                        <button className="primary-button">
+                                        <button
+                                            className="primary-button"
+                                            onClick={() => {
+                                                const comanda = obtenerComandaDeMesa(
+                                                    mesaSeleccionada.id
+                                                );
+
+                                                if (comanda) {
+                                                    navigate(
+                                                        `/comandas?comanda=${comanda.id}`
+                                                    );
+                                                }
+                                            }}
+                                        >
                                             📋 Ver comanda
                                         </button>
 
@@ -152,7 +167,7 @@ function Mesas() {
                                             className="secondary-button"
                                             onClick={() =>
                                                 navigate(
-                                                    `/nueva-comanda?mesa=${mesaSeleccionada.numero}`
+                                                    `/nueva-comanda?mesa=${mesaSeleccionada.numero}&agregar=true`
                                                 )
                                             }
                                         >
