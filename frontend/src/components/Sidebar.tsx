@@ -35,7 +35,11 @@ function Sidebar() {
                             🛍 Productos
                         </Link>
                     </li>
-                    <li>📦 Stock</li>
+                    <li>
+                        <Link to="/stock">
+                            📦 Stock
+                        </Link>
+                    </li>
                     <li>📊 Informes</li>
 
                 </ul>

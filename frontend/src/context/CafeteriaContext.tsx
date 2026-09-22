@@ -7,6 +7,7 @@ import {
 
 import mesasData from "../data/mesas.json";
 import productosData from "../data/productos.json";
+import stockData from "../data/stock.json";
 
 
 // ==========================
@@ -26,6 +27,23 @@ interface Producto {
     precio: number;
     sector: string;
     activo: boolean;
+}
+
+interface Insumo {
+    id: number;
+    nombre: string;
+    unidad: string;
+    stockActual: number;
+    stockMinimo: number;
+    activo: boolean;
+}
+
+interface MovimientoStock {
+    id: number;
+    insumoId: number;
+    tipo: "entrada" | "salida";
+    cantidad: number;
+    fecha: string;
 }
 
 interface ProductoComanda {
@@ -49,16 +67,22 @@ interface Comanda {
 
 interface CafeteriaContextType {
 
-    // Mesas
+    // ==========================
+    // MESAS
+    // ==========================
+
     mesas: Mesa[];
 
-    // Comandas
+    // ==========================
+    // COMANDAS
+    // ==========================
+
     comandas: Comanda[];
 
     crearComanda: (
         mesaId: number,
         productos: ProductoComanda[]
-    ) => void; 
+    ) => void;
 
     finalizarComanda: (
         comandaId: number
@@ -79,8 +103,10 @@ interface CafeteriaContextType {
         estado: "pendiente" | "preparando" | "listo"
     ) => void;
 
+    // ==========================
+    // PRODUCTOS
+    // ==========================
 
-    // Productos
     productos: Producto[];
 
     agregarProducto: (
@@ -100,6 +126,37 @@ interface CafeteriaContextType {
         id: number,
         activo: boolean
     ) => void;
+
+    // ==========================
+    // STOCK
+    // ==========================
+
+    insumos: Insumo[];
+
+    cambiarEstadoInsumo: (
+        id: number,
+        activo: boolean
+    ) => void;
+
+    registrarEntradaStock: (
+        insumoId: number,
+        cantidad: number
+    ) => void;
+
+    registrarSalidaStock: (
+        insumoId: number,
+        cantidad: number
+    ) => void;
+
+
+
+    movimientosStock: MovimientoStock[];
+
+    registrarMovimientoStock: (
+        insumoId: number,
+        tipo: "entrada" | "salida",
+        cantidad: number
+    ) => void;
 }
 
 
@@ -108,7 +165,9 @@ interface CafeteriaContextType {
 // ==========================
 
 const CafeteriaContext =
-    createContext<CafeteriaContextType | undefined>(undefined);
+    createContext<CafeteriaContextType | undefined>(
+        undefined
+    );
 
 
 // ==========================
@@ -120,7 +179,6 @@ export function CafeteriaProvider({
 }: {
     children: ReactNode;
 }) {
-
 
     // ==========================
     // MESAS
@@ -138,7 +196,25 @@ export function CafeteriaProvider({
         useState<Comanda[]>([]);
 
 
-    // Crear una nueva comanda
+    // ==========================
+    // STOCK
+    // ==========================
+
+    const [insumos, setInsumos] =
+        useState<Insumo[]>(stockData);
+
+
+    // ==========================
+    // MOVIMIENTOS DE STOCK
+    // ==========================
+
+    const [movimientosStock, setMovimientosStock] =
+        useState<MovimientoStock[]>([]);
+
+
+    // ==========================
+    // CREAR COMANDA
+    // ==========================
 
     const crearComanda = (
         mesaId: number,
@@ -155,7 +231,8 @@ export function CafeteriaProvider({
 
             estado: "pendiente",
 
-            fechaCreacion: new Date().toISOString()
+            fechaCreacion:
+                new Date().toISOString()
         };
 
 
@@ -179,41 +256,60 @@ export function CafeteriaProvider({
         );
     };
 
-    // Finalizar una comanda
-    const finalizarComanda = (comandaId: number) => {
-    const comanda = comandas.find(
-        (comanda) => comanda.id === comandaId
-    );
 
-    if (!comanda) {
-        return;
-    }
+    // ==========================
+    // FINALIZAR COMANDA
+    // ==========================
 
-    setComandas((comandasActuales) =>
-        comandasActuales.map((comandaActual) =>
-            comandaActual.id === comandaId
-                ? {
-                    ...comandaActual,
-                    estado: "finalizada"
-                }
-                : comandaActual
-        )
-    );
+    const finalizarComanda = (
+        comandaId: number
+    ) => {
 
-    setMesas((mesasActuales) =>
-        mesasActuales.map((mesa) =>
-            mesa.id === comanda.mesaId
-                ? {
-                    ...mesa,
-                    estado: "libre"
-                }
-                : mesa
-        )
-    );
-};
+        const comanda = comandas.find(
+            (comanda) =>
+                comanda.id === comandaId
+        );
 
 
-    // Agregar productos a una comanda activa
+        if (!comanda) {
+            return;
+        }
+
+
+        // Marcar comanda como finalizada
+
+        setComandas((comandasActuales) =>
+            comandasActuales.map(
+                (comandaActual) =>
+                    comandaActual.id === comandaId
+                        ? {
+                            ...comandaActual,
+                            estado: "finalizada"
+                        }
+                        : comandaActual
+            )
+        );
+
+
+        // Liberar mesa
+
+        setMesas((mesasActuales) =>
+            mesasActuales.map((mesa) =>
+                mesa.id === comanda.mesaId
+                    ? {
+                        ...mesa,
+                        estado: "libre"
+                    }
+                    : mesa
+            )
+        );
+    };
+
+
+    // ==========================
+    // AGREGAR PRODUCTOS
+    // A UNA COMANDA
+    // ==========================
 
     const agregarProductosAComanda = (
         comandaId: number,
@@ -227,33 +323,60 @@ export function CafeteriaProvider({
                     return comanda;
                 }
 
-                const productosActualizados = [...comanda.productos];
 
-                productosNuevos.forEach((productoNuevo) => {
-                    const productoExistente = productosActualizados.find(
-                        (producto) => producto.productoId === productoNuevo.productoId
-                    );
+                const productosActualizados =
+                    [...comanda.productos];
 
-                    if (productoExistente) {
-                        productoExistente.cantidad += productoNuevo.cantidad;
-                        productoExistente.estado = "pendiente";
-                        return;
+
+                productosNuevos.forEach(
+                    (productoNuevo) => {
+
+                        const productoExistente =
+                            productosActualizados.find(
+                                (producto) =>
+                                    producto.productoId ===
+                                    productoNuevo.productoId
+                            );
+
+
+                        if (productoExistente) {
+
+                            productoExistente.cantidad +=
+                                productoNuevo.cantidad;
+
+                            productoExistente.estado =
+                                "pendiente";
+
+                            return;
+                        }
+
+
+                        productosActualizados.push(
+                            productoNuevo
+                        );
                     }
+                );
 
-                    productosActualizados.push(productoNuevo);
-                });
 
                 return {
                     ...comanda,
-                    productos: productosActualizados,
-                    estado: calcularEstadoComanda(productosActualizados)
+
+                    productos:
+                        productosActualizados,
+
+                    estado:
+                        calcularEstadoComanda(
+                            productosActualizados
+                        )
                 };
             })
         );
     };
 
 
-    // Obtener la comanda activa de una mesa
+    // ==========================
+    // OBTENER COMANDA DE MESA
+    // ==========================
 
     const obtenerComandaDeMesa = (
         mesaId: number
@@ -264,11 +387,12 @@ export function CafeteriaProvider({
                 comanda.mesaId === mesaId &&
                 comanda.estado !== "finalizada"
         );
-
     };
 
 
-    // Calcular estado general de una comanda
+    // ==========================
+    // CALCULAR ESTADO COMANDA
+    // ==========================
 
     const calcularEstadoComanda = (
         productos: ProductoComanda[]
@@ -279,7 +403,7 @@ export function CafeteriaProvider({
         }
 
 
-        // Si todos están listos
+        // Todos los productos están listos
 
         if (
             productos.every(
@@ -291,7 +415,7 @@ export function CafeteriaProvider({
         }
 
 
-        // Si al menos uno está preparando
+        // Al menos uno está preparando
 
         if (
             productos.some(
@@ -303,19 +427,23 @@ export function CafeteriaProvider({
         }
 
 
-        // Si todavía ninguno empezó
+        // Todavía ninguno empezó
 
         return "pendiente";
     };
 
 
-    // Cambiar estado de un producto
-    // dentro de una comanda
+    // ==========================
+    // CAMBIAR ESTADO PRODUCTO
+    // ==========================
 
     const cambiarEstadoProducto = (
         comandaId: number,
         productoId: number,
-        estado: "pendiente" | "preparando" | "listo"
+        estado:
+            | "pendiente"
+            | "preparando"
+            | "listo"
     ) => {
 
         setComandas((comandasActuales) =>
@@ -331,11 +459,14 @@ export function CafeteriaProvider({
                     comanda.productos.map(
                         (producto) =>
 
-                            producto.productoId === productoId
+                            producto.productoId ===
+                            productoId
+
                                 ? {
                                     ...producto,
                                     estado: estado
                                 }
+
                                 : producto
                     );
 
@@ -366,18 +497,22 @@ export function CafeteriaProvider({
     const [productos, setProductos] =
         useState<Producto[]>(
 
-            productosData.map((producto) => ({
+            productosData.map(
+                (producto) => ({
 
-                ...producto,
+                    ...producto,
 
-                activo: true
+                    activo: true
 
-            }))
+                })
+            )
 
         );
 
 
-    // Agregar producto
+    // ==========================
+    // AGREGAR PRODUCTO
+    // ==========================
 
     const agregarProducto = (
         nombre: string,
@@ -396,6 +531,7 @@ export function CafeteriaProvider({
             sector: sector,
 
             activo: true
+
         };
 
 
@@ -411,7 +547,9 @@ export function CafeteriaProvider({
     };
 
 
-    // Editar producto
+    // ==========================
+    // EDITAR PRODUCTO
+    // ==========================
 
     const editarProducto = (
         id: number,
@@ -444,7 +582,10 @@ export function CafeteriaProvider({
     };
 
 
-    // Activar / desactivar producto
+    // ==========================
+    // ACTIVAR / DESACTIVAR
+    // PRODUCTO
+    // ==========================
 
     const cambiarEstadoProductoCatalogo = (
         id: number,
@@ -467,6 +608,150 @@ export function CafeteriaProvider({
 
                             : producto
                 )
+        );
+    };
+
+
+    // ==========================
+    // ACTIVAR / DESACTIVAR
+    // INSUMO
+    // ==========================
+
+    const cambiarEstadoInsumo = (
+        id: number,
+        activo: boolean
+    ) => {
+
+        setInsumos(
+            (insumosActuales) =>
+
+                insumosActuales.map(
+                    (insumo) =>
+
+                        insumo.id === id
+
+                            ? {
+                                ...insumo,
+
+                                activo: activo
+                            }
+
+                            : insumo
+                )
+        );
+    };
+
+
+    // ==========================
+    // ENTRADA DE STOCK
+    // ==========================
+
+    const registrarEntradaStock = (
+        insumoId: number,
+        cantidad: number
+    ) => {
+
+        setInsumos(
+            (insumosActuales) =>
+
+                insumosActuales.map(
+                    (insumo) =>
+
+                        insumo.id === insumoId
+
+                            ? {
+                                ...insumo,
+
+                                stockActual:
+                                    insumo.stockActual +
+                                    cantidad
+                            }
+
+                            : insumo
+                )
+        );
+    };
+
+
+    // ==========================
+    // SALIDA DE STOCK
+    // ==========================
+
+    const registrarSalidaStock = (
+        insumoId: number,
+        cantidad: number
+    ) => {
+
+        setInsumos(
+            (insumosActuales) =>
+
+                insumosActuales.map(
+                    (insumo) =>
+
+                        insumo.id === insumoId
+
+                            ? {
+                                ...insumo,
+
+                                stockActual:
+                                    Math.max(
+                                        0,
+                                        insumo.stockActual -
+                                        cantidad
+                                    )
+                            }
+
+                            : insumo
+                )
+        );
+    };
+
+
+    const registrarMovimientoStock = (
+        insumoId: number,
+        tipo: "entrada" | "salida",
+        cantidad: number
+    ) => {
+
+        if (cantidad <= 0) {
+            return;
+        }
+
+        if (tipo === "entrada") {
+
+            registrarEntradaStock(
+                insumoId,
+                cantidad
+            );
+
+        } else {
+
+            registrarSalidaStock(
+                insumoId,
+                cantidad
+            );
+        }
+
+
+        const nuevoMovimiento: MovimientoStock = {
+
+            id: movimientosStock.length + 1,
+
+            insumoId: insumoId,
+
+            tipo: tipo,
+
+            cantidad: cantidad,
+
+            fecha: new Date().toISOString()
+        };
+
+
+        setMovimientosStock(
+            (movimientosActuales) => [
+                ...movimientosActuales,
+                nuevoMovimiento
+            ]
         );
     };
 
@@ -505,7 +790,21 @@ export function CafeteriaProvider({
 
                 editarProducto,
 
-                cambiarEstadoProductoCatalogo
+                cambiarEstadoProductoCatalogo,
+
+
+                // Stock
+                insumos,
+
+                cambiarEstadoInsumo,
+
+                registrarEntradaStock,
+
+                registrarSalidaStock,
+
+                movimientosStock,
+
+                registrarMovimientoStock
 
             }}
         >

@@ -6,6 +6,7 @@ import NuevaComanda from "./pages/NuevaComanda";
 import Comandas from "./pages/Comandas";
 import Preparacion from "./pages/Preparacion";
 import Productos from "./pages/Productos";
+import Stock from "./pages/Stock";
 import { CafeteriaProvider } from "./context/CafeteriaContext";
 
 function App() {
@@ -43,6 +44,10 @@ function App() {
                             <Route
                             path="/productos"
                             element={<Productos />}
+                            />
+                            <Route
+                            path="/stock"
+                            element={<Stock />}
                             />
                     </Route>
 

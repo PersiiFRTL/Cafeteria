@@ -1,0 +1,50 @@
+[
+    {
+        "id": 1,
+        "nombre": "Pan",
+        "unidad": "unidad",
+        "stockActual": 80,
+        "stockMinimo": 20,
+        "activo": true
+    },
+    {
+        "id": 2,
+        "nombre": "Jamón",
+        "unidad": "kg",
+        "stockActual": 5,
+        "stockMinimo": 2,
+        "activo": true
+    },
+    {
+        "id": 3,
+        "nombre": "Queso",
+        "unidad": "kg",
+        "stockActual": 4,
+        "stockMinimo": 2,
+        "activo": true
+    },
+    {
+        "id": 4,
+        "nombre": "Café en grano",
+        "unidad": "kg",
+        "stockActual": 3,
+        "stockMinimo": 1,
+        "activo": true
+    },
+    {
+        "id": 5,
+        "nombre": "Leche",
+        "unidad": "litro",
+        "stockActual": 12,
+        "stockMinimo": 5,
+        "activo": true
+    },
+    {
+        "id": 6,
+        "nombre": "Harina",
+        "unidad": "kg",
+        "stockActual": 8,
+        "stockMinimo": 3,
+        "activo": true
+    }
+]
