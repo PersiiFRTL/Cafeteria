@@ -479,14 +479,15 @@ body {
 
 .comandas-container {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 12px;
+    width: 100%;
 }
 
 .comanda-card {
     background-color: white;
-    padding: 25px;
-    border-radius: 12px;
+    padding: 14px;
+    border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
 }
 
@@ -494,11 +495,12 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 
 .comanda-card-header h2 {
-    margin-bottom: 5px;
+    font-size: 18px;
+    margin-bottom: 3px;
 }
 
 .comanda-card-header p {
@@ -506,9 +508,9 @@ body {
 }
 
 .comanda-estado {
-    padding: 6px 10px;
-    border-radius: 6px;
-    font-size: 13px;
+    padding: 4px 7px;
+    border-radius: 5px;
+    font-size: 11px;
     font-weight: bold;
     text-transform: uppercase;
 }
@@ -570,9 +572,41 @@ body {
     border-bottom: 2px solid #eee;
 }
 .comanda-finalizar {
-    margin-top: 20px;
-    padding-top: 15px;
+    margin-top: 12px;
+    padding-top: 10px;
     border-top: 1px solid #eee;
+}
+
+.comanda-card-body h3 {
+    font-size: 15px;
+    margin-bottom: 5px;
+}
+
+.comanda-producto {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.comanda-producto strong {
+    font-size: 14px;
+}
+
+.comanda-producto p {
+    color: #666;
+    font-size: 12px;
+    margin-top: 2px;
+}
+
+.producto-estado {
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: bold;
+    white-space: nowrap;
 }
 
 /* PREPARACIÓN */
@@ -869,13 +903,50 @@ body {
 
 .producto-row {
     display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr;
+    grid-template-columns: 2fr 1fr 1fr 1fr 1.3fr;
 
     padding: 18px 20px;
 
     border-bottom: 1px solid #eee;
 
     align-items: center;
+    gap: 10px;
+}
+
+.producto-row input,
+.producto-row select {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    font-size: 14px;
+}
+
+.producto-row-editando {
+    background-color: #fafafa;
+}
+
+.producto-edicion-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.producto-edicion-actions button {
+    width: auto;
+    padding: 8px 10px;
+}
+
+.editar-producto-button {
+    border: none;
+    background-color: #f3f4f6;
+    padding: 7px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.editar-producto-button:hover {
+    background-color: #e5e7eb;
 }
 
 .producto-row-header {
