@@ -1,0 +1,56 @@
+[
+    {
+        "id": 1,
+        "productoId": 2,
+        "ingredientes": [
+            {
+                "materiaPrimaId": 4,
+                "cantidad": 0.018
+            },
+            {
+                "materiaPrimaId": 5,
+                "cantidad": 0.2
+            }
+        ]
+    },
+    {
+        "id": 2,
+        "productoId": 1,
+        "ingredientes": [
+            {
+                "materiaPrimaId": 1,
+                "cantidad": 2
+            },
+            {
+                "materiaPrimaId": 2,
+                "cantidad": 0.08
+            },
+            {
+                "materiaPrimaId": 3,
+                "cantidad": 0.06
+            }
+        ]
+    },
+    {
+        "id": 3,
+        "productoId": 3,
+        "ingredientes": [
+            {
+                "materiaPrimaId": 6,
+                "cantidad": 0.04
+            },
+            {
+                "materiaPrimaId": 7,
+                "cantidad": 0.01
+            },
+            {
+                "materiaPrimaId": 8,
+                "cantidad": 0.008
+            },
+            {
+                "materiaPrimaId": 9,
+                "cantidad": 0.2
+            }
+        ]
+    }
+]

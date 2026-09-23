@@ -100,7 +100,12 @@ function Preparacion() {
      * PRODUCTOS DEL SECTOR SELECCIONADO
      */
 
-    const pedidosSector = comandas.flatMap(
+    const pedidosSector = comandas
+        .filter(
+            (comanda) =>
+                comanda.estado === "preparando"
+        )
+        .flatMap(
         (comanda) =>
 
             comanda.productos
@@ -127,7 +132,7 @@ function Preparacion() {
                         )
 
                 }))
-    ).sort((pedidoA, pedidoB) => {
+        ).sort((pedidoA, pedidoB) => {
         const prioridad = {
             pendiente: 0,
             preparando: 1,
@@ -201,7 +206,7 @@ function Preparacion() {
                                 <div className="pedido-info">
 
                                     <div className="pedido-mesa">
-                                        Mesa {comanda.mesaId}
+                                        Comanda #{comanda.id} · Mesa {comanda.mesaId}
                                     </div>
 
                                     <h3>

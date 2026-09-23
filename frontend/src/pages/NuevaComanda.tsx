@@ -69,6 +69,16 @@ function NuevaComanda() {
                 })
             );
 
+        const confirmar = window.confirm(
+            modoAgregar
+                ? `¿Agregar estos productos a la comanda de la Mesa ${numeroMesa}?`
+                : `¿Crear la comanda para la Mesa ${numeroMesa}?`
+        );
+
+        if (!confirmar) {
+            return;
+        }
+
         const comandaActiva = obtenerComandaDeMesa(Number(numeroMesa));
 
         if (modoAgregar && comandaActiva) {
@@ -82,12 +92,6 @@ function NuevaComanda() {
                 productosComanda
             );
         }
-
-        alert(
-            modoAgregar && comandaActiva
-                ? `Productos agregados a la comanda de la Mesa ${numeroMesa}`
-                : `Comanda creada para la Mesa ${numeroMesa}`
-        );
 
         navigate("/mesas");
     };
@@ -122,6 +126,14 @@ function NuevaComanda() {
 
                                 const cantidad =
                                     cantidades[producto.id] || 0;
+
+                                const controlaStock =
+                                    producto.tipoElaboracion ===
+                                    "preelaborado";
+
+                                const puedeAgregar =
+                                    !controlaStock ||
+                                    cantidad < producto.stockActual;
 
                                 return (
                                     <div
@@ -166,15 +178,17 @@ function NuevaComanda() {
                                                 </>
                                             )}
 
-                                            <button
-                                                onClick={() =>
-                                                    agregarProducto(
-                                                        producto.id
-                                                    )
-                                                }
-                                            >
-                                                +
-                                            </button>
+                                            {puedeAgregar && (
+                                                <button
+                                                    onClick={() =>
+                                                        agregarProducto(
+                                                            producto.id
+                                                        )
+                                                    }
+                                                >
+                                                    +
+                                                </button>
+                                            )}
 
                                         </div>
 

@@ -36,8 +36,18 @@ function Sidebar() {
                         </Link>
                     </li>
                     <li>
+                        <Link to="/recetas">
+                            📋 Recetas
+                        </Link>
+                    </li>
+                    <li>
                         <Link to="/stock">
                             📦 Stock
+                        </Link>
+                    </li>
+                    <li>
+                        <Link to="/produccion">
+                            🏭 Producción
                         </Link>
                     </li>
                     <li>📊 Informes</li>

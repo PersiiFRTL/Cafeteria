@@ -2,294 +2,589 @@ import { useState } from "react";
 import { useCafeteria } from "../context/CafeteriaContext";
 
 function Stock() {
+
     const {
-        insumos,
-        cambiarEstadoInsumo,
-        movimientosStock,
-        registrarMovimientoStock
+        materiasPrimas,
+        productos,
+        cambiarEstadoMateriaPrima,
+        registrarEntradaMateriaPrima,
+        registrarSalidaMateriaPrima,
+        operacionesStock
     } = useCafeteria();
 
-    const [insumoSeleccionado, setInsumoSeleccionado] =
+    const [vista, setVista] = useState<
+        "materiasPrimas" | "productos" | "movimientos"
+    >("materiasPrimas");
+
+    const [materiaPrimaSeleccionada, setMateriaPrimaSeleccionada] =
         useState<number | null>(null);
 
     const [cantidad, setCantidad] = useState("");
 
-const registrarMovimiento = (
-    tipo: "entrada" | "salida"
-) => {
 
-    if (
-        insumoSeleccionado === null ||
-        cantidad === ""
-    ) {
-        return;
-    }
+    const registrarMovimiento = (
+        tipo: "entrada" | "salida"
+    ) => {
 
-    const cantidadNumero = Number(cantidad);
+        if (
+            materiaPrimaSeleccionada === null ||
+            cantidad === ""
+        ) {
+            return;
+        }
 
-    if (cantidadNumero <= 0) {
-        return;
-    }
+        const cantidadNumero = Number(cantidad);
 
-    registrarMovimientoStock(
-        insumoSeleccionado,
-        tipo,
-        cantidadNumero
-    );
+        if (cantidadNumero <= 0) {
+            return;
+        }
 
-    setCantidad("");
-    setInsumoSeleccionado(null);
-};
+        if (tipo === "entrada") {
+
+            registrarEntradaMateriaPrima(
+                materiaPrimaSeleccionada,
+                cantidadNumero
+            );
+
+        } else {
+
+            registrarSalidaMateriaPrima(
+                materiaPrimaSeleccionada,
+                cantidadNumero
+            );
+        }
+
+        setCantidad("");
+        setMateriaPrimaSeleccionada(null);
+    };
+
 
     return (
         <div className="dashboard-content">
 
             <div className="stock-header">
+
                 <div>
+
                     <h1>Stock</h1>
 
                     <p>
-                        Gestión de insumos y existencias
+                        Gestión de materias primas y productos
                         de la cafetería.
                     </p>
+
                 </div>
+
             </div>
 
-            <div className="stock-table">
 
-                <div className="stock-row stock-row-header">
-                    <span>Insumo</span>
-                    <span>Stock actual</span>
-                    <span>Stock mínimo</span>
-                    <span>Estado</span>
-                    <span>Acciones</span>
-                </div>
+            {/* ==========================
+                SELECTOR DE VISTA
+            ========================== */}
 
-                {insumos.map((insumo) => {
+            <div className="stock-tabs">
 
-                    const stockBajo =
-                        insumo.stockActual <=
-                        insumo.stockMinimo;
+                <button
+                    className={
+                        vista === "materiasPrimas"
+                            ? "stock-tab stock-tab-active"
+                            : "stock-tab"
+                    }
+                    onClick={() => {
+                        setVista("materiasPrimas");
+                        setMateriaPrimaSeleccionada(null);
+                        setCantidad("");
+                    }}
+                >
+                    🧂 Materias primas
+                </button>
 
-                    return (
-                        <div
-                            className="stock-row"
-                            key={insumo.id}
-                        >
+
+                <button
+                    className={
+                        vista === "productos"
+                            ? "stock-tab stock-tab-active"
+                            : "stock-tab"
+                    }
+                    onClick={() => {
+                        setVista("productos");
+                        setMateriaPrimaSeleccionada(null);
+                        setCantidad("");
+                    }}
+                >
+                    🛍 Productos
+                </button>
+
+
+                <button
+                    className={
+                        vista === "movimientos"
+                            ? "stock-tab stock-tab-active"
+                            : "stock-tab"
+                    }
+                    onClick={() => {
+                        setVista("movimientos");
+                        setMateriaPrimaSeleccionada(null);
+                        setCantidad("");
+                    }}
+                >
+                    📋 Movimientos
+                </button>
+
+            </div>
+
+
+            {/* ==========================
+                MATERIAS PRIMAS
+            ========================== */}
+
+            {vista === "materiasPrimas" && (
+
+                <>
+
+                    <div className="stock-table">
+
+                        <div className="stock-row stock-row-header">
 
                             <span>
+                                Materia prima
+                            </span>
+
+                            <span>
+                                Categoría
+                            </span>
+
+                            <span>
+                                Stock actual
+                            </span>
+
+                            <span>
+                                Estado
+                            </span>
+
+                            <span>
+                                Acciones
+                            </span>
+
+                        </div>
+
+
+                        {materiasPrimas.map((materia) => {
+
+                            const stockBajo =
+                                materia.stockActual <=
+                                materia.stockMinimo;
+
+                            return (
+
+                                <div
+                                    key={materia.id}
+                                    className="stock-row"
+                                >
+
+                                    <div>
+
+                                        <strong>
+                                            {materia.nombre}
+                                        </strong>
+
+                                    </div>
+
+
+                                    <span>
+                                        {materia.categoria}
+                                    </span>
+
+
+                                    <span>
+                                        {materia.stockActual}{" "}
+                                        {materia.unidad}
+                                    </span>
+
+
+                                    <span>
+
+                                        <span
+                                            className={
+                                                stockBajo
+                                                    ? "stock-bajo"
+                                                    : "stock-normal"
+                                            }
+                                        >
+                                            {stockBajo
+                                                ? "Stock bajo"
+                                                : "Normal"}
+                                        </span>
+
+                                    </span>
+
+
+                                    <div className="stock-actions">
+
+                                        <button
+                                            className="stock-button"
+                                            onClick={() =>
+                                                setMateriaPrimaSeleccionada(
+                                                    materia.id
+                                                )
+                                            }
+                                        >
+                                            Movimiento
+                                        </button>
+
+
+                                        <button
+                                            className="stock-button"
+                                            onClick={() =>
+                                                cambiarEstadoMateriaPrima(
+                                                    materia.id,
+                                                    !materia.activo
+                                                )
+                                            }
+                                        >
+                                            {materia.activo
+                                                ? "Desactivar"
+                                                : "Activar"}
+                                        </button>
+
+                                    </div>
+
+                                </div>
+
+                            );
+                        })}
+
+                    </div>
+
+
+                    {/* FORMULARIO DE MOVIMIENTO */}
+
+                    {materiaPrimaSeleccionada !== null && (
+
+                        <div className="stock-movimiento">
+
+                            <h2>
+                                Registrar movimiento
+                            </h2>
+
+
+                            <p>
+
+                                Materia prima seleccionada:{" "}
+
                                 <strong>
-                                    {insumo.nombre}
+                                    {
+                                        materiasPrimas.find(
+                                            (materia) =>
+                                                materia.id ===
+                                                materiaPrimaSeleccionada
+                                        )?.nombre
+                                    }
                                 </strong>
-                            </span>
 
-                            <span>
-                                {insumo.stockActual}{" "}
-                                {insumo.unidad}
-                            </span>
+                            </p>
 
-                            <span>
-                                {insumo.stockMinimo}{" "}
-                                {insumo.unidad}
-                            </span>
 
-                            <span>
-                                <span
-                                    className={
-                                        stockBajo
-                                            ? "stock-bajo"
-                                            : "stock-normal"
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="Cantidad"
+                                value={cantidad}
+                                onChange={(e) =>
+                                    setCantidad(
+                                        e.target.value
+                                    )
+                                }
+                            />
+
+
+                            <div className="stock-movimiento-actions">
+
+                                <button
+                                    className="primary-button"
+                                    onClick={() =>
+                                        registrarMovimiento(
+                                            "entrada"
+                                        )
                                     }
                                 >
-                                    {stockBajo
-                                        ? "Stock bajo"
-                                        : "Normal"}
-                                </span>
-                            </span>
+                                    + Entrada
+                                </button>
 
-                            <span className="stock-actions">
+
+                                <button
+                                    className="stock-button"
+                                    onClick={() =>
+                                        registrarMovimiento(
+                                            "salida"
+                                        )
+                                    }
+                                >
+                                    - Salida
+                                </button>
+
 
                                 <button
                                     className="stock-button"
                                     onClick={() => {
-                                        setInsumoSeleccionado(
-                                            insumo.id
+                                        setCantidad("");
+                                        setMateriaPrimaSeleccionada(
+                                            null
                                         );
                                     }}
                                 >
-                                    + / −
+                                    Cancelar
                                 </button>
 
-                                <button
-                                    className={
-                                        insumo.activo
-                                            ? "estado-activo"
-                                            : "estado-inactivo"
-                                    }
-                                    onClick={() =>
-                                        cambiarEstadoInsumo(
-                                            insumo.id,
-                                            !insumo.activo
-                                        )
-                                    }
-                                >
-                                    {insumo.activo
-                                        ? "Activo"
-                                        : "Inactivo"}
-                                </button>
-
-                            </span>
+                            </div>
 
                         </div>
-                    );
-                })}
 
-            </div>
-                            <div className="stock-historial">
+                    )}
 
-                    <h2>Últimos movimientos</h2>
+                </>
 
-                    {movimientosStock.length === 0 ? (
+            )}
 
-                        <p>
-                            Todavía no hay movimientos
-                            registrados.
-                        </p>
+
+            {/* ==========================
+                PRODUCTOS
+            ========================== */}
+
+            {vista === "productos" && (
+
+                <div className="stock-table">
+
+                    <div className="stock-row stock-row-header">
+
+                        <span>
+                            Producto
+                        </span>
+
+                        <span>
+                            Categoría
+                        </span>
+
+                        <span>
+                            Tipo
+                        </span>
+
+                        <span>
+                            Stock actual
+                        </span>
+
+                        <span>
+                            Estado
+                        </span>
+
+                    </div>
+
+
+                    {productos
+                        .filter(
+                            (producto) =>
+                                producto.tipoElaboracion ===
+                                "preelaborado"
+                        )
+                        .map((producto) => {
+
+                            const stockBajo =
+                                producto.stockActual <=
+                                producto.stockMinimo;
+
+                            return (
+
+                                <div
+                                    key={producto.id}
+                                    className="stock-row"
+                                >
+
+                                    <div>
+
+                                        <strong>
+                                            {producto.nombre}
+                                        </strong>
+
+                                    </div>
+
+
+                                    <span>
+                                        {producto.categoria}
+                                    </span>
+
+
+                                    <span>
+                                        Preelaborado
+                                    </span>
+
+
+                                    <span>
+                                        {producto.stockActual}{" "}
+                                        {producto.unidadVenta}
+                                    </span>
+
+
+                                    <span>
+
+                                        <span
+                                            className={
+                                                stockBajo
+                                                    ? "stock-bajo"
+                                                    : "stock-normal"
+                                            }
+                                        >
+                                            {stockBajo
+                                                ? "Stock bajo"
+                                                : "Normal"}
+                                        </span>
+
+                                    </span>
+
+                                </div>
+
+                            );
+                        })}
+
+                </div>
+
+            )}
+
+
+            {/* ==========================
+                OPERACIONES DE STOCK
+            ========================== */}
+
+            {vista === "movimientos" && (
+
+                <div className="operaciones-stock">
+
+                    {operacionesStock.length === 0 ? (
+
+                        <div className="stock-empty">
+
+                            <h2>
+                                No hay operaciones registradas
+                            </h2>
+
+                            <p>
+                                Los movimientos generados por
+                                producciones y comandas aparecerán
+                                agrupados aquí.
+                            </p>
+
+                        </div>
 
                     ) : (
 
-                        <div className="stock-movimientos">
+                        [...operacionesStock]
+                            .reverse()
+                            .map((operacion) => {
 
-                            {movimientosStock
-                                .slice()
-                                .reverse()
-                                .map((movimiento) => {
+                                return (
 
-                                    const insumo =
-                                        insumos.find(
-                                            (insumo) =>
-                                                insumo.id ===
-                                                movimiento.insumoId
-                                        );
+                                    <div
+                                        className="operacion-stock"
+                                        key={operacion.id}
+                                    >
 
-                                    if (!insumo) {
-                                        return null;
-                                    }
+                                        <div className="operacion-stock-header">
 
-                                    return (
-                                        <div
-                                            className="stock-movimiento-row"
-                                            key={movimiento.id}
-                                        >
+                                            <div>
 
-                                            <span>
-                                                {insumo.nombre}
-                                            </span>
+                                                <strong>
 
-                                            <span
-                                                className={
-                                                    movimiento.tipo ===
-                                                    "entrada"
-                                                        ? "movimiento-entrada"
-                                                        : "movimiento-salida"
-                                                }
-                                            >
-                                                {movimiento.tipo ===
-                                                "entrada"
-                                                    ? "Entrada"
-                                                    : "Salida"}
-                                            </span>
+                                                    {operacion.tipo ===
+                                                        "produccion"
+                                                        ? "🏭 Producción"
+                                                        : "📋 Comanda"}
+
+                                                </strong>
+
+
+                                                <p>
+                                                    {operacion.descripcion}
+                                                </p>
+
+                                            </div>
+
 
                                             <span>
-                                                {movimiento.tipo ===
-                                                "entrada"
-                                                    ? "+"
-                                                    : "-"}
-                                                {movimiento.cantidad}{" "}
-                                                {insumo.unidad}
-                                            </span>
 
-                                            <span>
                                                 {new Date(
-                                                    movimiento.fecha
-                                                ).toLocaleString()}
+                                                    operacion.fecha
+                                                ).toLocaleString(
+                                                    "es-AR"
+                                                )}
+
                                             </span>
 
                                         </div>
-                                    );
-                                })}
 
-                        </div>
+
+                                        <div className="operacion-stock-detalle">
+
+                                            {operacion.movimientos.map(
+                                                (movimiento) => {
+
+                                                    const nombre =
+                                                        movimiento.categoria ===
+                                                        "materiaPrima"
+
+                                                            ? materiasPrimas.find(
+                                                                (materia) =>
+                                                                    materia.id ===
+                                                                    movimiento.referenciaId
+                                                            )?.nombre
+
+                                                            : productos.find(
+                                                                (producto) =>
+                                                                    producto.id ===
+                                                                    movimiento.referenciaId
+                                                            )?.nombre;
+
+
+                                                    return (
+
+                                                        <div
+                                                            className="operacion-stock-item"
+                                                            key={
+                                                                movimiento.id
+                                                            }
+                                                        >
+
+                                                            <span>
+                                                                {nombre ??
+                                                                    "Desconocido"}
+                                                            </span>
+
+
+                                                            <strong>
+                                                                -
+                                                                {
+                                                                    movimiento.cantidad
+                                                                }
+                                                            </strong>
+
+                                                        </div>
+
+                                                    );
+
+                                                }
+                                            )}
+
+                                        </div>
+
+                                    </div>
+
+                                );
+
+                            })
+
                     )}
 
                 </div>
 
-            {insumoSeleccionado !== null && (
-
-                <div className="stock-movimiento">
-
-                    <h2>Movimiento de stock</h2>
-
-                    <p>
-                        Insumo seleccionado:{" "}
-                        <strong>
-                            {
-                                insumos.find(
-                                    (insumo) =>
-                                        insumo.id ===
-                                        insumoSeleccionado
-                                )?.nombre
-                            }
-                        </strong>
-                    </p>
-
-                    <input
-                        type="number"
-                        min="1"
-                        placeholder="Cantidad"
-                        value={cantidad}
-                        onChange={(e) =>
-                            setCantidad(e.target.value)
-                        }
-                    />
-
-                    <div className="stock-movimiento-actions">
-
-                        <button
-                            className="primary-button"
-                            onClick={() =>
-                                registrarMovimiento(
-                                    "entrada"
-                                )
-                            }
-                        >
-                            + Entrada
-                        </button>
-
-                        <button
-                            className="secondary-button"
-                            onClick={() =>
-                                registrarMovimiento(
-                                    "salida"
-                                )
-                            }
-                        >
-                            − Salida
-                        </button>
-
-                        <button
-                            className="secondary-button"
-                            onClick={() => {
-                                setCantidad("");
-                                setInsumoSeleccionado(null);
-                            }}
-                        >
-                            Cancelar
-                        </button>
-
-                    </div>
-
-                </div>
             )}
 
         </div>

@@ -16,7 +16,7 @@ function Mesas() {
     const {
         mesas,
         obtenerComandaDeMesa,
-        finalizarComanda
+        cancelarComanda
     } = useCafeteria();
 
     const [mesaSeleccionada, setMesaSeleccionada] =
@@ -190,18 +190,18 @@ function Mesas() {
                                                     className="secondary-button"
                                                     onClick={() => {
                                                         const confirmar = window.confirm(
-                                                            `¿Dejar disponible la Mesa ${mesaSeleccionada.numero}?`
+                                                            `¿Cancelar la comanda y liberar la Mesa ${mesaSeleccionada.numero}? El stock procesado será devuelto.`
                                                         );
 
                                                         if (confirmar) {
-                                                            finalizarComanda(
+                                                            cancelarComanda(
                                                                 comanda.id
                                                             );
                                                             cerrarPanel();
                                                         }
                                                     }}
                                                 >
-                                                    ✓ Dejar mesa disponible
+                                                    ✕ Cancelar comanda y liberar mesa
                                                 </button>
                                             );
                                         })()}

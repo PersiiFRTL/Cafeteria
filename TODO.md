@@ -1,7 +1,6 @@
 # Tareas pendientes
 Front:
-Modificar el stock entre materia prima y producto, que se descuente del stock un producto que este en una comanda y modificar la entrada de datos de algun producto (que tambien se descuente la mp de ese producto(Agregar receta?))
-Cuando se habilita una mesa ocupada desde mesas la comanda queda en estado de pendiente y deberia quedar cancelada
+Cambiar la prioridad de las comandas y cuando tenes muchas comandas en la zona de preparacion podes clickear varias pq se cambia de estado rapido  
 
 
 Back:

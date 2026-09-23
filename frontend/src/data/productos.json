@@ -3,18 +3,78 @@
         "id": 1,
         "nombre": "Tostado",
         "precio": 3500,
-        "sector": "Cocina"
+        "categoria": "Comida",
+        "sector": "Cocina",
+        "tipoElaboracion": "bajo_pedido",
+        "unidadVenta": "unidad",
+        "stockActual": 0,
+        "stockMinimo": 0,
+        "activo": true,
+        "disponible": true
     },
     {
         "id": 2,
         "nombre": "Café con leche",
         "precio": 2500,
-        "sector": "Cafetería"
+        "categoria": "Bebida",
+        "sector": "Cafetería",
+        "tipoElaboracion": "bajo_pedido",
+        "unidadVenta": "unidad",
+        "stockActual": 0,
+        "stockMinimo": 0,
+        "activo": true,
+        "disponible": true
     },
     {
         "id": 3,
         "nombre": "Medialuna",
         "precio": 1200,
-        "sector": "Cocina"
+        "categoria": "Panificados",
+        "sector": "Pastelería",
+        "tipoElaboracion": "preelaborado",
+        "unidadVenta": "unidad",
+        "stockActual": 30,
+        "stockMinimo": 10,
+        "activo": true,
+        "disponible": true
+    },
+    {
+        "id": 4,
+        "nombre": "Licuado",
+        "precio": 3000,
+        "categoria": "Bebida",
+        "sector": "Cafetería",
+        "tipoElaboracion": "bajo_pedido",
+        "unidadVenta": "unidad",
+        "stockActual": 0,
+        "stockMinimo": 0,
+        "activo": true,
+        "disponible": true
+    },
+    {
+        "id": 5,
+        "nombre": "Hamburguesa",
+        "precio": 5500,
+        "categoria": "Comida",
+        "sector": "Cocina",
+        "tipoElaboracion": "bajo_pedido",
+        "unidadVenta": "unidad",
+        "stockActual": 0,
+        "stockMinimo": 0,
+        "activo": true,
+        "disponible": true
+    },
+    {
+        "id": 6,
+        "nombre": "Porción de torta",
+        "precio": 4000,
+        "categoria": "Pastelería",
+        "sector": "Pastelería",
+        "tipoElaboracion": "preelaborado",
+        "unidadVenta": "porcion",
+        "stockActual": 12,
+        "stockMinimo": 4,
+        "activo": true,
+        "disponible": true
     }
 ]
