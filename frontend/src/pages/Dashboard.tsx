@@ -3,7 +3,12 @@ import PendingOrders from "../components/PendingOrders";
 import { useCafeteria } from "../context/CafeteriaContext";
 
 function Dashboard() {
-    const { mesas, comandas } = useCafeteria();
+    const {
+        mesas,
+        comandas,
+        productos,
+        materiasPrimas
+    } = useCafeteria();
 
     const mesasOcupadas = mesas.filter(
         (mesa) => mesa.estado === "ocupada"
@@ -24,6 +29,23 @@ function Dashboard() {
             fechaComanda.getDate() === hoy.getDate()
         );
     }).length;
+
+    const productosStockBajo = productos.filter(
+        (producto) =>
+            producto.activo &&
+            producto.tipoElaboracion === "preelaborado" &&
+            producto.stockActual <= producto.stockMinimo
+    );
+
+    const materiasPrimasStockBajo = materiasPrimas.filter(
+        (materia) =>
+            materia.activo &&
+            materia.stockActual <= materia.stockMinimo
+    );
+
+    const cantidadStockBajo =
+        productosStockBajo.length +
+        materiasPrimasStockBajo.length;
 
     return (
         <div className="dashboard-content">
@@ -54,11 +76,49 @@ function Dashboard() {
 
                 <StatCard
                     titulo="Stock bajo"
-                    valor="3"
+                    valor={String(cantidadStockBajo)}
                     icono="📦"
                 />
 
             </div>
+
+            {cantidadStockBajo > 0 && (
+                <section className="dashboard-stock-alerta">
+                    <div className="section-header">
+                        <h2>Elementos con stock bajo</h2>
+                    </div>
+
+                    <div className="dashboard-stock-lista">
+                        {productosStockBajo.map((producto) => (
+                            <div
+                                className="dashboard-stock-item"
+                                key={producto.id}
+                            >
+                                <strong>{producto.nombre}</strong>
+                                <span>
+                                    {producto.stockActual} {producto.unidadVenta}
+                                    {" "}
+                                    (mínimo: {producto.stockMinimo})
+                                </span>
+                            </div>
+                        ))}
+
+                        {materiasPrimasStockBajo.map((materia) => (
+                            <div
+                                className="dashboard-stock-item"
+                                key={`materia-${materia.id}`}
+                            >
+                                <strong>{materia.nombre}</strong>
+                                <span>
+                                    {materia.stockActual} {materia.unidad}
+                                    {" "}
+                                    (mínimo: {materia.stockMinimo})
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+            )}
 
             <PendingOrders />
 

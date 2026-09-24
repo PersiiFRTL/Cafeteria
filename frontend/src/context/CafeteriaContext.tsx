@@ -49,9 +49,7 @@ interface MateriaPrima {
     unidad:
         | "unidad"
         | "kg"
-        | "g"
-        | "litro"
-        | "ml";
+        | "litro";
     stockActual: number;
     stockMinimo: number;
     activo: boolean;
@@ -194,6 +192,14 @@ interface CafeteriaContextType {
     ) => void;
 
     materiasPrimas: MateriaPrima[];
+
+    agregarMateriaPrima: (
+        nombre: string,
+        categoria: string,
+        unidad: MateriaPrima["unidad"],
+        stockMinimo: number,
+        stockInicial: number
+    ) => void;
 
     cambiarEstadoMateriaPrima: (
         id: number,
@@ -1447,135 +1453,286 @@ function procesarStockComanda(
     };
 
     const registrarEntradaMateriaPrima = (
-        materiaPrimaId: number,
-        cantidad: number
-    ) => {
+    materiaPrimaId: number,
+    cantidad: number
+) => {
 
-        if (cantidad <= 0) {
-            return;
-        }
+    if (cantidad <= 0) {
+        return;
+    }
 
-        const materia =
-            materiasPrimas.find(
-                (item) =>
-                    item.id ===
+    const materia =
+        materiasPrimas.find(
+            (item) =>
+                item.id === materiaPrimaId
+        );
+
+    if (!materia) {
+        return;
+    }
+
+
+    // ==========================
+    // AUMENTAR STOCK
+    // ==========================
+
+    setMateriasPrimas(
+        (materiasActuales) =>
+            materiasActuales.map(
+                (materiaActual) =>
+                    materiaActual.id ===
                     materiaPrimaId
-            );
+                        ? {
+                            ...materiaActual,
 
-        if (!materia) {
+                            stockActual:
+                                materiaActual.stockActual +
+                                cantidad
+                        }
+                        : materiaActual
+            )
+    );
+
+
+    // ==========================
+    // CREAR MOVIMIENTO
+    // ==========================
+
+    const nuevoMovimiento: MovimientoStock = {
+
+        id:
+            Date.now(),
+
+        tipo: "entrada",
+
+        categoria:
+            "materiaPrima",
+
+        referenciaId:
+            materiaPrimaId,
+
+        cantidad:
+            cantidad,
+
+        fecha:
+            new Date().toISOString(),
+
+        descripcion:
+            `Entrada de ${materia.nombre}`
+    };
+
+
+    setMovimientosStock(
+        (movimientosActuales) => [
+            ...movimientosActuales,
+            nuevoMovimiento
+        ]
+    );
+
+
+    // ==========================
+    // CREAR OPERACIÓN
+    // ==========================
+
+    const nuevaOperacion: OperacionStock = {
+
+        id:
+            Date.now() + 1,
+
+        tipo: "entrada",
+
+        referenciaId:
+            materiaPrimaId,
+
+        fecha:
+            new Date().toISOString(),
+
+        descripcion:
+            `Entrada de ${cantidad} ${materia.unidad} de ${materia.nombre}`,
+
+        movimientos: [
+            nuevoMovimiento
+        ]
+    };
+
+
+    setOperacionesStock(
+        (operacionesActuales) => [
+            ...operacionesActuales,
+            nuevaOperacion
+        ]
+    );
+};
+
+    const agregarMateriaPrima = (
+        nombre: string,
+        categoria: string,
+        unidad: MateriaPrima["unidad"],
+        stockMinimo: number,
+        stockInicial: number
+    ) => {
+        const nombreNormalizado = nombre.trim().toLowerCase();
+
+        if (
+            nombreNormalizado === "" ||
+            materiasPrimas.some(
+                (materia) =>
+                    materia.nombre.trim().toLowerCase() ===
+                    nombreNormalizado
+            )
+        ) {
+            window.alert(
+                "Ya existe una materia prima con ese nombre."
+            );
             return;
         }
 
-        setMateriasPrimas(
-            (materiasActuales) =>
-                materiasActuales.map(
-                    (materiaActual) =>
-                        materiaActual.id ===
-                        materiaPrimaId
-                            ? {
-                                ...materiaActual,
-                                stockActual:
-                                    materiaActual.stockActual +
-                                    cantidad
-                            }
-                            : materiaActual
-                )
-        );
+        if (stockMinimo < 0 || stockInicial < 0) {
+            return;
+        }
 
-        setMovimientosStock(
-            (movimientosActuales) => [
-                ...movimientosActuales,
-                {
-                    id:
-                        movimientosActuales.length +
-                        1,
+        const nuevoId = materiasPrimas.length > 0
+            ? Math.max(
+                ...materiasPrimas.map((materia) => materia.id)
+            ) + 1
+            : 1;
 
-                    tipo: "entrada",
-
-                    categoria:
-                        "materiaPrima",
-
-                    referenciaId:
-                        materiaPrimaId,
-
-                    cantidad: cantidad,
-
-                    fecha:
-                        new Date().toISOString(),
-
-                    descripcion:
-                        `Entrada de ${materia.nombre}`
-                }
-            ]
-        );
+        setMateriasPrimas((materiasActuales) => [
+            ...materiasActuales,
+            {
+                id: nuevoId,
+                nombre: nombre.trim(),
+                categoria: categoria.trim(),
+                unidad,
+                stockActual: stockInicial,
+                stockMinimo,
+                activo: true
+            }
+        ]);
     };
 
     const registrarSalidaMateriaPrima = (
-        materiaPrimaId: number,
-        cantidad: number
-    ) => {
+    materiaPrimaId: number,
+    cantidad: number
+) => {
 
-        if (cantidad <= 0) {
-            return;
-        }
+    if (cantidad <= 0) {
+        return;
+    }
 
-        const materia =
-            materiasPrimas.find(
-                (item) =>
-                    item.id ===
+    const materia =
+        materiasPrimas.find(
+            (item) =>
+                item.id === materiaPrimaId
+        );
+
+    if (!materia) {
+        return;
+    }
+
+    // ==========================
+    // VALIDAR STOCK DISPONIBLE
+    // ==========================
+
+    if (materia.stockActual < cantidad) {
+        window.alert(
+            `No hay suficiente stock de ${materia.nombre}. Disponible: ${materia.stockActual} ${materia.unidad}.`
+        );
+        return;
+    }
+
+
+    // ==========================
+    // DESCONTAR STOCK
+    // ==========================
+
+    setMateriasPrimas(
+        (materiasActuales) =>
+            materiasActuales.map(
+                (materiaActual) =>
+                    materiaActual.id ===
                     materiaPrimaId
-            );
+                        ? {
+                            ...materiaActual,
+                            stockActual:
+                                materiaActual.stockActual -
+                                cantidad
+                        }
+                        : materiaActual
+            )
+    );
 
-        if (!materia) {
-            return;
-        }
 
-        setMateriasPrimas(
-            (materiasActuales) =>
-                materiasActuales.map(
-                    (materiaActual) =>
-                        materiaActual.id ===
-                        materiaPrimaId
-                            ? {
-                                ...materiaActual,
-                                stockActual:
-                                    Math.max(
-                                        0,
-                                        materiaActual.stockActual -
-                                        cantidad
-                                    )
-                            }
-                            : materiaActual
-                )
-        );
+    // ==========================
+    // CREAR MOVIMIENTO
+    // ==========================
 
-        setMovimientosStock(
-            (movimientosActuales) => [
-                ...movimientosActuales,
-                {
-                    id:
-                        movimientosActuales.length +
-                        1,
+    const nuevoMovimiento: MovimientoStock = {
 
-                    tipo: "salida",
+        id:
+            Date.now(),
 
-                    categoria:
-                        "materiaPrima",
+        tipo: "salida",
 
-                    referenciaId:
-                        materiaPrimaId,
+        categoria:
+            "materiaPrima",
 
-                    cantidad: cantidad,
+        referenciaId:
+            materiaPrimaId,
 
-                    fecha:
-                        new Date().toISOString(),
+        cantidad:
 
-                    descripcion:
-                        `Salida de ${materia.nombre}`
-                }
-            ]
-        );
+            cantidad,
+
+        fecha:
+            new Date().toISOString(),
+
+        descripcion:
+            `Salida de ${materia.nombre}`
     };
+
+
+    setMovimientosStock(
+        (movimientosActuales) => [
+            ...movimientosActuales,
+            nuevoMovimiento
+        ]
+    );
+
+
+    // ==========================
+    // CREAR OPERACIÓN
+    // ==========================
+
+    const nuevaOperacion: OperacionStock = {
+
+        id:
+            Date.now() + 1,
+
+        tipo: "salida",
+
+        referenciaId:
+            materiaPrimaId,
+
+        fecha:
+            new Date().toISOString(),
+
+        descripcion:
+            `Salida de ${cantidad} ${materia.unidad} de ${materia.nombre}`,
+
+        movimientos: [
+            nuevoMovimiento
+        ]
+    };
+
+
+    setOperacionesStock(
+        (operacionesActuales) => [
+            ...operacionesActuales,
+            nuevaOperacion
+        ]
+    );
+};
 
     // ==========================
     // RECETAS
@@ -1657,6 +1814,7 @@ function procesarStockComanda(
                 cambiarEstadoProductoCatalogo,
 
                 materiasPrimas,
+                agregarMateriaPrima,
                 cambiarEstadoMateriaPrima,
                 registrarEntradaMateriaPrima,
                 registrarSalidaMateriaPrima,

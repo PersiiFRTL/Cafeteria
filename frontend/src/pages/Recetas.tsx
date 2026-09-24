@@ -423,6 +423,78 @@ function Recetas() {
                 </>
             )}
 
+            {/* ==========================
+                RECETAS EXISTENTES
+            ========================== */}
+
+            <div className="recetas-listado">
+
+                <div className="recetas-listado-header">
+                    <h2>Recetas cargadas</h2>
+
+                    <span>
+                        {recetas.length} receta(s)
+                    </span>
+                </div>
+
+                {recetas.length === 0 ? (
+
+                    <p className="recetas-listado-vacio">
+                        Todavía no hay recetas cargadas.
+                    </p>
+
+                ) : (
+
+                    <div className="recetas-cards">
+                        {recetas.map((receta) => {
+                            const producto = productos.find(
+                                (item) =>
+                                    item.id === receta.productoId
+                            );
+
+                            return (
+                                <div
+                                    className="receta-card"
+                                    key={receta.id}
+                                >
+                                    <h3>
+                                        {producto?.nombre ??
+                                            "Producto desconocido"}
+                                    </h3>
+
+                                    <div className="receta-card-ingredientes">
+                                        {receta.ingredientes.map(
+                                            (ingrediente) => {
+                                                const materia =
+                                                    materiasPrimas.find(
+                                                        (item) =>
+                                                            item.id ===
+                                                            ingrediente.materiaPrimaId
+                                                    );
+
+                                                return (
+                                                    <span
+                                                        key={
+                                                            ingrediente.materiaPrimaId
+                                                        }
+                                                    >
+                                                        {materia?.nombre ??
+                                                            "Materia desconocida"}
+                                                        : {ingrediente.cantidad}{" "}
+                                                        {materia?.unidad ?? ""}
+                                                    </span>
+                                                );
+                                            }
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+
+            </div>
+
         </div>
     );
 }

@@ -6,6 +6,8 @@ function Stock() {
     const {
         materiasPrimas,
         productos,
+        agregarMateriaPrima,
+        agregarProducto,
         cambiarEstadoMateriaPrima,
         registrarEntradaMateriaPrima,
         registrarSalidaMateriaPrima,
@@ -21,6 +23,41 @@ function Stock() {
 
     const [cantidad, setCantidad] = useState("");
 
+    const [mensajeErrorStock, setMensajeErrorStock] = useState("");
+
+    const [
+        mostrarFormularioMateriaPrima,
+        setMostrarFormularioMateriaPrima
+    ] = useState(false);
+
+    const [nombreMateriaPrima, setNombreMateriaPrima] = useState("");
+    const [categoriaMateriaPrima, setCategoriaMateriaPrima] = useState("");
+
+    const [unidadMateriaPrima, setUnidadMateriaPrima] = useState<
+        "unidad" | "kg" | "litro"
+    >("unidad");
+
+    const [stockMinimoMateriaPrima, setStockMinimoMateriaPrima] =
+        useState("");
+
+    const [stockInicialMateriaPrima, setStockInicialMateriaPrima] =
+        useState("");
+
+    const [mostrarFormularioProducto, setMostrarFormularioProducto] =
+        useState(false);
+    const [nombreProducto, setNombreProducto] = useState("");
+    const [categoriaProducto, setCategoriaProducto] =
+        useState("Comida");
+    const [precioProducto, setPrecioProducto] = useState("");
+    const [sectorProducto, setSectorProducto] = useState("Cocina");
+    const [tipoProducto, setTipoProducto] = useState<
+        "bajo_pedido" | "preelaborado"
+    >("bajo_pedido");
+
+
+    // =========================================================
+    // REGISTRAR MOVIMIENTO
+    // =========================================================
 
     const registrarMovimiento = (
         tipo: "entrada" | "salida"
@@ -36,8 +73,32 @@ function Stock() {
         const cantidadNumero = Number(cantidad);
 
         if (cantidadNumero <= 0) {
+
+            setMensajeErrorStock(
+                "La cantidad debe ser mayor que 0."
+            );
+
             return;
         }
+
+        const materiaPrima = materiasPrimas.find(
+            (materia) =>
+                materia.id === materiaPrimaSeleccionada
+        );
+
+        if (!materiaPrima) {
+
+            setMensajeErrorStock(
+                "No se encontró la materia prima seleccionada."
+            );
+
+            return;
+        }
+
+
+        // =====================================================
+        // ENTRADA
+        // =====================================================
 
         if (tipo === "entrada") {
 
@@ -46,21 +107,161 @@ function Stock() {
                 cantidadNumero
             );
 
-        } else {
+            setMensajeErrorStock("");
+            setCantidad("");
+            setMateriaPrimaSeleccionada(null);
 
-            registrarSalidaMateriaPrima(
-                materiaPrimaSeleccionada,
-                cantidadNumero
-            );
+            return;
         }
 
+
+        // =====================================================
+        // SALIDA
+        // =====================================================
+
+        if (cantidadNumero > materiaPrima.stockActual) {
+
+            setMensajeErrorStock(
+                `No hay suficiente stock de ${materiaPrima.nombre}. ` +
+                `Stock disponible: ${materiaPrima.stockActual} ${materiaPrima.unidad}.`
+            );
+
+            // IMPORTANTE:
+            // No cerramos el formulario.
+            // No borramos la cantidad.
+            return;
+        }
+
+
+        registrarSalidaMateriaPrima(
+            materiaPrimaSeleccionada,
+            cantidadNumero
+        );
+
+        setMensajeErrorStock("");
         setCantidad("");
         setMateriaPrimaSeleccionada(null);
     };
 
 
+    // =========================================================
+    // AGREGAR MATERIA PRIMA
+    // =========================================================
+
+    const guardarMateriaPrima = () => {
+
+        const stockMinimo = Number(stockMinimoMateriaPrima);
+        const stockInicial = Number(stockInicialMateriaPrima);
+
+
+        if (
+            nombreMateriaPrima.trim() === "" ||
+            categoriaMateriaPrima.trim() === "" ||
+            stockMinimo < 0 ||
+            stockInicial < 0
+        ) {
+            return;
+        }
+
+
+        const nombreRepetido = materiasPrimas.some(
+            (materia) =>
+                materia.nombre.trim().toLowerCase() ===
+                nombreMateriaPrima.trim().toLowerCase()
+        );
+
+
+        if (nombreRepetido) {
+
+            window.alert(
+                "Ya existe una materia prima con ese nombre."
+            );
+
+            return;
+        }
+
+
+        agregarMateriaPrima(
+            nombreMateriaPrima,
+            categoriaMateriaPrima,
+            unidadMateriaPrima,
+            stockMinimo,
+            stockInicial
+        );
+
+
+        setNombreMateriaPrima("");
+        setCategoriaMateriaPrima("");
+        setUnidadMateriaPrima("unidad");
+        setStockMinimoMateriaPrima("");
+        setStockInicialMateriaPrima("");
+
+        setMostrarFormularioMateriaPrima(false);
+    };
+
+    const guardarProducto = () => {
+        if (
+            nombreProducto.trim() === "" ||
+            precioProducto === "" ||
+            Number(precioProducto) < 0
+        ) {
+            return;
+        }
+
+        agregarProducto(
+            nombreProducto,
+            Number(precioProducto),
+            categoriaProducto,
+            sectorProducto,
+            tipoProducto
+        );
+
+        setNombreProducto("");
+        setCategoriaProducto("Comida");
+        setPrecioProducto("");
+        setSectorProducto("Cocina");
+        setTipoProducto("bajo_pedido");
+        setMostrarFormularioProducto(false);
+    };
+
+
+    // =========================================================
+    // CAMBIAR DE PESTAÑA
+    // =========================================================
+
+    const cambiarVista = (
+        nuevaVista:
+            | "materiasPrimas"
+            | "productos"
+            | "movimientos"
+    ) => {
+
+        setVista(nuevaVista);
+
+        setMateriaPrimaSeleccionada(null);
+        setCantidad("");
+        setMensajeErrorStock("");
+    };
+
+
+    // =========================================================
+    // SELECCIONAR MATERIA PRIMA
+    // =========================================================
+
+    const seleccionarMateriaPrima = (id: number) => {
+
+        setMateriaPrimaSeleccionada(id);
+        setCantidad("");
+        setMensajeErrorStock("");
+    };
+
+
     return (
         <div className="dashboard-content">
+
+            {/* =================================================
+                ENCABEZADO
+            ================================================= */}
 
             <div className="stock-header">
 
@@ -78,9 +279,9 @@ function Stock() {
             </div>
 
 
-            {/* ==========================
+            {/* =================================================
                 SELECTOR DE VISTA
-            ========================== */}
+            ================================================= */}
 
             <div className="stock-tabs">
 
@@ -90,11 +291,9 @@ function Stock() {
                             ? "stock-tab stock-tab-active"
                             : "stock-tab"
                     }
-                    onClick={() => {
-                        setVista("materiasPrimas");
-                        setMateriaPrimaSeleccionada(null);
-                        setCantidad("");
-                    }}
+                    onClick={() =>
+                        cambiarVista("materiasPrimas")
+                    }
                 >
                     🧂 Materias primas
                 </button>
@@ -106,11 +305,9 @@ function Stock() {
                             ? "stock-tab stock-tab-active"
                             : "stock-tab"
                     }
-                    onClick={() => {
-                        setVista("productos");
-                        setMateriaPrimaSeleccionada(null);
-                        setCantidad("");
-                    }}
+                    onClick={() =>
+                        cambiarVista("productos")
+                    }
                 >
                     🛍 Productos
                 </button>
@@ -122,11 +319,9 @@ function Stock() {
                             ? "stock-tab stock-tab-active"
                             : "stock-tab"
                     }
-                    onClick={() => {
-                        setVista("movimientos");
-                        setMateriaPrimaSeleccionada(null);
-                        setCantidad("");
-                    }}
+                    onClick={() =>
+                        cambiarVista("movimientos")
+                    }
                 >
                     📋 Movimientos
                 </button>
@@ -134,13 +329,160 @@ function Stock() {
             </div>
 
 
-            {/* ==========================
+            {/* =================================================
                 MATERIAS PRIMAS
-            ========================== */}
+            ================================================= */}
 
             {vista === "materiasPrimas" && (
 
                 <>
+
+                    {/* =================================================
+                        BOTÓN NUEVA MATERIA PRIMA
+                    ================================================= */}
+
+                    <div className="stock-section-actions">
+
+                        <button
+                            className="primary-button"
+                            onClick={() => {
+
+                                setMostrarFormularioMateriaPrima(
+                                    !mostrarFormularioMateriaPrima
+                                );
+
+                                setMensajeErrorStock("");
+                            }}
+                        >
+                            + Nueva materia prima
+                        </button>
+
+                    </div>
+
+
+                    {/* =================================================
+                        FORMULARIO NUEVA MATERIA PRIMA
+                    ================================================= */}
+
+                    {mostrarFormularioMateriaPrima && (
+
+                        <div className="stock-materia-form">
+
+                            <h2>
+                                Nueva materia prima
+                            </h2>
+
+
+                            <input
+                                type="text"
+                                placeholder="Nombre"
+                                value={nombreMateriaPrima}
+                                onChange={(e) =>
+                                    setNombreMateriaPrima(
+                                        e.target.value
+                                    )
+                                }
+                            />
+
+
+                            <input
+                                type="text"
+                                placeholder="Categoría"
+                                value={categoriaMateriaPrima}
+                                onChange={(e) =>
+                                    setCategoriaMateriaPrima(
+                                        e.target.value
+                                    )
+                                }
+                            />
+
+
+                            <select
+                                value={unidadMateriaPrima}
+                                onChange={(e) =>
+                                    setUnidadMateriaPrima(
+                                        e.target.value as
+                                        typeof unidadMateriaPrima
+                                    )
+                                }
+                            >
+
+                                <option value="unidad">
+                                    Unidad
+                                </option>
+
+                                <option value="kg">
+                                    Kilogramo
+                                </option>
+
+                                <option value="litro">
+                                    Litro
+                                </option>
+
+                            </select>
+
+
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="Stock mínimo"
+                                value={stockMinimoMateriaPrima}
+                                onChange={(e) =>
+                                    setStockMinimoMateriaPrima(
+                                        e.target.value
+                                    )
+                                }
+                            />
+
+
+                            <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="Cantidad inicial"
+                                value={stockInicialMateriaPrima}
+                                onChange={(e) =>
+                                    setStockInicialMateriaPrima(
+                                        e.target.value
+                                    )
+                                }
+                            />
+
+
+                            <div className="stock-movimiento-actions">
+
+                                <button
+                                    className="primary-button"
+                                    onClick={guardarMateriaPrima}
+                                >
+                                    Guardar
+                                </button>
+
+
+                                <button
+                                    className="stock-button"
+                                    onClick={() => {
+
+                                        setMostrarFormularioMateriaPrima(
+                                            false
+                                        );
+
+                                    }}
+                                >
+                                    Cancelar
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    )}
+
+
+                    {/* =================================================
+                        TABLA DE MATERIAS PRIMAS
+                    ================================================= */}
 
                     <div className="stock-table">
 
@@ -175,6 +517,7 @@ function Stock() {
                                 materia.stockActual <=
                                 materia.stockMinimo;
 
+
                             return (
 
                                 <div
@@ -206,14 +549,20 @@ function Stock() {
 
                                         <span
                                             className={
-                                                stockBajo
+                                                !materia.activo
+                                                    ? "stock-inactivo"
+                                                    : stockBajo
                                                     ? "stock-bajo"
                                                     : "stock-normal"
                                             }
                                         >
-                                            {stockBajo
+
+                                            {!materia.activo
+                                                ? "Desactivado"
+                                                : stockBajo
                                                 ? "Stock bajo"
                                                 : "Normal"}
+
                                         </span>
 
                                     </span>
@@ -224,7 +573,7 @@ function Stock() {
                                         <button
                                             className="stock-button"
                                             onClick={() =>
-                                                setMateriaPrimaSeleccionada(
+                                                seleccionarMateriaPrima(
                                                     materia.id
                                                 )
                                             }
@@ -252,12 +601,15 @@ function Stock() {
                                 </div>
 
                             );
+
                         })}
 
                     </div>
 
 
-                    {/* FORMULARIO DE MOVIMIENTO */}
+                    {/* =================================================
+                        FORMULARIO DE MOVIMIENTO
+                    ================================================= */}
 
                     {materiaPrimaSeleccionada !== null && (
 
@@ -285,17 +637,45 @@ function Stock() {
                             </p>
 
 
+                            {/* =================================================
+                                CARTEL DE ERROR
+                            ================================================= */}
+
+                            {mensajeErrorStock !== "" && (
+
+                                <div
+                                    style={{
+                                        marginTop: "15px",
+                                        marginBottom: "15px",
+                                        padding: "12px 15px",
+                                        borderRadius: "8px",
+                                        backgroundColor: "#fee2e2",
+                                        border: "1px solid #fca5a5",
+                                        color: "#b91c1c",
+                                        fontWeight: 600
+                                    }}
+                                >
+                                    ⚠️ {mensajeErrorStock}
+                                </div>
+
+                            )}
+
+
                             <input
                                 type="number"
                                 min="0"
                                 step="0.01"
                                 placeholder="Cantidad"
                                 value={cantidad}
-                                onChange={(e) =>
+                                onChange={(e) => {
+
                                     setCantidad(
                                         e.target.value
-                                    )
-                                }
+                                    );
+
+                                    setMensajeErrorStock("");
+
+                                }}
                             />
 
 
@@ -328,10 +708,15 @@ function Stock() {
                                 <button
                                     className="stock-button"
                                     onClick={() => {
+
                                         setCantidad("");
+
                                         setMateriaPrimaSeleccionada(
                                             null
                                         );
+
+                                        setMensajeErrorStock("");
+
                                     }}
                                 >
                                     Cancelar
@@ -348,11 +733,102 @@ function Stock() {
             )}
 
 
-            {/* ==========================
+            {/* =================================================
                 PRODUCTOS
-            ========================== */}
+            ================================================= */}
 
             {vista === "productos" && (
+
+                <>
+
+                <div className="stock-section-actions">
+                    <button
+                        className="primary-button"
+                        onClick={() =>
+                            setMostrarFormularioProducto(
+                                !mostrarFormularioProducto
+                            )
+                        }
+                    >
+                        + Nuevo producto
+                    </button>
+                </div>
+
+                {mostrarFormularioProducto && (
+                    <div className="stock-materia-form">
+                        <h2>Nuevo producto</h2>
+
+                        <input
+                            type="text"
+                            placeholder="Nombre"
+                            value={nombreProducto}
+                            onChange={(e) =>
+                                setNombreProducto(e.target.value)
+                            }
+                        />
+
+                        <input
+                            type="text"
+                            placeholder="Categoría"
+                            value={categoriaProducto}
+                            onChange={(e) =>
+                                setCategoriaProducto(e.target.value)
+                            }
+                        />
+
+                        <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            placeholder="Precio"
+                            value={precioProducto}
+                            onChange={(e) =>
+                                setPrecioProducto(e.target.value)
+                            }
+                        />
+
+                        <select
+                            value={sectorProducto}
+                            onChange={(e) =>
+                                setSectorProducto(e.target.value)
+                            }
+                        >
+                            <option value="Cocina">Cocina</option>
+                            <option value="Cafetería">Cafetería</option>
+                            <option value="Pastelería">Pastelería</option>
+                        </select>
+
+                        <select
+                            value={tipoProducto}
+                            onChange={(e) =>
+                                setTipoProducto(
+                                    e.target.value as typeof tipoProducto
+                                )
+                            }
+                        >
+                            <option value="bajo_pedido">Bajo pedido</option>
+                            <option value="preelaborado">Preelaborado</option>
+                        </select>
+
+                        <div className="stock-movimiento-actions">
+                            <button
+                                className="primary-button"
+                                onClick={guardarProducto}
+                            >
+                                Guardar
+                            </button>
+
+                            <button
+                                className="stock-button"
+                                onClick={() =>
+                                    setMostrarFormularioProducto(false)
+                                }
+                            >
+                                Cancelar
+                            </button>
+                        </div>
+                    </div>
+                )}
 
                 <div className="stock-table">
 
@@ -392,6 +868,7 @@ function Stock() {
                             const stockBajo =
                                 producto.stockActual <=
                                 producto.stockMinimo;
+
 
                             return (
 
@@ -444,16 +921,19 @@ function Stock() {
                                 </div>
 
                             );
+
                         })}
 
                 </div>
 
+                </>
+
             )}
 
 
-            {/* ==========================
+            {/* =================================================
                 OPERACIONES DE STOCK
-            ========================== */}
+            ================================================= */}
 
             {vista === "movimientos" && (
 

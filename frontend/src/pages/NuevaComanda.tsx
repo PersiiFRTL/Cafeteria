@@ -16,7 +16,9 @@ function NuevaComanda() {
         crearComanda,
         agregarProductosAComanda,
         obtenerComandaDeMesa,
-        productos
+        productos,
+        recetas,
+        materiasPrimas
     } = useCafeteria();
 
     const agregarProducto = (productoId: number) => {
@@ -53,6 +55,85 @@ function NuevaComanda() {
 
             return total + producto.precio * cantidad;
         }, 0);
+    };
+
+    const puedeAgregarProducto = (
+        productoId: number,
+        cantidadSeleccionada: number
+    ) => {
+        const producto = productos.find(
+            (item) => item.id === productoId
+        );
+
+        if (!producto) {
+            return false;
+        }
+
+        const cantidadSolicitada = cantidadSeleccionada + 1;
+
+        if (producto.tipoElaboracion === "preelaborado") {
+            return cantidadSolicitada <= producto.stockActual;
+        }
+
+        const cantidadesConProducto = {
+            ...cantidades,
+            [productoId]: cantidadSolicitada
+        };
+
+        const consumoPorMateriaPrima = new Map<number, number>();
+
+        for (const [idProducto, cantidad] of Object.entries(
+            cantidadesConProducto
+        )) {
+            const productoSeleccionado = productos.find(
+                (item) => item.id === Number(idProducto)
+            );
+
+            if (!productoSeleccionado || cantidad <= 0) {
+                continue;
+            }
+
+            if (productoSeleccionado.tipoElaboracion === "preelaborado") {
+                if (cantidad > productoSeleccionado.stockActual) {
+                    return false;
+                }
+                continue;
+            }
+
+            const receta = recetas.find(
+                (item) => item.productoId === Number(idProducto)
+            );
+
+            // Sin receta todavía no hay consumos que puedan validarse aquí.
+            if (!receta) {
+                continue;
+            }
+
+            for (const ingrediente of receta.ingredientes) {
+                const cantidadActual =
+                    consumoPorMateriaPrima.get(
+                        ingrediente.materiaPrimaId
+                    ) ?? 0;
+
+                consumoPorMateriaPrima.set(
+                    ingrediente.materiaPrimaId,
+                    cantidadActual + ingrediente.cantidad * cantidad
+                );
+            }
+        }
+
+        return Array.from(consumoPorMateriaPrima.entries()).every(
+            ([materiaPrimaId, cantidadNecesaria]) => {
+                const materiaPrima = materiasPrimas.find(
+                    (materia) => materia.id === materiaPrimaId
+                );
+
+                return Boolean(
+                    materiaPrima?.activo &&
+                    materiaPrima.stockActual >= cantidadNecesaria
+                );
+            }
+        );
     };
 
     const confirmarComanda = () => {
@@ -127,13 +208,11 @@ function NuevaComanda() {
                                 const cantidad =
                                     cantidades[producto.id] || 0;
 
-                                const controlaStock =
-                                    producto.tipoElaboracion ===
-                                    "preelaborado";
-
                                 const puedeAgregar =
-                                    !controlaStock ||
-                                    cantidad < producto.stockActual;
+                                    puedeAgregarProducto(
+                                        producto.id,
+                                        cantidad
+                                    );
 
                                 return (
                                     <div
