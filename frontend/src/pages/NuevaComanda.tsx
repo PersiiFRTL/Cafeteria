@@ -146,7 +146,8 @@ function NuevaComanda() {
                 ([productoId, cantidad]) => ({
                     productoId: Number(productoId),
                     cantidad: cantidad,
-                    estado: "pendiente" as const
+                    estado: "pendiente" as const,
+                    cantidadStockProcesada: 0
                 })
             );
 

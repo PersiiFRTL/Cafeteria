@@ -10,10 +10,22 @@ import productosIniciales from "../data/productos.json";
 import materiasPrimasIniciales from "../data/materiasPrimas.json";
 import recetasIniciales from "../data/recetas.json";
 import produccionesIniciales from "../data/producciones.json";
+import empleadosIniciales from "../data/empleados.json";
 
 // ==========================
 // TIPOS
 // ==========================
+
+type RolEmpleado = "ADMINISTRADOR" | "EMPLEADO" | "COCINA";
+
+interface Empleado {
+    id: number;
+    nombre: string;
+    email: string;
+    password: string;
+    rol: RolEmpleado;
+    activo: boolean;
+}
 
 interface Mesa {
     id: number;
@@ -242,6 +254,28 @@ interface CafeteriaContextType {
     movimientosStock: MovimientoStock[];
 
     operacionesStock: OperacionStock[];
+
+    empleados: Empleado[];
+
+agregarEmpleado: (
+    nombre: string,
+    email: string,
+    password: string,
+    rol: RolEmpleado
+) => void;
+
+editarEmpleado: (
+    id: number,
+    nombre: string,
+    email: string,
+    password: string,
+    rol: RolEmpleado
+) => void;
+
+cambiarEstadoEmpleado: (
+    id: number,
+    activo: boolean
+) => void;
 }
 
 const CafeteriaContext =
@@ -256,23 +290,26 @@ export function CafeteriaProvider({
 }) {
 
     const [mesas, setMesas] =
-        useState<Mesa[]>(mesasIniciales);
+        useState<Mesa[]>(mesasIniciales as Mesa[]);
 
     const [comandas, setComandas] =
         useState<Comanda[]>([]);
 
     const [productos, setProductos] =
-        useState<Producto[]>(productosIniciales);
+        useState<Producto[]>(productosIniciales as Producto[]);
 
     const [materiasPrimas, setMateriasPrimas] =
         useState<MateriaPrima[]>(
-            materiasPrimasIniciales
+            materiasPrimasIniciales as MateriaPrima[]
         );
 
     const [recetas, setRecetas] =
         useState<Receta[]>(
             recetasIniciales
         );
+
+        const [empleados, setEmpleados] =
+            useState<Empleado[]>(empleadosIniciales as Empleado[]);
 
     const [producciones, setProducciones] =
         useState<Produccion[]>(
@@ -678,6 +715,107 @@ export function CafeteriaProvider({
                 )
         );
     };
+    // Empleados 
+
+    const agregarEmpleado = (
+    nombre: string,
+    email: string,
+    password: string,
+    rol: RolEmpleado
+) => {
+    const emailNormalizado = email.trim().toLowerCase();
+
+    if (
+        nombre.trim() === "" ||
+        emailNormalizado === "" ||
+        password.trim() === ""
+    ) {
+        return;
+    }
+
+    const emailDuplicado = empleados.some(
+        (empleado) =>
+            empleado.email.trim().toLowerCase() === emailNormalizado
+    );
+
+    if (emailDuplicado) {
+        return;
+    }
+
+    const nuevoId =
+        empleados.length > 0
+            ? Math.max(...empleados.map((empleado) => empleado.id)) + 1
+            : 1;
+
+    const nuevoEmpleado: Empleado = {
+        id: nuevoId,
+        nombre: nombre.trim(),
+        email: emailNormalizado,
+        password,
+        rol,
+        activo: true
+    };
+
+    setEmpleados((empleadosActuales) => [
+        ...empleadosActuales,
+        nuevoEmpleado
+    ]);
+};
+    const editarEmpleado = (
+    id: number,
+    nombre: string,
+    email: string,
+    password: string,
+    rol: RolEmpleado
+) => {
+    const emailNormalizado = email.trim().toLowerCase();
+
+    if (
+        nombre.trim() === "" ||
+        emailNormalizado === ""
+    ) {
+        return;
+    }
+
+    const emailDuplicado = empleados.some(
+        (empleado) =>
+            empleado.id !== id &&
+            empleado.email.trim().toLowerCase() === emailNormalizado
+    );
+
+    if (emailDuplicado) {
+        return;
+    }
+
+    setEmpleados((empleadosActuales) =>
+        empleadosActuales.map((empleado) =>
+            empleado.id === id
+                ? {
+                      ...empleado,
+                      nombre: nombre.trim(),
+                      email: emailNormalizado,
+                      password,
+                      rol
+                  }
+                : empleado
+        )
+    );
+};
+    const cambiarEstadoEmpleado = (
+    id: number,
+    activo: boolean
+) => {
+    setEmpleados((empleadosActuales) =>
+        empleadosActuales.map((empleado) =>
+            empleado.id === id
+                ? {
+                      ...empleado,
+                      activo
+                  }
+                : empleado
+        )
+    );
+};
 
     // ==========================
     // REGISTRAR PRODUCCIÓN
@@ -1828,8 +1966,12 @@ function procesarStockComanda(
                 procesarStockComanda,
 
                 movimientosStock,
-                operacionesStock
+                operacionesStock,
 
+                empleados,
+                agregarEmpleado,
+                editarEmpleado,
+                cambiarEstadoEmpleado,
             }}
         >
             {children}
