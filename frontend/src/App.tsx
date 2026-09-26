@@ -15,6 +15,7 @@ import Recetas from "./pages/Recetas";
 import Produccion from "./pages/Produccion";
 import Empleados from "./pages/Empleados";
 import PermissionRoute from "./components/PermissionRoute";
+import AccesoDenegado from "./pages/AccesoDenegado";
 
 import { CafeteriaProvider } from "./context/CafeteriaContext";
 import { AuthProvider } from "./context/AuthContext";
@@ -90,8 +91,15 @@ function App() {
                                     />
                                 </Route>
 
-                                <Route path="/nueva-comanda" element={<NuevaComanda />} />
-
+                                <Route 
+                                    path="/nueva-comanda" 
+                                    element={<NuevaComanda />} 
+                                    />
+                                    
+                                <Route
+                                    path="/acceso-denegado"
+                                    element={<AccesoDenegado />}
+                                    />
                             </Route>
                         </Route>
 

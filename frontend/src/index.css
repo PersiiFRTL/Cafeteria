@@ -1694,3 +1694,27 @@ body {
 .logout-button:hover {
     background-color: rgba(255, 255, 255, 0.1);
 }
+.acceso-denegado {
+    min-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.acceso-denegado-card {
+    text-align: center;
+    padding: 40px;
+}
+
+.acceso-denegado-icon {
+    font-size: 60px;
+    margin-bottom: 20px;
+}
+
+.acceso-denegado-card h1 {
+    margin-bottom: 10px;
+}
+
+.acceso-denegado-card p {
+    margin-bottom: 25px;
+}
