@@ -5,11 +5,7 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 
-import { useCafeteria } from "./CafeteriaContext";
-
-import type {
-    RolEmpleado
-} from "../config/permisos";
+import type { RolEmpleado } from "../config/permisos";
 
 const STORAGE_KEY = "cafeteria_usuario";
 
@@ -52,7 +48,10 @@ interface AuthContextType {
     iniciarSesion: (
         email: string,
         password: string
-    ) => boolean;
+    ) => Promise<{
+        correcto: boolean;
+        mensaje?: string;
+    }>;
 
     cerrarSesion: () => void;
 
@@ -75,11 +74,6 @@ export function AuthProvider({
     children
 }: AuthProviderProps) {
 
-    const {
-        empleados
-    } = useCafeteria();
-
-
     const [
         usuario,
         setUsuario
@@ -88,44 +82,74 @@ export function AuthProvider({
     );
 
 
-    const iniciarSesion = (
-        email: string,
-        password: string
-    ): boolean => {
+    const iniciarSesion = async (
+    email: string,
+    password: string
+    ): Promise<{
+        correcto: boolean;
+        mensaje?: string;
+    }> => {
 
-        const emailNormalizado =
-            email.trim().toLowerCase();
+        try {
 
+            const respuesta = await fetch(
+                "http://localhost:3000/api/login",
+                {
+                    method: "POST",
 
-        const empleado =
-            empleados.find(
-                (empleado) =>
-                    empleado.email
-                        .trim()
-                        .toLowerCase() ===
-                        emailNormalizado &&
-                    empleado.password ===
-                        password &&
-                    empleado.activo
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        email,
+                        password
+                    })
+                }
             );
 
+            const datos = await respuesta.json();
 
-        if (!empleado) {
-            return false;
+            if (respuesta.status === 401) {
+
+                return {
+                    correcto: false,
+                    mensaje: "Email o contraseña incorrectos."
+                };
+            }
+
+            if (!respuesta.ok) {
+
+                return {
+                    correcto: false,
+                    mensaje: "Ocurrió un error en el servidor."
+                };
+            }
+
+            const usuarioAutenticado: UsuarioAutenticado =
+                datos.usuario;
+
+            setUsuario(usuarioAutenticado);
+
+            guardarUsuario(usuarioAutenticado);
+
+            return {
+                correcto: true
+            };
+
+        } catch (error) {
+
+            console.error(
+                "Error al conectar con el backend:",
+                error
+            );
+
+            return {
+                correcto: false,
+                mensaje:
+                    "No se pudo conectar con el servidor."
+            };
         }
-
-
-        const usuarioAutenticado: UsuarioAutenticado = {
-            id: empleado.id,
-            nombre: empleado.nombre,
-            email: empleado.email,
-            rol: empleado.rol
-        };
-
-        setUsuario(usuarioAutenticado);
-        guardarUsuario(usuarioAutenticado);
-
-        return true;
     };
 
 

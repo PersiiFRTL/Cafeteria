@@ -21,7 +21,7 @@ function Login() {
         useState("");
 
 
-    const manejarLogin = (
+    const manejarLogin = async (
         e: React.FormEvent
     ) => {
 
@@ -43,17 +43,18 @@ function Login() {
         }
 
 
-        const loginCorrecto =
-            iniciarSesion(
+        const resultado =
+            await iniciarSesion(
                 email,
                 password
             );
 
 
-        if (!loginCorrecto) {
+        if (!resultado.correcto) {
 
             setError(
-                "Email o contraseña incorrectos."
+                resultado.mensaje ||
+                "Error al iniciar sesión."
             );
 
             return;
