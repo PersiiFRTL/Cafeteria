@@ -16,6 +16,7 @@ import Produccion from "./pages/Produccion";
 import Empleados from "./pages/Empleados";
 import PermissionRoute from "./components/PermissionRoute";
 import AccesoDenegado from "./pages/AccesoDenegado";
+import MapaLocal from "./pages/MapaLocal";
 
 import { CafeteriaProvider } from "./context/CafeteriaContext";
 import { AuthProvider } from "./context/AuthContext";
@@ -43,6 +44,13 @@ function App() {
 
                                 <Route element={<PermissionRoute modulo="mesas" />}>
                                     <Route path="/mesas" element={<Mesas />} />
+                                </Route>
+
+                                <Route element={<PermissionRoute modulo="mapa" />}>
+                                    <Route
+                                        path="/mapa"
+                                        element={<MapaLocal />}
+                                    />
                                 </Route>
 
                                 <Route element={<PermissionRoute modulo="comandas" />}>
@@ -89,6 +97,7 @@ function App() {
                                         path="/empleados"
                                         element={<Empleados />}
                                     />
+                                
                                 </Route>
 
                                 <Route 

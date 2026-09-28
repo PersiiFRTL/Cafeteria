@@ -15,6 +15,7 @@ function Mesas() {
 
     const {
         mesas,
+        elementosMapa,
         obtenerComandaDeMesa,
         cancelarComanda
     } = useCafeteria();
@@ -47,38 +48,115 @@ function Mesas() {
 
             </div>
 
-            <div className="mesas-container">
+            {elementosMapa.length === 0 ? (
 
-                {mesas.map((mesa) => (
+                <div className="mesas-sin-mapa">
 
-                    <div
-                        key={mesa.id}
-                        className={`mesa-card ${mesa.estado}`}
-                        onClick={() => seleccionarMesa(mesa)}
-                    >
+                    <h2>
+                        🗺️ El mapa todavía no está configurado
+                    </h2>
 
-                        <div className="mesa-numero">
-                            Mesa {mesa.numero}
-                        </div>
+                    <p>
+                        El administrador debe diseñar el mapa del local
+                        antes de utilizar esta vista.
+                    </p>
 
-                        <div className="mesa-capacidad">
-                            👥 {mesa.capacidad} personas
-                        </div>
+                </div>
 
-                        <div className="mesa-estado">
+            ) : (
 
-                            {mesa.estado === "libre"
-                                ? "🟢 Libre"
-                                : "🔴 Ocupada"
+                <div className="mesas-mapa-container">
+
+                    <div className="mesas-mapa">
+
+                        {elementosMapa.map((elemento) => {
+
+                            if (elemento.tipo === "linea") {
+
+                                return (
+                                    <div
+                                        key={elemento.id}
+                                        className="mesas-mapa-linea"
+                                        style={{
+                                            left: elemento.x,
+                                            top: elemento.y,
+                                            width: elemento.ancho * 40,
+                                            height: elemento.grosor ?? 4,
+                                            transform:
+                                                `rotate(${elemento.rotacion}deg)`
+                                        }}
+                                    />
+                                );
                             }
 
-                        </div>
+                            const mesa = mesas.find(
+                                (item) =>
+                                    item.id === elemento.mesaId
+                            );
+
+                            if (!mesa) {
+                                return (
+                                    <div
+                                        key={elemento.id}
+                                        className="mesas-mapa-mesa sin-asignar"
+                                        style={{
+                                            left: elemento.x,
+                                            top: elemento.y,
+                                            width: elemento.ancho * 40,
+                                            height: elemento.alto * 40,
+                                            transform:
+                                                `rotate(${elemento.rotacion}deg)`
+                                        }}
+                                    >
+                                        <strong>
+                                            Mesa sin asignar
+                                        </strong>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div
+                                    key={elemento.id}
+                                    className={`mesas-mapa-mesa ${mesa.estado}`}
+                                    style={{
+                                        left: elemento.x,
+                                        top: elemento.y,
+                                        width: elemento.ancho * 40,
+                                        height: elemento.alto * 40,
+                                        transform:
+                                            `rotate(${elemento.rotacion}deg)`
+                                    }}
+                                    onClick={() =>
+                                        seleccionarMesa(mesa)
+                                    }
+                                >
+
+                                    <strong>
+                                        Mesa {mesa.numero}
+                                    </strong>
+
+                                    <span>
+                                        👥 {mesa.capacidad}
+                                    </span>
+
+                                    <small>
+                                        {mesa.estado === "libre"
+                                            ? "🟢 Libre"
+                                            : "🔴 Ocupada"
+                                        }
+                                    </small>
+
+                                </div>
+                            );
+
+                        })}
 
                     </div>
 
-                ))}
+                </div>
 
-            </div>
+            )}
 
             {mesaSeleccionada && (
 
@@ -150,15 +228,20 @@ function Mesas() {
                                         <button
                                             className="primary-button"
                                             onClick={() => {
-                                                const comanda = obtenerComandaDeMesa(
-                                                    mesaSeleccionada.id
-                                                );
+
+                                                const comanda =
+                                                    obtenerComandaDeMesa(
+                                                        mesaSeleccionada.id
+                                                    );
 
                                                 if (comanda) {
+
                                                     navigate(
                                                         `/comandas?comanda=${comanda.id}`
                                                     );
+
                                                 }
+
                                             }}
                                         >
                                             📋 Ver comanda
@@ -176,6 +259,7 @@ function Mesas() {
                                         </button>
 
                                         {(() => {
+
                                             const comanda =
                                                 obtenerComandaDeMesa(
                                                     mesaSeleccionada.id
@@ -186,24 +270,33 @@ function Mesas() {
                                             }
 
                                             return (
+
                                                 <button
                                                     className="secondary-button"
                                                     onClick={() => {
-                                                        const confirmar = window.confirm(
-                                                            `¿Cancelar la comanda y liberar la Mesa ${mesaSeleccionada.numero}? El stock procesado será devuelto.`
-                                                        );
+
+                                                        const confirmar =
+                                                            window.confirm(
+                                                                `¿Cancelar la comanda y liberar la Mesa ${mesaSeleccionada.numero}? El stock procesado será devuelto.`
+                                                            );
 
                                                         if (confirmar) {
+
                                                             cancelarComanda(
                                                                 comanda.id
                                                             );
+
                                                             cerrarPanel();
+
                                                         }
+
                                                     }}
                                                 >
                                                     ✕ Cancelar comanda y liberar mesa
                                                 </button>
+
                                             );
+
                                         })()}
 
                                     </div>

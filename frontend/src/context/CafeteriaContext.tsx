@@ -4,6 +4,9 @@ import {
     useState,
     type ReactNode
 } from "react";
+import type {
+    ElementoMapa
+} from "../types/mapa";
 
 import mesasIniciales from "../data/mesas.json";
 import productosIniciales from "../data/productos.json";
@@ -138,6 +141,28 @@ interface Comanda {
     fechaCreacion: string;
 }
 
+const MAPA_STORAGE_KEY = "cafeteria_mapa";
+
+const cargarMapa = (): ElementoMapa[] => {
+    try {
+        const mapaGuardado =
+            localStorage.getItem(
+                MAPA_STORAGE_KEY
+            );
+
+        if (!mapaGuardado) {
+            return [];
+        }
+
+        return JSON.parse(
+            mapaGuardado
+        ) as ElementoMapa[];
+
+    } catch {
+        return [];
+    }
+};
+
 interface CafeteriaContextType {
 
     mesas: Mesa[];
@@ -255,6 +280,20 @@ interface CafeteriaContextType {
 
     operacionesStock: OperacionStock[];
 
+    elementosMapa: ElementoMapa[];
+
+    agregarElementoMapa: (
+        elemento: ElementoMapa
+    ) => void;
+
+    editarElementoMapa: (
+        elemento: ElementoMapa
+    ) => void;
+
+    eliminarElementoMapa: (
+        id: string
+    ) => void;
+
     empleados: Empleado[];
 
 agregarEmpleado: (
@@ -321,6 +360,11 @@ export function CafeteriaProvider({
 
     const [operacionesStock, setOperacionesStock] =
         useState<OperacionStock[]>([]);
+
+        const [
+            elementosMapa,
+            setElementosMapa ] 
+        = useState<ElementoMapa[]>(() => cargarMapa());
 
     // ==========================
     // COMANDAS
@@ -715,6 +759,70 @@ export function CafeteriaProvider({
                 )
         );
     };
+
+    // Mapa de mesas
+    const agregarElementoMapa = (
+    elemento: ElementoMapa
+) => {
+
+    setElementosMapa((actuales) => {
+
+        const nuevos = [
+            ...actuales,
+            elemento
+        ];
+
+        localStorage.setItem(
+            MAPA_STORAGE_KEY,
+            JSON.stringify(nuevos)
+        );
+
+        return nuevos;
+    });
+};
+    const eliminarElementoMapa = (
+    id: string
+) => {
+
+    setElementosMapa((actuales) => {
+
+        const nuevos =
+            actuales.filter(
+                (elemento) =>
+                    elemento.id !== id
+            );
+
+        localStorage.setItem(
+            MAPA_STORAGE_KEY,
+            JSON.stringify(nuevos)
+        );
+
+        return nuevos;
+    });
+};
+const editarElementoMapa = (
+    elementoActualizado: ElementoMapa
+) => {
+
+    setElementosMapa((actuales) => {
+
+        const nuevos =
+            actuales.map((elemento) =>
+                elemento.id ===
+                elementoActualizado.id
+                    ? elementoActualizado
+                    : elemento
+            );
+
+        localStorage.setItem(
+            MAPA_STORAGE_KEY,
+            JSON.stringify(nuevos)
+        );
+
+        return nuevos;
+    });
+};
+
     // Empleados 
 
     const agregarEmpleado = (
@@ -1972,6 +2080,11 @@ function procesarStockComanda(
                 agregarEmpleado,
                 editarEmpleado,
                 cambiarEstadoEmpleado,
+
+                elementosMapa,
+                agregarElementoMapa,
+                editarElementoMapa,
+                eliminarElementoMapa,
             }}
         >
             {children}

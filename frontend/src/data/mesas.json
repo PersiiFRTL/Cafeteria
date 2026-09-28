@@ -46,5 +46,11 @@
         "numero": 8,
         "capacidad": 2,
         "estado": "libre"
-    }
+    },
+    {
+    "id": 9,
+    "numero": 9,
+    "capacidad": 8,
+    "estado": "libre"
+}
 ]

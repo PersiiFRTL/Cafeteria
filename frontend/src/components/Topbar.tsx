@@ -1,4 +1,8 @@
+import { useAuth } from "../context/AuthContext";
+
 function Topbar() {
+    const { usuario } = useAuth();
+
     return (
         <header className="topbar">
             <div>
@@ -9,11 +13,8 @@ function Topbar() {
                 <span>🔔</span>
 
                 <div>
-                    <strong>Administrador</strong>
-                    <small>Administrador</small>
+                    <strong>{usuario?.nombre ?? "Usuario"}</strong>
                 </div>
-
-                <span>▼</span>
             </div>
         </header>
     );

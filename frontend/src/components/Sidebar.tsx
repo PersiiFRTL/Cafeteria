@@ -90,6 +90,13 @@ function Sidebar() {
                             </Link>
                         </li>
                     )}
+                    {tienePermiso(rolActual, "mapa") && (
+                        <li>
+                            <Link to="/mapa">
+                                🗺️ Mapa del local
+                            </Link>
+                        </li>
+                    )}
 
                 </ul>
             </nav>
