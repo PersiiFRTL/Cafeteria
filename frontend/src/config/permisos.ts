@@ -14,7 +14,8 @@ export type Modulo =
     | "recetas"
     | "produccion"
     | "empleados"
-    |"mapa";
+    |"mapa"
+    |"informes";
 
 
 export const permisosPorRol: Record<
@@ -32,7 +33,8 @@ export const permisosPorRol: Record<
         "recetas",
         "produccion",
         "empleados",
-        "mapa"
+        "mapa",
+        "informes"
     ],
 
     EMPLEADO: [

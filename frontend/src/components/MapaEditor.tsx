@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import type { DragEvent, PointerEvent as ReactPointerEvent } from "react";
 
 import {
@@ -26,6 +27,8 @@ interface ArrastreMapa {
 }
 
 function MapaEditor() {
+
+    const navigate = useNavigate();
 
     const {
         mesas,
@@ -372,9 +375,19 @@ function MapaEditor() {
 
             <div className="mapa-toolbar">
 
-                <h2>
-                    🗺️ Diseño del local
-                </h2>
+                <div className="mapa-toolbar-header">
+                    <h2>
+                        🗺️ Diseño del local
+                    </h2>
+
+                    <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={() => navigate("/mesas")}
+                    >
+                        ← Volver a Mesas
+                    </button>
+                </div>
 
                 <p className="mapa-toolbar-text">
                     Arrastrá los elementos

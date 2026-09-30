@@ -90,11 +90,9 @@ function Sidebar() {
                             </Link>
                         </li>
                     )}
-                    {tienePermiso(rolActual, "mapa") && (
+                    {tienePermiso(rolActual, "informes") && (
                         <li>
-                            <Link to="/mapa">
-                                🗺️ Mapa del local
-                            </Link>
+                            <Link to="/informes">📊 Informes</Link>
                         </li>
                     )}
 

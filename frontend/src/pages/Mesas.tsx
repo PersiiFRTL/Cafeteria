@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { tienePermiso } from "../config/permisos";
+import { useAuth } from "../context/AuthContext";
 import { useCafeteria } from "../context/CafeteriaContext";
 
 interface Mesa {
@@ -12,6 +14,7 @@ interface Mesa {
 function Mesas() {
 
     const navigate = useNavigate();
+    const { usuario } = useAuth();
 
     const {
         mesas,
@@ -19,6 +22,10 @@ function Mesas() {
         obtenerComandaDeMesa,
         cancelarComanda
     } = useCafeteria();
+
+    const puedeEditarMapa = usuario
+        ? tienePermiso(usuario.rol, "mapa")
+        : false;
 
     const [mesaSeleccionada, setMesaSeleccionada] =
         useState<Mesa | null>(null);
@@ -45,6 +52,16 @@ function Mesas() {
                     </p>
 
                 </div>
+
+                {puedeEditarMapa && (
+                    <button
+                        className="primary-button"
+                        onClick={() => navigate("/mapa")}
+                        style={{ width: "auto", minWidth: "180px" }}
+                    >
+                        🗺️ Mapa del local
+                    </button>
+                )}
 
             </div>
 

@@ -17,6 +17,7 @@ import Empleados from "./pages/Empleados";
 import PermissionRoute from "./components/PermissionRoute";
 import AccesoDenegado from "./pages/AccesoDenegado";
 import MapaLocal from "./pages/MapaLocal";
+import Informes from "./pages/Informes";
 
 import { CafeteriaProvider } from "./context/CafeteriaContext";
 import { AuthProvider } from "./context/AuthContext";
@@ -97,7 +98,13 @@ function App() {
                                         path="/empleados"
                                         element={<Empleados />}
                                     />
-                                
+                                </Route>
+
+                                <Route element={<PermissionRoute modulo="informes" />}>
+                                    <Route
+                                        path="/informes"
+                                        element={<Informes />}
+                                    />
                                 </Route>
 
                                 <Route 
