@@ -24,6 +24,34 @@ export function numeroValido(
         (!entero || Number.isInteger(numero));
 }
 
+export function normalizarTexto(valor: string): string {
+    return valor
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[\s_\-]+/g, " ")
+        .trim()
+        .toLowerCase();
+}
+
+export function coincideBusqueda(valor: string, textoBusqueda: string): boolean {
+    const texto = normalizarTexto(valor);
+    const busqueda = normalizarTexto(textoBusqueda).trim();
+
+    if (!busqueda) {
+        return true;
+    }
+
+    if (!texto) {
+        return false;
+    }
+
+    const palabras = texto.split(/\s+/).filter(Boolean);
+
+    return palabras.some((palabra) =>
+        palabra.startsWith(busqueda)
+    );
+}
+
 export function formatearPrecio(valor: number): string {
     return new Intl.NumberFormat("es-AR", {
         maximumFractionDigits: 2

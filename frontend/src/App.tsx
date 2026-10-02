@@ -18,6 +18,7 @@ import PermissionRoute from "./components/PermissionRoute";
 import AccesoDenegado from "./pages/AccesoDenegado";
 import MapaLocal from "./pages/MapaLocal";
 import Informes from "./pages/Informes";
+import NotFound from "./pages/NotFound";
 
 import { CafeteriaProvider } from "./context/CafeteriaContext";
 import { AuthProvider } from "./context/AuthContext";
@@ -118,6 +119,8 @@ function App() {
                                     />
                             </Route>
                         </Route>
+
+                        <Route path="*" element={<NotFound />} />
 
                     </Routes>
                 </BrowserRouter>

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCafeteria } from "../context/CafeteriaContext";
-import { formatearPrecio, parsearPrecio } from "../validaciones";
+import { coincideBusqueda, formatearPrecio, normalizarTexto, parsearPrecio } from "../validaciones";
 import ModalConfirmacion from "../components/ModalConfirmacion";
 import { useToast } from "../context/useToast";
 
@@ -29,6 +29,27 @@ function Productos() {
 
     const [productoEditando, setProductoEditando] =
         useState<number | null>(null);
+
+    const [busqueda, setBusqueda] = useState("");
+    const [busquedaDebounce, setBusquedaDebounce] = useState("");
+
+    useEffect(() => {
+        const temporizador = window.setTimeout(() => {
+            setBusquedaDebounce(normalizarTexto(busqueda));
+        }, 500);
+
+        return () => window.clearTimeout(temporizador);
+    }, [busqueda]);
+
+    const productosFiltrados = productos.filter((producto) => {
+        const textoBusqueda = busquedaDebounce;
+
+        return (
+            coincideBusqueda(producto.nombre, textoBusqueda) ||
+            coincideBusqueda(producto.categoria, textoBusqueda) ||
+            coincideBusqueda(producto.sector, textoBusqueda)
+        );
+    });
 
     const [nombre, setNombre] =
         useState("");
@@ -401,6 +422,20 @@ function Productos() {
 
 
             {/* ==========================
+                BUSCADOR DE PRODUCTOS
+            ========================== */}
+
+            <div className="stock-buscador-wrap">
+                <input
+                    type="search"
+                    className="stock-buscador"
+                    placeholder="Buscar producto..."
+                    value={busqueda}
+                    onChange={(event) => setBusqueda(event.target.value)}
+                />
+            </div>
+
+            {/* ==========================
                 TABLA DE PRODUCTOS
             ========================== */}
 
@@ -439,7 +474,7 @@ function Productos() {
                 </div>
 
 
-                {productos.map(
+                {productosFiltrados.map(
                     (producto) => {
 
                         const estaEditando =

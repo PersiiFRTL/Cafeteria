@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCafeteria } from "../context/CafeteriaContext";
+
+const INFORMES_PERIODO_KEY = "cafeteria-informes-periodo";
 
 function Informes() {
 
@@ -13,7 +15,19 @@ function Informes() {
 
     const [periodo, setPeriodo] = useState<
     "hoy" | "7dias" | "30dias" | "todo"
-    >("todo");
+    >(() => {
+        const valorGuardado = localStorage.getItem(INFORMES_PERIODO_KEY) as
+            | "hoy"
+            | "7dias"
+            | "30dias"
+            | "todo"
+            | null;
+        return valorGuardado ?? "todo";
+    });
+
+    useEffect(() => {
+        localStorage.setItem(INFORMES_PERIODO_KEY, periodo);
+    }, [periodo]);
 
     const ahora = new Date();
 

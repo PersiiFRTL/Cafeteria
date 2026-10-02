@@ -1109,6 +1109,27 @@ body {
     padding: 14px;
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+    border: 2px solid #eee;
+}
+
+.comanda-card.estado-pendiente {
+    border-left: 8px solid #f59e0b;
+}
+
+.comanda-card.estado-preparando {
+    border-left: 8px solid #3b82f6;
+}
+
+.comanda-card.estado-lista {
+    border-left: 8px solid #22c55e;
+}
+
+.comanda-card.estado-finalizada {
+    border-left: 8px solid #9ca3af;
+}
+
+.comanda-card.estado-cancelada {
+    border-left: 8px solid #ef4444;
 }
 
 .comanda-card-header {
@@ -1305,10 +1326,23 @@ body {
 }
 
 .pedido-preparacion {
-    border: 1px solid #eee;
+    border: 2px solid #eee;
     border-radius: 8px;
     padding: 15px;
     margin-bottom: 12px;
+    background-color: white;
+}
+
+.pedido-preparacion.estado-pendiente {
+    border-left: 8px solid #f59e0b;
+}
+
+.pedido-preparacion.estado-preparando {
+    border-left: 8px solid #3b82f6;
+}
+
+.pedido-preparacion.estado-listo {
+    border-left: 8px solid #22c55e;
 }
 
 .pedido-preparacion strong {
@@ -1767,6 +1801,38 @@ body {
     width: auto;
 }
 
+.stock-buscador-wrap {
+    margin-bottom: 15px;
+}
+
+.stock-buscador {
+    width: min(100%, 360px);
+    padding: 10px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font: inherit;
+    background: #fff;
+}
+
+.stock-toolbar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 12px;
+}
+
+.stock-search-inline {
+    display: grid;
+    gap: 6px;
+    color: #4b5563;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.stock-buscador-inline {
+    width: min(100%, 220px);
+}
+
 .stock-tabs {
     display: flex;
     gap: 15px;
@@ -1948,6 +2014,49 @@ body {
     justify-content: space-between;
     gap: 16px;
     margin-bottom: 14px;
+}
+
+.not-found-page {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    background: linear-gradient(135deg, #f7f2ec 0%, #ffffff 100%);
+    padding: 24px;
+}
+
+.not-found-card {
+    max-width: 460px;
+    width: 100%;
+    text-align: center;
+    background: #fff;
+    border-radius: 18px;
+    box-shadow: 0 16px 40px rgba(31, 27, 22, 0.08);
+    padding: 40px 32px;
+}
+
+.not-found-code {
+    margin: 0 0 8px;
+    font-size: 64px;
+    font-weight: 800;
+    color: #a57245;
+}
+
+.not-found-card h1 {
+    margin: 0 0 12px;
+    color: #2d241d;
+}
+
+.not-found-card p {
+    margin: 0 0 20px;
+    color: #685f57;
+    line-height: 1.5;
+}
+
+.not-found-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
 }
 
 .stock-productos-toolbar h2 {

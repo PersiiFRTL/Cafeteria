@@ -1,9 +1,6 @@
 # Tareas pendientes
 Front:
 Cambiar la prioridad de las comandas y cuando tenes muchas comandas en la zona de preparacion podes clickear varias pq se cambia de estado rapido  
-Guardar en una variable la opcion de grilla 
-en los buscadores hacer una pequeña demora de 500 milisegundos
-
 
 Back:
 Conectar el backend

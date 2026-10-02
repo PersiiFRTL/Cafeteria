@@ -1,7 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCafeteria } from "../context/CafeteriaContext";
-import { numeroValido } from "../validaciones";
+import { coincideBusqueda, normalizarTexto, numeroValido } from "../validaciones";
 import { useToast } from "../context/useToast";
+
+const formatearCantidad = (valor: number) =>
+    new Intl.NumberFormat("es-AR", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2
+    }).format(valor);
 
 function Stock() {
     const { mostrarToast } = useToast();
@@ -49,9 +55,35 @@ function Stock() {
     const [stockInicialMateriaPrima, setStockInicialMateriaPrima] =
         useState("");
 
-    const [productoStockSeleccionado, setProductoStockSeleccionado] =
-        useState<number | null>(null);
+    const [busquedaMateriaPrima, setBusquedaMateriaPrima] = useState("");
+    const [busquedaMateriaPrimaDebounce, setBusquedaMateriaPrimaDebounce] = useState("");
+    const [busquedaProductoStock, setBusquedaProductoStock] = useState("");
+    const [busquedaProductoStockDebounce, setBusquedaProductoStockDebounce] = useState("");
 
+    useEffect(() => {
+        const temporizador = window.setTimeout(() => {
+            setBusquedaMateriaPrimaDebounce(normalizarTexto(busquedaMateriaPrima));
+        }, 500);
+
+        return () => window.clearTimeout(temporizador);
+    }, [busquedaMateriaPrima]);
+
+    useEffect(() => {
+        const temporizador = window.setTimeout(() => {
+            setBusquedaProductoStockDebounce(normalizarTexto(busquedaProductoStock));
+        }, 500);
+
+        return () => window.clearTimeout(temporizador);
+    }, [busquedaProductoStock]);
+
+    const materiasPrimasFiltradas = materiasPrimas.filter((materia) => {
+        const textoBusqueda = busquedaMateriaPrimaDebounce;
+
+        return (
+            coincideBusqueda(materia.nombre, textoBusqueda) ||
+            coincideBusqueda(materia.categoria, textoBusqueda)
+        );
+    });
 
     // =========================================================
     // REGISTRAR MOVIMIENTO
@@ -120,7 +152,7 @@ function Stock() {
 
             setMensajeErrorStock(
                 `No hay suficiente stock de ${materiaPrima.nombre}. ` +
-                `Stock disponible: ${materiaPrima.stockActual} ${materiaPrima.unidad}.`
+                `Stock disponible: ${formatearCantidad(materiaPrima.stockActual)} ${materiaPrima.unidad}.`
             );
 
             // IMPORTANTE:
@@ -137,7 +169,7 @@ function Stock() {
 
         if (!salidaRegistrada) {
             setMensajeErrorStock(
-                `No hay suficiente stock de ${materiaPrima.nombre}. Stock disponible: ${materiaPrima.stockActual} ${materiaPrima.unidad}.`
+                `No hay suficiente stock de ${materiaPrima.nombre}. Stock disponible: ${formatearCantidad(materiaPrima.stockActual)} ${materiaPrima.unidad}.`
             );
             return;
         }
@@ -254,11 +286,15 @@ function Stock() {
     const productosPreelaborados = productos.filter(
         (producto) => producto.tipoElaboracion === "preelaborado"
     );
-    const productosStockVisibles = productoStockSeleccionado === null
-        ? productosPreelaborados
-        : productosPreelaborados.filter(
-              (producto) => producto.id === productoStockSeleccionado
-          );
+    const productosPreelaboradosFiltrados = productosPreelaborados.filter((producto) => {
+        const textoBusqueda = busquedaProductoStockDebounce;
+
+        return (
+            coincideBusqueda(producto.nombre, textoBusqueda) ||
+            coincideBusqueda(producto.categoria, textoBusqueda)
+        );
+    });
+    const productosStockVisibles = productosPreelaboradosFiltrados;
 
 
     // =========================================================
@@ -532,6 +568,16 @@ function Stock() {
                         TABLA DE MATERIAS PRIMAS
                     ================================================= */}
 
+                    <div className="stock-buscador-wrap">
+                        <input
+                            type="search"
+                            className="stock-buscador"
+                            placeholder="Buscar materia prima..."
+                            value={busquedaMateriaPrima}
+                            onChange={(event) => setBusquedaMateriaPrima(event.target.value)}
+                        />
+                    </div>
+
                     <div className="stock-table">
 
                         <div className="stock-row stock-row-header">
@@ -559,7 +605,7 @@ function Stock() {
                         </div>
 
 
-                        {materiasPrimas.map((materia) => {
+                        {materiasPrimasFiltradas.map((materia) => {
 
                             const stockBajo =
                                 materia.stockActual <=
@@ -588,7 +634,7 @@ function Stock() {
 
 
                                     <span>
-                                        {materia.stockActual}{" "}
+                                        {formatearCantidad(materia.stockActual)}{" "}
                                         {materia.unidad}
                                     </span>
 
@@ -805,25 +851,15 @@ function Stock() {
                         <h2>Productos preelaborados</h2>
                         <p>El stock aumenta al registrar una producción.</p>
                     </div>
-                    <label>
-                        Consultar producto
-                        <select
-                            value={productoStockSeleccionado ?? ""}
-                            onChange={(event) =>
-                                setProductoStockSeleccionado(
-                                    event.target.value
-                                        ? Number(event.target.value)
-                                        : null
-                                )
-                            }
-                        >
-                            <option value="">Todos los productos</option>
-                            {productosPreelaborados.map((producto) => (
-                                <option key={producto.id} value={producto.id}>
-                                    {producto.nombre}
-                                </option>
-                            ))}
-                        </select>
+                    <label className="stock-search-inline">
+                        <span>Buscar producto</span>
+                        <input
+                            type="search"
+                            className="stock-buscador stock-buscador-inline"
+                            placeholder="Buscar producto..."
+                            value={busquedaProductoStock}
+                            onChange={(event) => setBusquedaProductoStock(event.target.value)}
+                        />
                     </label>
                 </div>
 
@@ -888,7 +924,7 @@ function Stock() {
 
 
                                     <span>
-                                        {producto.stockActual}{" "}
+                                        {formatearCantidad(producto.stockActual)}{" "}
                                         {producto.unidadVenta}
                                     </span>
 

@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCafeteria } from "../context/CafeteriaContext";
 import { useSearchParams } from "react-router-dom";
 import { LayoutGrid, List } from "lucide-react";
 import ModalConfirmacion from "../components/ModalConfirmacion";
 import { useToast } from "../context/useToast";
+
+const COMANDAS_FILTRO_KEY = "cafeteria-comandas-filtro";
+const COMANDAS_VISTA_KEY = "cafeteria-comandas-vista";
 
 type FiltroComanda =
     | "todas"
@@ -37,8 +40,26 @@ function Comandas() {
 
     const [searchParams] = useSearchParams();
     const [filtroComanda, setFiltroComanda] =
-        useState<FiltroComanda>("todas");
-    const [vista, setVista] = useState<VistaComandas>("grilla");
+        useState<FiltroComanda>(() => {
+            const valorGuardado = localStorage.getItem(COMANDAS_FILTRO_KEY) as FiltroComanda | null;
+            return filtrosComandas.some((filtro) => filtro.valor === valorGuardado)
+                ? valorGuardado ?? "todas"
+                : "todas";
+        });
+    const [vista, setVista] = useState<VistaComandas>(() => {
+        const valorGuardado = localStorage.getItem(COMANDAS_VISTA_KEY);
+        return valorGuardado === "lista" || valorGuardado === "grilla"
+            ? valorGuardado
+            : "grilla";
+    });
+
+    useEffect(() => {
+        localStorage.setItem(COMANDAS_FILTRO_KEY, filtroComanda);
+    }, [filtroComanda]);
+
+    useEffect(() => {
+        localStorage.setItem(COMANDAS_VISTA_KEY, vista);
+    }, [vista]);
 
     const {
         comandas,
@@ -262,7 +283,7 @@ function Comandas() {
                                     key={
                                         comanda.id
                                     }
-                                    className="comanda-card"
+                                    className={`comanda-card estado-${comanda.estado}`}
                                 >
 
                                     {/* ========================== */}

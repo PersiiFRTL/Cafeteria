@@ -212,7 +212,7 @@ function Preparacion() {
                         }) => (
 
                             <div
-                                className="pedido-preparacion"
+                                className={`pedido-preparacion estado-${item.estado}`}
                                 key={`${comanda.id}-${item.productoId}`}
                             >
 
