@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { tienePermiso } from "../config/permisos";
 import { useAuth } from "../context/AuthContext";
 import { useCafeteria } from "../context/CafeteriaContext";
+import ModalConfirmacion from "../components/ModalConfirmacion";
+import { useToast } from "../context/useToast";
 
 interface Mesa {
     id: number;
@@ -12,6 +14,7 @@ interface Mesa {
 }
 
 function Mesas() {
+    const { mostrarToast } = useToast();
 
     const navigate = useNavigate();
     const { usuario } = useAuth();
@@ -29,6 +32,8 @@ function Mesas() {
 
     const [mesaSeleccionada, setMesaSeleccionada] =
         useState<Mesa | null>(null);
+    const [confirmarCancelarComanda, setConfirmarCancelarComanda] =
+        useState<(() => void) | null>(null);
 
     const seleccionarMesa = (mesa: Mesa) => {
         setMesaSeleccionada(mesa);
@@ -97,10 +102,12 @@ function Mesas() {
                                         style={{
                                             left: elemento.x,
                                             top: elemento.y,
-                                            width: elemento.ancho * 40,
-                                            height: elemento.grosor ?? 4,
-                                            transform:
-                                                `rotate(${elemento.rotacion}deg)`
+                                            width: elemento.rotacion === 90
+                                                ? elemento.grosor ?? 4
+                                                : elemento.ancho * 40,
+                                            height: elemento.rotacion === 90
+                                                ? elemento.ancho * 40
+                                                : elemento.grosor ?? 4
                                         }}
                                     />
                                 );
@@ -221,7 +228,7 @@ function Mesas() {
                                         className="primary-button"
                                         onClick={() =>
                                             navigate(
-                                                `/nueva-comanda?mesa=${mesaSeleccionada.numero}`
+                                                `/nueva-comanda?mesaId=${mesaSeleccionada.id}`
                                             )
                                         }
                                     >
@@ -264,16 +271,28 @@ function Mesas() {
                                             📋 Ver comanda
                                         </button>
 
-                                        <button
-                                            className="secondary-button"
-                                            onClick={() =>
-                                                navigate(
-                                                    `/nueva-comanda?mesa=${mesaSeleccionada.numero}&agregar=true`
-                                                )
-                                            }
-                                        >
-                                            ➕ Agregar productos
-                                        </button>
+                                            {(() => {
+                                                const comanda = obtenerComandaDeMesa(
+                                                    mesaSeleccionada.id
+                                                );
+
+                                                if (!comanda || comanda.estado !== "pendiente") {
+                                                    return null;
+                                                }
+
+                                                return (
+                                                    <button
+                                                        className="secondary-button"
+                                                        onClick={() =>
+                                                            navigate(
+                                                                `/nueva-comanda?mesaId=${mesaSeleccionada.id}&editar=${comanda.id}`
+                                                            )
+                                                        }
+                                                    >
+                                                        ✏️ Editar comanda
+                                                    </button>
+                                                );
+                                            })()}
 
                                         {(() => {
 
@@ -290,24 +309,11 @@ function Mesas() {
 
                                                 <button
                                                     className="secondary-button"
-                                                    onClick={() => {
-
-                                                        const confirmar =
-                                                            window.confirm(
-                                                                `¿Cancelar la comanda y liberar la Mesa ${mesaSeleccionada.numero}? El stock procesado será devuelto.`
-                                                            );
-
-                                                        if (confirmar) {
-
-                                                            cancelarComanda(
-                                                                comanda.id
-                                                            );
-
-                                                            cerrarPanel();
-
-                                                        }
-
-                                                    }}
+                                                    onClick={() => setConfirmarCancelarComanda(() => () => {
+                                                        cancelarComanda(comanda.id);
+                                                        cerrarPanel();
+                                                        mostrarToast("Comanda cancelada y mesa liberada.");
+                                                    })}
                                                 >
                                                     ✕ Cancelar comanda y liberar mesa
                                                 </button>
@@ -328,6 +334,21 @@ function Mesas() {
 
                 </div>
 
+            )}
+
+            {confirmarCancelarComanda && (
+                <ModalConfirmacion
+                    titulo="Cancelar comanda y liberar mesa"
+                    mensaje={`¿Cancelar la comanda y liberar la Mesa ${mesaSeleccionada?.numero}? El stock procesado será devuelto.`}
+                    textoConfirmar="Cancelar comanda"
+                    destructivo
+                    cerrar={() => setConfirmarCancelarComanda(null)}
+                    confirmar={() => {
+                        confirmarCancelarComanda();
+                        setConfirmarCancelarComanda(null);
+                    }}
+                    cancelar={() => setConfirmarCancelarComanda(null)}
+                />
             )}
 
         </div>

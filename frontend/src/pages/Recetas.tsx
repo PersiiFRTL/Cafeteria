@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useCafeteria } from "../context/CafeteriaContext";
+import { numeroValido } from "../validaciones";
+import { useToast } from "../context/useToast";
 
 function Recetas() {
+    const { mostrarToast } = useToast();
 
     const {
         productos,
@@ -19,23 +22,22 @@ function Recetas() {
 
     const [cantidad, setCantidad] =
         useState("");
+    const [errorCantidad, setErrorCantidad] =
+        useState("");
 
     const agregarIngrediente = () => {
 
-        if (
-            productoSeleccionado === null ||
-            materiaPrimaSeleccionada === null ||
-            cantidad === ""
-        ) {
+        if (productoSeleccionado === null || materiaPrimaSeleccionada === null) {
+            setErrorCantidad("Seleccioná un producto y una materia prima.");
             return;
         }
 
-        const cantidadNumero =
-            Number(cantidad);
-
-        if (cantidadNumero <= 0) {
+        if (!numeroValido(cantidad, Number.MIN_VALUE)) {
+            setErrorCantidad("La cantidad debe ser mayor que 0.");
             return;
         }
+
+        const cantidadNumero = Number(cantidad);
 
         const recetaExistente =
             recetas.find(
@@ -104,8 +106,10 @@ function Recetas() {
             );
         }
 
+        mostrarToast("Ingrediente de receta guardado.");
         setMateriaPrimaSeleccionada(null);
         setCantidad("");
+        setErrorCantidad("");
     };
 
     const eliminarIngrediente = (
@@ -140,6 +144,7 @@ function Recetas() {
             receta.id,
             ingredientesActualizados
         );
+        mostrarToast("Ingrediente eliminado de la receta.");
     };
 
     const recetaActual =
@@ -148,6 +153,10 @@ function Recetas() {
                 receta.productoId ===
                 productoSeleccionado
         );
+
+    const materiaPrimaActual = materiasPrimas.find(
+        (materia) => materia.id === materiaPrimaSeleccionada
+    );
 
     return (
         <div className="dashboard-content">
@@ -277,9 +286,7 @@ function Recetas() {
                                                     materia.id
                                                 }
                                             >
-                                                {
-                                                    materia.nombre
-                                                }
+                                                {materia.nombre} ({materia.unidad})
                                             </option>
                                         )
                                     )}
@@ -289,16 +296,22 @@ function Recetas() {
 
                             <input
                                 type="number"
-                                min="0"
+                                min="0.001"
                                 step="0.001"
-                                placeholder="Cantidad"
+                                required
+                                placeholder="Cantidad por producto"
                                 value={cantidad}
-                                onChange={(e) =>
-                                    setCantidad(
-                                        e.target.value
-                                    )
-                                }
+                                onChange={(e) => {
+                                    setCantidad(e.target.value);
+                                    setErrorCantidad("");
+                                }}
                             />
+
+                            <span className="receta-unidad-hint">
+                                {materiaPrimaActual
+                                    ? `Unidad: ${materiaPrimaActual.unidad}`
+                                    : "Elegí una materia prima para ver la unidad"}
+                            </span>
 
 
                             <button
@@ -311,6 +324,12 @@ function Recetas() {
                             </button>
 
                         </div>
+
+                        {errorCantidad && (
+                            <p className="form-field-error" role="alert">
+                                {errorCantidad}
+                            </p>
+                        )}
 
                     </div>
 

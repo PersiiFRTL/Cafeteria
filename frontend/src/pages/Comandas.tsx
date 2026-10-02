@@ -1,10 +1,44 @@
 import { useState } from "react";
 import { useCafeteria } from "../context/CafeteriaContext";
 import { useSearchParams } from "react-router-dom";
+import { LayoutGrid, List } from "lucide-react";
+import ModalConfirmacion from "../components/ModalConfirmacion";
+import { useToast } from "../context/useToast";
+
+type FiltroComanda =
+    | "todas"
+    | "pendiente"
+    | "preparando"
+    | "lista"
+    | "finalizada"
+    | "cancelada";
+
+type VistaComandas = "grilla" | "lista";
+
+interface ConfirmacionComanda {
+    titulo: string;
+    mensaje: string;
+    accion: () => void;
+    textoConfirmar: string;
+    destructivo?: boolean;
+}
+
+const filtrosComandas: { valor: FiltroComanda; etiqueta: string }[] = [
+    { valor: "todas", etiqueta: "Todas" },
+    { valor: "pendiente", etiqueta: "Pendientes" },
+    { valor: "preparando", etiqueta: "En preparación" },
+    { valor: "lista", etiqueta: "Listas" },
+    { valor: "finalizada", etiqueta: "Finalizadas" },
+    { valor: "cancelada", etiqueta: "Canceladas" }
+];
 
 function Comandas() {
+    const { mostrarToast } = useToast();
 
     const [searchParams] = useSearchParams();
+    const [filtroComanda, setFiltroComanda] =
+        useState<FiltroComanda>("todas");
+    const [vista, setVista] = useState<VistaComandas>("grilla");
 
     const {
         comandas,
@@ -17,12 +51,14 @@ function Comandas() {
 
     const [mensajeError, setMensajeError] =
         useState<string | null>(null);
+    const [confirmacion, setConfirmacion] =
+        useState<ConfirmacionComanda | null>(null);
 
     const comandaSeleccionadaId = Number(
         searchParams.get("comanda")
     );
 
-    const comandasVisibles =
+    const comandasSeleccionadas =
         comandaSeleccionadaId
             ? comandas.filter(
                 (comanda) =>
@@ -30,6 +66,12 @@ function Comandas() {
                     comandaSeleccionadaId
             )
             : comandas;
+
+    const comandasVisibles = comandasSeleccionadas.filter(
+        (comanda) =>
+            filtroComanda === "todas" ||
+            comanda.estado === filtroComanda
+    );
 
 
     const prioridadComanda: Record<string, number> = {
@@ -102,6 +144,7 @@ function Comandas() {
         }
 
         setMensajeError(null);
+        mostrarToast("Comanda enviada a preparación.");
     };
 
 
@@ -122,6 +165,46 @@ function Comandas() {
 
                 </div>
 
+            </div>
+
+            <div className="comandas-toolbar">
+                <div className="comandas-filtros" role="group" aria-label="Filtrar comandas por estado">
+                    {filtrosComandas.map((filtro) => (
+                        <button
+                            key={filtro.valor}
+                            type="button"
+                            className={`comandas-filtro ${filtroComanda === filtro.valor ? "activo" : ""}`}
+                            data-estado={filtro.valor}
+                            aria-pressed={filtroComanda === filtro.valor}
+                            onClick={() => setFiltroComanda(filtro.valor)}
+                        >
+                            {filtro.etiqueta}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="comandas-vistas" role="group" aria-label="Vista de comandas">
+                    <button
+                        type="button"
+                        aria-label="Vista de grilla"
+                        aria-pressed={vista === "grilla"}
+                        title="Vista de grilla"
+                        className={vista === "grilla" ? "activo" : ""}
+                        onClick={() => setVista("grilla")}
+                    >
+                        <LayoutGrid size={18} aria-hidden="true" />
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Vista de lista"
+                        aria-pressed={vista === "lista"}
+                        title="Vista de lista"
+                        className={vista === "lista" ? "activo" : ""}
+                        onClick={() => setVista("lista")}
+                    >
+                        <List size={18} aria-hidden="true" />
+                    </button>
+                </div>
             </div>
 
 
@@ -145,19 +228,24 @@ function Comandas() {
                 <div className="comandas-empty">
 
                     <h2>
-                        No hay comandas
+                        {comandasSeleccionadas.length === 0
+                            ? "No hay comandas"
+                            : "No hay comandas en este filtro"
+                        }
                     </h2>
 
                     <p>
-                        Todavía no se ha creado
-                        ninguna comanda.
+                        {comandasSeleccionadas.length === 0
+                            ? "Todavía no se ha creado ninguna comanda."
+                            : "Prueba con otro estado para ver más comandas."
+                        }
                     </p>
 
                 </div>
 
             ) : (
 
-                <div className="comandas-container">
+                <div className={`comandas-container ${vista}`}>
 
                     {comandasOrdenadas.map(
                         (comanda) => {
@@ -353,25 +441,15 @@ function Comandas() {
 
                                                 <button
                                                     className="primary-button"
-                                                    onClick={() => {
-
-                                                        const confirmar =
-                                                            window.confirm(
-                                                                `¿Dejar disponible la Mesa ${mesa?.numero}?`
-                                                            );
-
-
-                                                        if (
-                                                            confirmar
-                                                        ) {
-
-                                                            finalizarComanda(
-                                                                comanda.id
-                                                            );
-
+                                                    onClick={() => setConfirmacion({
+                                                        titulo: "Dejar mesa disponible",
+                                                        mensaje: `¿Confirmás dejar disponible la Mesa ${mesa?.numero}?`,
+                                                        textoConfirmar: "Dejar disponible",
+                                                        accion: () => {
+                                                            finalizarComanda(comanda.id);
+                                                            mostrarToast(`Mesa ${mesa?.numero ?? ""} disponible.`);
                                                         }
-
-                                                    }}
+                                                    })}
                                                 >
                                                     ✓ Dejar mesa disponible
                                                 </button>
@@ -385,17 +463,16 @@ function Comandas() {
 
                                             <button
                                                 className="secondary-button cancelar-comanda-button"
-                                                onClick={() => {
-                                                    const confirmar = window.confirm(
-                                                        `¿Cancelar la Comanda #${comanda.id}? El stock procesado será devuelto.`
-                                                    );
-
-                                                    if (confirmar) {
-                                                        cancelarComanda(
-                                                            comanda.id
-                                                        );
-                                                    }
-                                                }}
+                                                onClick={() => setConfirmacion({
+                                                    titulo: "Cancelar comanda",
+                                                    mensaje: `¿Cancelar la Comanda #${comanda.id}? El stock procesado será devuelto.`,
+                                                    textoConfirmar: "Cancelar comanda",
+                                                    accion: () => {
+                                                        cancelarComanda(comanda.id);
+                                                        mostrarToast("Comanda cancelada y stock devuelto.");
+                                                    },
+                                                    destructivo: true
+                                                })}
                                             >
                                                 Cancelar comanda
                                             </button>
@@ -413,6 +490,21 @@ function Comandas() {
 
                 </div>
 
+            )}
+
+            {confirmacion && (
+                <ModalConfirmacion
+                    titulo={confirmacion.titulo}
+                    mensaje={confirmacion.mensaje}
+                    textoConfirmar={confirmacion.textoConfirmar}
+                    destructivo={confirmacion.destructivo}
+                    cerrar={() => setConfirmacion(null)}
+                    confirmar={() => {
+                        confirmacion.accion();
+                        setConfirmacion(null);
+                    }}
+                    cancelar={() => setConfirmacion(null)}
+                />
             )}
 
         </div>

@@ -1,25 +1,167 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
+import ModalConfirmacion from "../components/ModalConfirmacion";
 import { useCafeteria } from "../context/CafeteriaContext";
+import { formatearPrecio } from "../validaciones";
+import { useToast } from "../context/useToast";
+
+interface DialogoComanda {
+    titulo: string;
+    mensaje: string;
+    textoConfirmar: string;
+    confirmar: () => void;
+    cancelar?: () => void;
+    textoCancelar?: string;
+    destructivo?: boolean;
+}
 
 function NuevaComanda() {
+    const { mostrarToast } = useToast();
     const [cantidades, setCantidades] =
         useState<Record<number, number>>({});
+    const [cantidadesIniciales, setCantidadesIniciales] =
+        useState<Record<number, number>>({});
+    const [dialogo, setDialogo] = useState<DialogoComanda | null>(null);
 
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
 
-    const numeroMesa = searchParams.get("mesa");
-    const modoAgregar = searchParams.get("agregar") === "true";
+    const mesaId = Number(
+        searchParams.get("mesaId") ?? searchParams.get("mesa")
+    );
+    const idComandaEditar = searchParams.get("editar");
+    const modoEditar = idComandaEditar !== null;
 
     const {
         crearComanda,
-        agregarProductosAComanda,
-        obtenerComandaDeMesa,
+        editarComanda,
+        comandas,
+        mesas,
         productos,
         recetas,
         materiasPrimas
     } = useCafeteria();
+
+    useEffect(() => {
+        if (!modoEditar || !idComandaEditar) {
+            return;
+        }
+
+        const comanda = comandas.find(
+            (item) => item.id === Number(idComandaEditar)
+        );
+
+        if (!comanda) {
+            return;
+        }
+
+        const cantidadesIniciales: Record<number, number> = {};
+
+        comanda.productos.forEach((producto) => {
+            cantidadesIniciales[producto.productoId] = producto.cantidad;
+        });
+
+        setCantidades(cantidadesIniciales);
+        setCantidadesIniciales(cantidadesIniciales);
+    }, [modoEditar, idComandaEditar, comandas]);
+
+    const hayCambiosSinGuardar = Array.from(new Set([
+        ...Object.keys(cantidades),
+        ...Object.keys(cantidadesIniciales)
+    ])).some((productoId) =>
+        (cantidades[Number(productoId)] || 0) !==
+        (cantidadesIniciales[Number(productoId)] || 0)
+    );
+
+    const solicitarSalida = (destino: string) => {
+        if (hayCambiosSinGuardar) {
+            setDialogo({
+                titulo: "¿Salir sin guardar?",
+                mensaje: "Los productos seleccionados se perderán si sales de esta página.",
+                textoConfirmar: "Salir y descartar",
+                textoCancelar: "Seguir en la comanda",
+                destructivo: true,
+                confirmar: () => navigate(destino),
+                cancelar: () => setDialogo(null)
+            });
+            return;
+        }
+
+        navigate(destino);
+    };
+
+    useEffect(() => {
+        if (!hayCambiosSinGuardar) {
+            return;
+        }
+
+        const interceptarEnlace = (event: MouseEvent) => {
+            if (
+                event.defaultPrevented ||
+                event.button !== 0 ||
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey
+            ) {
+                return;
+            }
+
+            const elemento = event.target;
+            if (!(elemento instanceof Element)) {
+                return;
+            }
+
+            const enlace = elemento.closest<HTMLAnchorElement>("a[href]");
+            if (!enlace || enlace.target || enlace.hasAttribute("download")) {
+                return;
+            }
+
+            const destino = new URL(enlace.href, window.location.href);
+            if (destino.origin !== window.location.origin) {
+                return;
+            }
+
+            const ruta = `${destino.pathname}${destino.search}${destino.hash}`;
+            const rutaActual = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            if (ruta === rutaActual) {
+                return;
+            }
+
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            setDialogo({
+                titulo: "¿Salir sin guardar?",
+                mensaje: "Los productos seleccionados se perderán si sales de esta página.",
+                textoConfirmar: "Salir y descartar",
+                textoCancelar: "Seguir en la comanda",
+                destructivo: true,
+                confirmar: () => navigate(ruta),
+                cancelar: () => setDialogo(null)
+            });
+        };
+
+        document.addEventListener("click", interceptarEnlace, true);
+        return () => document.removeEventListener("click", interceptarEnlace, true);
+    }, [hayCambiosSinGuardar, navigate]);
+
+    useEffect(() => {
+        if (!hayCambiosSinGuardar) {
+            return;
+        }
+
+        const confirmarSalida = (event: BeforeUnloadEvent) => {
+            event.preventDefault();
+            event.returnValue = "";
+        };
+
+        window.addEventListener("beforeunload", confirmarSalida);
+        return () => window.removeEventListener("beforeunload", confirmarSalida);
+    }, [hayCambiosSinGuardar]);
+
+    const numeroMesa = mesas.find(
+        (mesa) => mesa.id === mesaId
+    )?.numero ?? mesaId;
 
     const agregarProducto = (productoId: number) => {
         setCantidades((actuales) => ({
@@ -105,8 +247,8 @@ function NuevaComanda() {
             );
 
             // Sin receta todavía no hay consumos que puedan validarse aquí.
-            if (!receta) {
-                continue;
+            if (!receta || receta.ingredientes.length === 0) {
+                return false;
             }
 
             for (const ingrediente of receta.ingredientes) {
@@ -136,8 +278,8 @@ function NuevaComanda() {
         );
     };
 
-    const confirmarComanda = () => {
-        if (!numeroMesa) {
+    const guardarComanda = () => {
+        if (!Number.isInteger(mesaId)) {
             return;
         }
 
@@ -151,31 +293,50 @@ function NuevaComanda() {
                 })
             );
 
-        const confirmar = window.confirm(
-            modoAgregar
-                ? `¿Agregar estos productos a la comanda de la Mesa ${numeroMesa}?`
-                : `¿Crear la comanda para la Mesa ${numeroMesa}?`
-        );
+        if (modoEditar && idComandaEditar) {
 
-        if (!confirmar) {
+            const resultado = editarComanda(
+                Number(idComandaEditar),
+                productosComanda
+            );
+
+            if (!resultado) {
+                setDialogo({
+                    titulo: "No se pudo editar la comanda",
+                    mensaje: "Es posible que ya haya sido enviada a preparación.",
+                    textoConfirmar: "Cerrar",
+                    confirmar: () => setDialogo(null)
+                });
+
+                return;
+            }
+
+        } else {
+
+            crearComanda(
+                mesaId,
+                productosComanda
+            );
+        }
+
+        mostrarToast(modoEditar ? "Comanda actualizada." : "Comanda creada correctamente.");
+        navigate("/mesas");
+    };
+
+    const confirmarComanda = () => {
+        if (!Number.isInteger(mesaId)) {
             return;
         }
 
-        const comandaActiva = obtenerComandaDeMesa(Number(numeroMesa));
-
-        if (modoAgregar && comandaActiva) {
-            agregarProductosAComanda(
-                comandaActiva.id,
-                productosComanda
-            );
-        } else {
-            crearComanda(
-                Number(numeroMesa),
-                productosComanda
-            );
-        }
-
-        navigate("/mesas");
+        setDialogo({
+            titulo: modoEditar ? "Editar comanda" : "Crear comanda",
+            mensaje: modoEditar
+                ? `¿Confirmás los cambios de la comanda para la Mesa ${numeroMesa}?`
+                : `¿Crear la comanda para la Mesa ${numeroMesa}?`,
+            textoConfirmar: modoEditar ? "Guardar cambios" : "Crear comanda",
+            confirmar: guardarComanda,
+            cancelar: () => setDialogo(null)
+        });
     };
 
     return (
@@ -233,7 +394,7 @@ function NuevaComanda() {
 
                                             <strong>
                                                 $
-                                                {producto.precio.toLocaleString()}
+                                                {formatearPrecio(producto.precio)}
                                             </strong>
 
                                         </div>
@@ -314,10 +475,9 @@ function NuevaComanda() {
 
                                     <strong>
                                         $
-                                        {(
-                                            producto.precio *
-                                            cantidad
-                                        ).toLocaleString()}
+                                        {formatearPrecio(
+                                            producto.precio * cantidad
+                                        )}
                                     </strong>
 
                                 </div>
@@ -333,7 +493,7 @@ function NuevaComanda() {
 
                         <strong>
                             $
-                            {obtenerTotal().toLocaleString()}
+                            {formatearPrecio(obtenerTotal())}
                         </strong>
 
                     </div>
@@ -342,9 +502,7 @@ function NuevaComanda() {
 
                         <button
                             className="secondary-button cancelar-button"
-                            onClick={() =>
-                                navigate("/mesas")
-                            }
+                            onClick={() => solicitarSalida("/mesas")}
                         >
                             Cancelar
                         </button>
@@ -365,6 +523,23 @@ function NuevaComanda() {
                 </div>
 
             </div>
+
+            {dialogo && (
+                <ModalConfirmacion
+                    titulo={dialogo.titulo}
+                    mensaje={dialogo.mensaje}
+                    textoConfirmar={dialogo.textoConfirmar}
+                    textoCancelar={dialogo.textoCancelar}
+                    destructivo={dialogo.destructivo}
+                    cerrar={() => setDialogo(null)}
+                    cancelar={dialogo.cancelar}
+                    confirmar={() => {
+                        const accion = dialogo.confirmar;
+                        setDialogo(null);
+                        accion();
+                    }}
+                />
+            )}
 
         </div>
     );

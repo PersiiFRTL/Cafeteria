@@ -9,6 +9,7 @@ import {
 import type {
     ElementoMapa
 } from "../types/mapa";
+import { useToast } from "../context/useToast";
 
 type TipoHerramienta =
     | "mesa-2"
@@ -16,6 +17,8 @@ type TipoHerramienta =
     | "mesa-6"
     | "mesa-8"
     | "linea";
+
+type OrientacionLinea = "horizontal" | "vertical";
 
 interface ArrastreMapa {
     elementoId: string;
@@ -27,6 +30,7 @@ interface ArrastreMapa {
 }
 
 function MapaEditor() {
+    const { mostrarToast } = useToast();
 
     const navigate = useNavigate();
 
@@ -43,6 +47,8 @@ function MapaEditor() {
         useState<TipoHerramienta | null>(null);
     const [largoLinea, setLargoLinea] = useState(6);
     const [grosorLinea, setGrosorLinea] = useState(4);
+    const [orientacionLinea, setOrientacionLinea] =
+        useState<OrientacionLinea>("horizontal");
     const [arrastre, setArrastre] = useState<ArrastreMapa | null>(null);
 
     const obtenerMesaDisponible = (
@@ -109,6 +115,9 @@ function MapaEditor() {
             agregarElementoMapa(
                 nuevoElemento
             );
+            mostrarToast(mesaDisponible
+                ? "Mesa agregada al mapa."
+                : "Mesa agregada sin asignar.");
 
             return;
         }
@@ -120,14 +129,17 @@ function MapaEditor() {
             y,
             ancho: largoLinea,
             alto: 1,
-            rotacion: 0,
+            rotacion: orientacionLinea === "vertical" ? 90 : 0,
             grosor: grosorLinea
         });
+        mostrarToast("Línea agregada al mapa.");
     };
 
     const obtenerDimensionesHerramienta = (herramienta: TipoHerramienta) => {
         if (herramienta === "linea") {
-            return { ancho: largoLinea * 40, alto: grosorLinea };
+            return orientacionLinea === "vertical"
+                ? { ancho: grosorLinea, alto: largoLinea * 40 }
+                : { ancho: largoLinea * 40, alto: grosorLinea };
         }
 
         const capacidad = Number(herramienta.replace("mesa-", ""));
@@ -189,9 +201,13 @@ function MapaEditor() {
     };
 
     const obtenerDimensionesElemento = (elemento: ElementoMapa) => ({
-        ancho: elemento.ancho * 40,
-        alto: elemento.tipo === "linea"
+        ancho: elemento.tipo === "linea" && elemento.rotacion === 90
             ? elemento.grosor ?? 4
+            : elemento.ancho * 40,
+        alto: elemento.tipo === "linea"
+            ? elemento.rotacion === 90
+                ? elemento.ancho * 40
+                : elemento.grosor ?? 4
             : elemento.alto * 40
     });
 
@@ -258,6 +274,7 @@ function MapaEditor() {
                 x,
                 y
             });
+            mostrarToast("Elemento reubicado.");
         }
 
         setArrastre(null);
@@ -478,12 +495,33 @@ function MapaEditor() {
                         }
                         className={`mapa-tool linea-tool ${herramientaSeleccionada === "linea" ? "selected" : ""}`}
                     >
-                        ━ Línea
+                        {orientacionLinea === "vertical" ? "┃" : "━"} Línea
                     </button>
 
                 </div>
 
                 <div className="mapa-ajustes">
+                    <div className="mapa-orientacion" role="group" aria-label="Orientación de línea">
+                        <span>Orientación</span>
+                        <div>
+                            <button
+                                type="button"
+                                aria-pressed={orientacionLinea === "horizontal"}
+                                className={orientacionLinea === "horizontal" ? "selected" : ""}
+                                onClick={() => setOrientacionLinea("horizontal")}
+                            >
+                                Horizontal
+                            </button>
+                            <button
+                                type="button"
+                                aria-pressed={orientacionLinea === "vertical"}
+                                className={orientacionLinea === "vertical" ? "selected" : ""}
+                                onClick={() => setOrientacionLinea("vertical")}
+                            >
+                                Vertical
+                            </button>
+                        </div>
+                    </div>
                     <label className="mapa-ajuste">
                         Largo de línea (cuadrículas)
                         <input
@@ -567,7 +605,7 @@ function MapaEditor() {
                                         : `mapa-elemento mapa-linea ${arrastre?.elementoId === elemento.id ? "dragging" : ""}`
                                 }
                                 aria-label={elemento.tipo === "linea"
-                                    ? `Línea de ${elemento.ancho} cuadrículas y ${elemento.grosor ?? 4} píxeles de grosor`
+                                    ? `Línea ${elemento.rotacion === 90 ? "vertical" : "horizontal"} de ${elemento.ancho} cuadrículas y ${elemento.grosor ?? 4} píxeles de grosor`
                                     : obtenerNombreMesa(elemento)}
                                 style={{
                                     left:
@@ -575,14 +613,19 @@ function MapaEditor() {
                                     top:
                                         posicion.y,
                                     width:
-                                        elemento.ancho *
-                                        40,
+                                        esLinea && elemento.rotacion === 90
+                                            ? elemento.grosor ?? 4
+                                            : elemento.ancho * 40,
                                     height:
                                         esLinea
-                                            ? elemento.grosor ?? 4
+                                            ? elemento.rotacion === 90
+                                                ? elemento.ancho * 40
+                                                : elemento.grosor ?? 4
                                             : elemento.alto * 40,
                                     transform:
-                                        `rotate(${elemento.rotacion}deg)`
+                                        esLinea
+                                            ? "none"
+                                            : `rotate(${elemento.rotacion}deg)`
                                 }}
                             >
 
@@ -615,6 +658,7 @@ function MapaEditor() {
                                         eliminarElementoMapa(
                                             elemento.id
                                         );
+                                        mostrarToast("Elemento eliminado del mapa.");
                                     }}
                                 >
                                     ×

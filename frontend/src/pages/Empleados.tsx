@@ -1,5 +1,8 @@
 import { useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { useCafeteria } from "../context/CafeteriaContext";
+import { contrasenaValida, emailValido } from "../validaciones";
+import { useToast } from "../context/useToast";
 
 type RolEmpleado =
     | "ADMINISTRADOR"
@@ -7,6 +10,7 @@ type RolEmpleado =
     | "COCINA";
 
 function Empleados() {
+    const { mostrarToast } = useToast();
 
     const {
         empleados,
@@ -32,6 +36,15 @@ function Empleados() {
     const [password, setPassword] =
         useState("");
 
+    const [passwordOriginal, setPasswordOriginal] =
+        useState("");
+
+    const [mostrarPassword, setMostrarPassword] =
+        useState(false);
+
+    const [errorFormulario, setErrorFormulario] =
+        useState("");
+
     const [rol, setRol] =
         useState<RolEmpleado>("EMPLEADO");
 
@@ -44,17 +57,19 @@ function Empleados() {
 
         setPassword("");
 
+        setPasswordOriginal("");
+
+        setMostrarPassword(false);
+
+        setErrorFormulario("");
+
         setRol("EMPLEADO");
     };
 
 
     const crearEmpleado = () => {
 
-        if (
-            nombre.trim() === "" ||
-            email.trim() === "" ||
-            password.trim() === ""
-        ) {
+        if (!validarEmpleado()) {
             return;
         }
 
@@ -64,6 +79,8 @@ function Empleados() {
             password,
             rol
         );
+
+        mostrarToast("Empleado creado correctamente.");
 
         limpiarFormulario();
 
@@ -93,6 +110,12 @@ function Empleados() {
 
         setPassword(empleado.password);
 
+        setPasswordOriginal(empleado.password);
+
+        setMostrarPassword(false);
+
+        setErrorFormulario("");
+
         setRol(empleado.rol);
     };
 
@@ -107,12 +130,7 @@ function Empleados() {
 
     const guardarEdicion = () => {
 
-        if (
-            empleadoEditando === null ||
-            nombre.trim() === "" ||
-            email.trim() === "" ||
-            password.trim() === ""
-        ) {
+        if (empleadoEditando === null || !validarEmpleado(empleadoEditando)) {
             return;
         }
 
@@ -124,9 +142,49 @@ function Empleados() {
             rol
         );
 
+        mostrarToast("Cambios del empleado guardados.");
+
         setEmpleadoEditando(null);
 
         limpiarFormulario();
+    };
+
+    const validarEmpleado = (idExcluido: number | null = null) => {
+        if (!nombre.trim()) {
+            setErrorFormulario("Ingresá el nombre del empleado.");
+            return false;
+        }
+
+        if (!emailValido(email)) {
+            setErrorFormulario("Ingresá un email válido.");
+            return false;
+        }
+
+        const emailNormalizado = email.trim().toLowerCase();
+        const emailDuplicado = empleados.some(
+            (empleado) =>
+                empleado.id !== idExcluido &&
+                empleado.email.trim().toLowerCase() === emailNormalizado
+        );
+
+        if (emailDuplicado) {
+            setErrorFormulario("Ya existe un empleado registrado con ese email.");
+            return false;
+        }
+
+        const cambioContrasena = idExcluido === null || password !== passwordOriginal;
+        if (cambioContrasena && !contrasenaValida(password)) {
+            setErrorFormulario("La contraseña debe tener al menos 8 caracteres e incluir una letra y un número.");
+            return false;
+        }
+
+        setErrorFormulario("");
+        return true;
+    };
+
+    const alternarEstadoEmpleado = (id: number, activo: boolean) => {
+        cambiarEstadoEmpleado(id, activo);
+        mostrarToast(activo ? "Empleado activado." : "Empleado desactivado.");
     };
 
 
@@ -207,41 +265,57 @@ function Empleados() {
                         Nuevo empleado
                     </h2>
 
-
+                    <div className="producto-form-fields">
                     <input
                         type="text"
+                        required
                         placeholder="Nombre completo"
                         value={nombre}
-                        onChange={(e) =>
-                            setNombre(
-                                e.target.value
-                            )
-                        }
+                        onChange={(e) => {
+                            setNombre(e.target.value);
+                            setErrorFormulario("");
+                        }}
                     />
 
 
                     <input
                         type="email"
+                        required
                         placeholder="Email"
                         value={email}
-                        onChange={(e) =>
-                            setEmail(
-                                e.target.value
-                            )
-                        }
+                        onChange={(e) => {
+                            setEmail(e.target.value);
+                            setErrorFormulario("");
+                        }}
                     />
 
 
-                    <input
-                        type="password"
-                        placeholder="Contraseña"
-                        value={password}
-                        onChange={(e) =>
-                            setPassword(
-                                e.target.value
-                            )
-                        }
-                    />
+                    <div className="empleado-password-field">
+                        <input
+                            type={mostrarPassword ? "text" : "password"}
+                            placeholder="Contraseña"
+                            value={password}
+                            required
+                            autoComplete="new-password"
+                            aria-label="Contraseña"
+                            onChange={(e) => {
+                                setPassword(e.target.value);
+                                setErrorFormulario("");
+                            }}
+                        />
+                        <button
+                            type="button"
+                            className="password-visibility-button"
+                            aria-label={mostrarPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                            title={mostrarPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                            onClick={() => setMostrarPassword(!mostrarPassword)}
+                        >
+                            {mostrarPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                        <small className="empleado-password-hint">
+                            Mínimo 8 caracteres, con al menos una letra y un número.
+                        </small>
+                    </div>
 
 
                     <select
@@ -266,6 +340,11 @@ function Empleados() {
                         </option>
 
                     </select>
+
+                    {errorFormulario && (
+                        <p className="form-field-error" role="alert">{errorFormulario}</p>
+                    )}
+                    </div>
 
 
                     <div className="producto-form-actions">
@@ -355,39 +434,61 @@ function Empleados() {
 
                                     <input
                                         type="text"
+                                        placeholder="Nombre"
+                                        aria-label="Nombre"
+                                        required
                                         value={nombre}
-                                        onChange={(e) =>
-                                            setNombre(
-                                                e.target.value
-                                            )
-                                        }
+                                        onChange={(e) => {
+                                            setNombre(e.target.value);
+                                            setErrorFormulario("");
+                                        }}
                                     />
 
 
                                     <input
                                         type="email"
+                                        placeholder="Email"
+                                        aria-label="Email"
+                                        required
                                         value={email}
-                                        onChange={(e) =>
-                                            setEmail(
-                                                e.target.value
-                                            )
-                                        }
+                                        onChange={(e) => {
+                                            setEmail(e.target.value);
+                                            setErrorFormulario("");
+                                        }}
                                     />
 
 
-                                    <input
-                                        type="password"
-                                        value={password}
-                                        onChange={(e) =>
-                                            setPassword(
-                                                e.target.value
-                                            )
-                                        }
-                                    />
+                                    <div className="empleado-password-field" data-label="Contraseña">
+                                        <input
+                                            type={mostrarPassword ? "text" : "password"}
+                                            placeholder="Contraseña"
+                                            value={password}
+                                            required
+                                            autoComplete="new-password"
+                                            aria-label="Contraseña"
+                                            onChange={(e) => {
+                                                setPassword(e.target.value);
+                                                setErrorFormulario("");
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            className="password-visibility-button"
+                                            aria-label={mostrarPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                            title={mostrarPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                            onClick={() => setMostrarPassword(!mostrarPassword)}
+                                        >
+                                            {mostrarPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                        </button>
+                                        <small className="empleado-password-hint">
+                                            Mínimo 8 caracteres, con al menos una letra y un número.
+                                        </small>
+                                    </div>
 
 
                                     <select
                                         value={rol}
+                                        aria-label="Rol"
                                         onChange={(e) =>
                                             setRol(
                                                 e.target.value as RolEmpleado
@@ -411,13 +512,14 @@ function Empleados() {
 
 
                                     <button
+                                        data-label="Estado"
                                         className={
                                             empleado.activo
                                                 ? "estado-activo"
                                                 : "estado-inactivo"
                                         }
                                         onClick={() =>
-                                            cambiarEstadoEmpleado(
+                                            alternarEstadoEmpleado(
                                                 empleado.id,
                                                 !empleado.activo
                                             )
@@ -430,6 +532,10 @@ function Empleados() {
 
 
                                     <div className="producto-edicion-actions">
+
+                                        {errorFormulario && (
+                                            <p className="form-field-error" role="alert">{errorFormulario}</p>
+                                        )}
 
                                         <button
                                             className="primary-button"
@@ -464,29 +570,29 @@ function Empleados() {
                                 key={empleado.id}
                             >
 
-                                <span>
+                                    <span data-label="Nombre">
                                     {empleado.nombre}
                                 </span>
 
 
-                                <span>
+                                <span data-label="Email">
                                     {empleado.email}
                                 </span>
 
 
-                                <span>
+                                <span data-label="Contraseña">
                                     ••••••••
                                 </span>
 
 
-                                <span>
+                                <span data-label="Rol">
                                     {obtenerNombreRol(
                                         empleado.rol
                                     )}
                                 </span>
 
 
-                                <span>
+                                <span data-label="Estado">
 
                                     <button
                                         className={
@@ -495,7 +601,7 @@ function Empleados() {
                                                 : "estado-inactivo"
                                         }
                                         onClick={() =>
-                                            cambiarEstadoEmpleado(
+                                            alternarEstadoEmpleado(
                                                 empleado.id,
                                                 !empleado.activo
                                             )
@@ -509,7 +615,7 @@ function Empleados() {
                                 </span>
 
 
-                                <span>
+                                <span data-label="Acciones">
 
                                     <button
                                         className="editar-producto-button"

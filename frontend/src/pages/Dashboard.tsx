@@ -15,7 +15,9 @@ function Dashboard() {
     ).length;
 
     const comandasPendientes = comandas.filter(
-        (comanda) => comanda.estado !== "lista" && comanda.estado !== "finalizada"
+        (comanda) =>         
+        comanda.estado === "pendiente" ||
+        comanda.estado === "preparando"
     ).length;
 
     const hoy = new Date();

@@ -86,6 +86,7 @@ interface Produccion {
     productoId: number;
     cantidad: number;
     fecha: string;
+    ingredientes?: IngredienteReceta[];
 }
 
 type TipoMovimiento =
@@ -163,6 +164,44 @@ const cargarMapa = (): ElementoMapa[] => {
     }
 };
 
+const renumerarMesasSegunMapa = (
+    mesas: Mesa[],
+    elementos: ElementoMapa[]
+): Mesa[] => {
+    const mesasEnMapa: Mesa[] = [];
+    const idsMesasEnMapa = new Set<number>();
+
+    elementos.forEach((elemento) => {
+        if (
+            elemento.tipo !== "mesa" ||
+            elemento.mesaId === undefined ||
+            idsMesasEnMapa.has(elemento.mesaId)
+        ) {
+            return;
+        }
+
+        const mesa = mesas.find(
+            (mesaActual) => mesaActual.id === elemento.mesaId
+        );
+
+        if (mesa) {
+            mesasEnMapa.push(mesa);
+            idsMesasEnMapa.add(mesa.id);
+        }
+    });
+
+    const mesasSinUbicar = mesas
+        .filter((mesa) => !idsMesasEnMapa.has(mesa.id))
+        .sort((mesaA, mesaB) => mesaA.numero - mesaB.numero);
+
+    return [...mesasEnMapa, ...mesasSinUbicar].map(
+        (mesa, index) => ({
+            ...mesa,
+            numero: index + 1
+        })
+    );
+};
+
 interface CafeteriaContextType {
 
     mesas: Mesa[];
@@ -186,6 +225,11 @@ interface CafeteriaContextType {
         comandaId: number,
         productos: ProductoComanda[]
     ) => void;
+
+    editarComanda: (
+    comandaId: number,
+    productos: ProductoComanda[]
+    ) => boolean;
 
     obtenerComandaDeMesa: (
         mesaId: number
@@ -223,6 +267,8 @@ interface CafeteriaContextType {
             | "preelaborado"
     ) => void;
 
+    eliminarProductoCatalogo: (id: number) => boolean;
+
     cambiarEstadoProductoCatalogo: (
         id: number,
         activo: boolean
@@ -236,6 +282,14 @@ interface CafeteriaContextType {
         unidad: MateriaPrima["unidad"],
         stockMinimo: number,
         stockInicial: number
+    ) => boolean;
+
+    editarMateriaPrima: (
+        id: number,
+        nombre: string,
+        categoria: string,
+        unidad: MateriaPrima["unidad"],
+        stockMinimo: number
     ) => void;
 
     cambiarEstadoMateriaPrima: (
@@ -251,7 +305,7 @@ interface CafeteriaContextType {
     registrarSalidaMateriaPrima: (
         materiaPrimaId: number,
         cantidad: number
-    ) => void;
+    ) => boolean;
 
     recetas: Receta[];
 
@@ -328,8 +382,16 @@ export function CafeteriaProvider({
     children: ReactNode;
 }) {
 
+    const [elementosMapa, setElementosMapa] =
+        useState<ElementoMapa[]>(() => cargarMapa());
+
     const [mesas, setMesas] =
-        useState<Mesa[]>(mesasIniciales as Mesa[]);
+        useState<Mesa[]>(() =>
+            renumerarMesasSegunMapa(
+                mesasIniciales as Mesa[],
+                elementosMapa
+            )
+        );
 
     const [comandas, setComandas] =
         useState<Comanda[]>([]);
@@ -360,11 +422,6 @@ export function CafeteriaProvider({
 
     const [operacionesStock, setOperacionesStock] =
         useState<OperacionStock[]>([]);
-
-        const [
-            elementosMapa,
-            setElementosMapa ] 
-        = useState<ElementoMapa[]>(() => cargarMapa());
 
     // ==========================
     // COMANDAS
@@ -698,6 +755,49 @@ export function CafeteriaProvider({
                     }
                 )
         );
+    };
+    const editarComanda = (
+    comandaId: number,
+    productosNuevos: ProductoComanda[]
+): boolean => {
+
+    const comanda = comandas.find(
+        (comanda) => comanda.id === comandaId
+    );
+
+    if (!comanda) {
+        return false;
+    }
+
+    // Solo se pueden editar comandas pendientes
+    if (comanda.estado !== "pendiente") {
+        return false;
+    }
+
+    // No permitimos guardar una comanda sin productos
+    if (productosNuevos.length === 0) {
+        return false;
+    }
+
+    const productosActualizados =
+        productosNuevos.map((producto) => ({
+            ...producto,
+            estado: "pendiente" as const
+        }));
+
+    setComandas((comandasActuales) =>
+        comandasActuales.map((comandaActual) =>
+            comandaActual.id === comandaId
+                ? {
+                    ...comandaActual,
+                    productos: productosActualizados,
+                    estado: "pendiente"
+                }
+                : comandaActual
+        )
+    );
+
+    return true;
     };
 
     const obtenerComandaDeMesa = (
@@ -1052,7 +1152,11 @@ const editarElementoMapa = (
         productoId,
         cantidad,
         fecha:
-            new Date().toISOString()
+            new Date().toISOString(),
+        ingredientes: receta.ingredientes.map((ingrediente) => ({
+            materiaPrimaId: ingrediente.materiaPrimaId,
+            cantidad: ingrediente.cantidad * cantidad
+        }))
     };
 
     setProducciones((actuales) => [
@@ -1656,6 +1760,31 @@ function procesarStockComanda(
         );
     };
 
+    const eliminarProductoCatalogo = (id: number): boolean => {
+        const tieneProducciones = producciones.some(
+            (produccion) => produccion.productoId === id
+        );
+        const tieneOperaciones = operacionesStock.some(
+            (operacion) => operacion.referenciaId === id
+        );
+        const tieneComandas = comandas.some((comanda) =>
+            comanda.productos.some((producto) => producto.productoId === id)
+        );
+
+        if (tieneProducciones || tieneOperaciones || tieneComandas) {
+            return false;
+        }
+
+        setProductos((productosActuales) =>
+            productosActuales.filter((producto) => producto.id !== id)
+        );
+        setRecetas((recetasActuales) =>
+            recetasActuales.filter((receta) => receta.productoId !== id)
+        );
+
+        return true;
+    };
+
     const cambiarEstadoProductoCatalogo = (
         id: number,
         activo: boolean
@@ -1695,6 +1824,28 @@ function procesarStockComanda(
                             }
                             : materia
                 )
+        );
+    };
+
+    const editarMateriaPrima = (
+        id: number,
+        nombre: string,
+        categoria: string,
+        unidad: MateriaPrima["unidad"],
+        stockMinimo: number
+    ) => {
+        setMateriasPrimas((materiasActuales) =>
+            materiasActuales.map((materia) =>
+                materia.id === id
+                    ? {
+                          ...materia,
+                          nombre: nombre.trim(),
+                          categoria: categoria.trim(),
+                          unidad,
+                          stockMinimo
+                      }
+                    : materia
+            )
         );
     };
 
@@ -1816,7 +1967,7 @@ function procesarStockComanda(
         unidad: MateriaPrima["unidad"],
         stockMinimo: number,
         stockInicial: number
-    ) => {
+    ): boolean => {
         const nombreNormalizado = nombre.trim().toLowerCase();
 
         if (
@@ -1827,14 +1978,11 @@ function procesarStockComanda(
                     nombreNormalizado
             )
         ) {
-            window.alert(
-                "Ya existe una materia prima con ese nombre."
-            );
-            return;
+            return false;
         }
 
         if (stockMinimo < 0 || stockInicial < 0) {
-            return;
+            return false;
         }
 
         const nuevoId = materiasPrimas.length > 0
@@ -1855,15 +2003,17 @@ function procesarStockComanda(
                 activo: true
             }
         ]);
+
+        return true;
     };
 
     const registrarSalidaMateriaPrima = (
     materiaPrimaId: number,
     cantidad: number
-) => {
+): boolean => {
 
     if (cantidad <= 0) {
-        return;
+        return false;
     }
 
     const materia =
@@ -1873,7 +2023,7 @@ function procesarStockComanda(
         );
 
     if (!materia) {
-        return;
+        return false;
     }
 
     // ==========================
@@ -1881,10 +2031,7 @@ function procesarStockComanda(
     // ==========================
 
     if (materia.stockActual < cantidad) {
-        window.alert(
-            `No hay suficiente stock de ${materia.nombre}. Disponible: ${materia.stockActual} ${materia.unidad}.`
-        );
-        return;
+        return false;
     }
 
 
@@ -1978,6 +2125,8 @@ function procesarStockComanda(
             nuevaOperacion
         ]
     );
+
+    return true;
 };
 
     // ==========================
@@ -2053,14 +2202,17 @@ function procesarStockComanda(
                 agregarProductosAComanda,
                 obtenerComandaDeMesa,
                 cambiarEstadoProducto,
+                editarComanda,
 
                 productos,
                 agregarProducto,
                 editarProducto,
+                eliminarProductoCatalogo,
                 cambiarEstadoProductoCatalogo,
 
                 materiasPrimas,
                 agregarMateriaPrima,
+                editarMateriaPrima,
                 cambiarEstadoMateriaPrima,
                 registrarEntradaMateriaPrima,
                 registrarSalidaMateriaPrima,

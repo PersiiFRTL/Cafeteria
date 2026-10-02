@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useCafeteria } from "../context/CafeteriaContext";
+import { useToast } from "../context/useToast";
 
 interface Sector {
     nombre: string;
@@ -22,6 +23,7 @@ const sectores: Sector[] = [
 ];
 
 function Preparacion() {
+    const { mostrarToast } = useToast();
 
     const {
         comandas,
@@ -42,6 +44,17 @@ function Preparacion() {
 
     const volverSectores = () => {
         setSectorSeleccionado(null);
+    };
+
+    const actualizarEstadoPedido = (
+        comandaId: number,
+        productoId: number,
+        estado: "preparando" | "listo"
+    ) => {
+        cambiarEstadoProducto(comandaId, productoId, estado);
+        mostrarToast(estado === "listo"
+            ? "Producto marcado como listo."
+            : "Preparación iniciada.");
     };
 
     /*
@@ -234,7 +247,7 @@ function Preparacion() {
                                         <button
                                             className="primary-button"
                                             onClick={() =>
-                                                cambiarEstadoProducto(
+                                                actualizarEstadoPedido(
                                                     comanda.id,
                                                     item.productoId,
                                                     "preparando"
@@ -252,7 +265,7 @@ function Preparacion() {
                                         <button
                                             className="primary-button"
                                             onClick={() =>
-                                                cambiarEstadoProducto(
+                                                actualizarEstadoPedido(
                                                     comanda.id,
                                                     item.productoId,
                                                     "listo"

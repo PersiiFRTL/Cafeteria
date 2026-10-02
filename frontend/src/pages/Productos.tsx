@@ -1,13 +1,27 @@
 import { useState } from "react";
 import { useCafeteria } from "../context/CafeteriaContext";
+import { formatearPrecio, parsearPrecio } from "../validaciones";
+import ModalConfirmacion from "../components/ModalConfirmacion";
+import { useToast } from "../context/useToast";
+
+interface DialogoProducto {
+    titulo: string;
+    mensaje: string;
+    textoConfirmar: string;
+    confirmar: () => void;
+    cancelar?: () => void;
+    destructivo?: boolean;
+}
 
 function Productos() {
+    const { mostrarToast } = useToast();
 
     const {
         productos,
         agregarProducto,
         editarProducto,
-        cambiarEstadoProductoCatalogo
+        cambiarEstadoProductoCatalogo,
+        eliminarProductoCatalogo
     } = useCafeteria();
 
     const [mostrarFormulario, setMostrarFormulario] =
@@ -32,6 +46,8 @@ function Productos() {
         useState<
             "bajo_pedido" | "preelaborado"
         >("bajo_pedido");
+    const [errorPrecio, setErrorPrecio] = useState("");
+    const [dialogo, setDialogo] = useState<DialogoProducto | null>(null);
 
 
     const limpiarFormulario = () => {
@@ -50,24 +66,31 @@ function Productos() {
 
     const crearProducto = () => {
 
-        if (
-            nombre.trim() === "" ||
-            precio === ""
-        ) {
+        if (nombre.trim() === "") {
+            setErrorPrecio("Ingresá el nombre del producto.");
+            return;
+        }
+
+        const precioNumero = parsearPrecio(precio);
+        if (precioNumero === null || precioNumero < 0) {
+            setErrorPrecio("El precio debe ser un número igual o mayor que 0.");
             return;
         }
 
         agregarProducto(
             nombre,
-            Number(precio),
+            precioNumero,
             categoria,
             sector,
             tipoElaboracion
         );
 
+        mostrarToast("Producto creado correctamente.");
+
         limpiarFormulario();
 
         setMostrarFormulario(false);
+        setErrorPrecio("");
     };
 
 
@@ -86,14 +109,13 @@ function Productos() {
         }
 
         setProductoEditando(id);
+        setErrorPrecio("");
 
         setNombre(producto.nombre);
 
         setCategoria(producto.categoria);
 
-        setPrecio(
-            String(producto.precio)
-        );
+        setPrecio(formatearPrecio(producto.precio));
 
         setSector(producto.sector);
 
@@ -113,26 +135,65 @@ function Productos() {
 
     const guardarEdicion = () => {
 
-        if (
-            productoEditando === null ||
-            nombre.trim() === "" ||
-            precio === ""
-        ) {
+        if (productoEditando === null) {
+            return;
+        }
+
+        if (nombre.trim() === "") {
+            setErrorPrecio("Ingresá el nombre del producto.");
+            return;
+        }
+
+        const precioNumero = parsearPrecio(precio);
+        if (precioNumero === null || precioNumero < 0) {
+            setErrorPrecio("El precio debe ser un número igual o mayor que 0.");
             return;
         }
 
         editarProducto(
             productoEditando,
             nombre,
-            Number(precio),
+            precioNumero,
             categoria,
             sector,
             tipoElaboracion
         );
 
+        mostrarToast("Producto actualizado correctamente.");
+
         setProductoEditando(null);
 
         limpiarFormulario();
+        setErrorPrecio("");
+    };
+
+    const eliminarProducto = (id: number, nombreProducto: string) => {
+        setDialogo({
+            titulo: "Eliminar producto",
+            mensaje: `¿Eliminar el producto "${nombreProducto}"? Esta acción no se puede deshacer.`,
+            textoConfirmar: "Eliminar",
+            destructivo: true,
+            cancelar: () => setDialogo(null),
+            confirmar: () => {
+                if (!eliminarProductoCatalogo(id)) {
+                    setDialogo({
+                        titulo: "No se puede eliminar el producto",
+                        mensaje: "Tiene pedidos u operaciones en el historial. Podés desactivarlo en su lugar.",
+                        textoConfirmar: "Cerrar",
+                        confirmar: () => setDialogo(null)
+                    });
+                    return;
+                }
+
+                if (productoEditando === id) cancelarEdicion();
+                mostrarToast("Producto eliminado correctamente.");
+            }
+        });
+    };
+
+    const alternarEstadoProducto = (id: number, activo: boolean) => {
+        cambiarEstadoProductoCatalogo(id, activo);
+        mostrarToast(activo ? "Producto activado." : "Producto desactivado.");
     };
 
 
@@ -191,6 +252,7 @@ function Productos() {
                         Nuevo producto
                     </h2>
 
+                    <div className="producto-form-fields">
 
                     <input
                         type="text"
@@ -237,16 +299,26 @@ function Productos() {
 
 
                     <input
-                        type="number"
+                        type="text"
                         placeholder="Precio"
-                        min="0"
+                        inputMode="decimal"
+                        required
                         value={precio}
-                        onChange={(e) =>
-                            setPrecio(
-                                e.target.value
-                            )
-                        }
+                        onChange={(e) => {
+                            setPrecio(e.target.value.replace(/[^\d.,]/g, ""));
+                            setErrorPrecio("");
+                        }}
+                        onBlur={() => {
+                            const valor = parsearPrecio(precio);
+                            if (valor !== null) setPrecio(formatearPrecio(valor));
+                        }}
                     />
+
+                    {errorPrecio && (
+                        <p className="form-field-error" role="alert">
+                            {errorPrecio}
+                        </p>
+                    )}
 
 
                     <select
@@ -294,6 +366,7 @@ function Productos() {
 
                     </select>
 
+                    </div>
 
                     <div className="producto-form-actions">
 
@@ -385,6 +458,8 @@ function Productos() {
 
                                     <input
                                         type="text"
+                                        placeholder="Producto"
+                                        aria-label="Producto"
                                         value={nombre}
                                         onChange={(e) =>
                                             setNombre(
@@ -396,6 +471,7 @@ function Productos() {
 
                                     <select
                                         value={categoria}
+                                        aria-label="Categoría"
                                         onChange={(e) =>
                                             setCategoria(
                                                 e.target.value
@@ -427,19 +503,27 @@ function Productos() {
 
 
                                     <input
-                                        type="number"
+                                        type="text"
+                                        aria-label="Precio"
                                         value={precio}
-                                        min="0"
+                                        inputMode="decimal"
+                                        required
                                         onChange={(e) =>
-                                            setPrecio(
-                                                e.target.value
-                                            )
+                                            {
+                                                setPrecio(e.target.value.replace(/[^\d.,]/g, ""));
+                                                setErrorPrecio("");
+                                            }
                                         }
+                                        onBlur={() => {
+                                            const valor = parsearPrecio(precio);
+                                            if (valor !== null) setPrecio(formatearPrecio(valor));
+                                        }}
                                     />
 
 
                                     <select
                                         value={sector}
+                                        aria-label="Sector"
                                         onChange={(e) =>
                                             setSector(
                                                 e.target.value
@@ -466,6 +550,7 @@ function Productos() {
                                         value={
                                             tipoElaboracion
                                         }
+                                        aria-label="Tipo de elaboración"
                                         onChange={(e) =>
                                             setTipoElaboracion(
                                                 e.target.value as
@@ -486,26 +571,31 @@ function Productos() {
                                     </select>
 
 
-                                    <button
-                                        className={
-                                            producto.activo
-                                                ? "estado-activo"
-                                                : "estado-inactivo"
-                                        }
-                                        onClick={() =>
-                                            cambiarEstadoProductoCatalogo(
-                                                producto.id,
-                                                !producto.activo
-                                            )
-                                        }
-                                    >
-                                        {producto.activo
-                                            ? "Activo"
-                                            : "Inactivo"}
-                                    </button>
+                                    <label className="producto-estado-switch" data-label="Estado">
+                                        <input
+                                            type="checkbox"
+                                            role="switch"
+                                            checked={producto.activo}
+                                            aria-label={`Estado de ${producto.nombre}`}
+                                            onChange={(event) =>
+                                                alternarEstadoProducto(
+                                                    producto.id,
+                                                    event.target.checked
+                                                )
+                                            }
+                                        />
+                                        <span aria-hidden="true" />
+                                        <span>{producto.activo ? "Activo" : "Inactivo"}</span>
+                                    </label>
 
 
                                     <div className="producto-edicion-actions">
+
+                                        {errorPrecio && (
+                                            <p className="form-field-error" role="alert">
+                                                {errorPrecio}
+                                            </p>
+                                        )}
 
                                         <button
                                             className="primary-button"
@@ -539,24 +629,24 @@ function Productos() {
                                 key={producto.id}
                             >
 
-                                <span>
+                                <span data-label="Producto">
                                     {producto.nombre}
                                 </span>
 
-                                <span>
+                                <span data-label="Categoría">
                                     {producto.categoria}
                                 </span>
 
-                                <span>
+                                <span data-label="Precio">
                                     $
-                                    {producto.precio.toLocaleString()}
+                                    {formatearPrecio(producto.precio)}
                                 </span>
 
-                                <span>
+                                <span data-label="Sector">
                                     {producto.sector}
                                 </span>
 
-                                <span>
+                                <span data-label="Elaboración">
 
                                     {producto.tipoElaboracion ===
                                     "preelaborado"
@@ -565,29 +655,28 @@ function Productos() {
 
                                 </span>
 
-                                <span>
+                                <span data-label="Estado">
 
-                                    <button
-                                        className={
-                                            producto.activo
-                                                ? "estado-activo"
-                                                : "estado-inactivo"
-                                        }
-                                        onClick={() =>
-                                            cambiarEstadoProductoCatalogo(
-                                                producto.id,
-                                                !producto.activo
-                                            )
-                                        }
-                                    >
-                                        {producto.activo
-                                            ? "Activo"
-                                            : "Inactivo"}
-                                    </button>
+                                    <label className="producto-estado-switch">
+                                        <input
+                                            type="checkbox"
+                                            role="switch"
+                                            checked={producto.activo}
+                                            aria-label={`Estado de ${producto.nombre}`}
+                                            onChange={(event) =>
+                                                alternarEstadoProducto(
+                                                    producto.id,
+                                                    event.target.checked
+                                                )
+                                            }
+                                        />
+                                        <span aria-hidden="true" />
+                                        <span>{producto.activo ? "Activo" : "Inactivo"}</span>
+                                    </label>
 
                                 </span>
 
-                                <span>
+                                <div className="producto-row-actions" data-label="Acciones">
 
                                     <button
                                         className="editar-producto-button"
@@ -600,7 +689,14 @@ function Productos() {
                                         ✏ Editar
                                     </button>
 
-                                </span>
+                                    <button
+                                        className="eliminar-producto-button"
+                                        onClick={() => eliminarProducto(producto.id, producto.nombre)}
+                                    >
+                                        Eliminar
+                                    </button>
+
+                                </div>
 
                             </div>
                         );
@@ -609,6 +705,21 @@ function Productos() {
 
             </div>
 
+            {dialogo && (
+                <ModalConfirmacion
+                    titulo={dialogo.titulo}
+                    mensaje={dialogo.mensaje}
+                    textoConfirmar={dialogo.textoConfirmar}
+                    destructivo={dialogo.destructivo}
+                    cerrar={() => setDialogo(null)}
+                    confirmar={() => {
+                        const accion = dialogo.confirmar;
+                        setDialogo(null);
+                        accion();
+                    }}
+                    cancelar={dialogo.cancelar}
+                />
+            )}
         </div>
     );
 }

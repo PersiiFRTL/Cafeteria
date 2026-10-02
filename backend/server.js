@@ -3,11 +3,19 @@ const empleados = require("../frontend/src/data/empleados.json");
 
 const app = express();
 const PORT = 3000;
+const allowedFrontendOrigins = new Set([
+    "http://localhost:5173",
+    "http://127.0.0.1:5173"
+]);
 
 app.use(express.json());
 
 app.use((req, res, next) => {
-    res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
+    const origin = req.headers.origin;
+    if (origin && allowedFrontendOrigins.has(origin)) {
+        res.setHeader("Access-Control-Allow-Origin", origin);
+        res.setHeader("Vary", "Origin");
+    }
     res.setHeader(
         "Access-Control-Allow-Methods",
         "GET, POST, OPTIONS"
@@ -18,7 +26,7 @@ app.use((req, res, next) => {
     );
 
     if (req.method === "OPTIONS") {
-        return res.sendStatus(200);
+        return res.sendStatus(204);
     }
 
     next();

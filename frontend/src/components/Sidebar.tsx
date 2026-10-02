@@ -1,10 +1,13 @@
 import { Link } from "react-router-dom";
+import { useState } from "react";
+import { Menu, X } from "lucide-react";
 import { tienePermiso } from "../config/permisos";
 import type { RolEmpleado } from "../config/permisos";
 import { useAuth } from "../context/AuthContext";
 
 function Sidebar() {
-    const { usuario, cerrarSesion} = useAuth();
+    const { usuario, cerrarSesion } = useAuth();
+    const [menuAbierto, setMenuAbierto] = useState(false);
 
     if (!usuario) {
         return null;
@@ -13,10 +16,22 @@ function Sidebar() {
     const rolActual: RolEmpleado = usuario.rol;
 
     return (
-        <aside className="sidebar">
+        <aside className={`sidebar ${menuAbierto ? "mobile-open" : ""}`}>
             <h2>☕ CAFETERÍA</h2>
 
-            <nav>
+            <button
+                type="button"
+                className="sidebar-menu-toggle"
+                aria-label={menuAbierto ? "Cerrar menú" : "Abrir menú"}
+                aria-controls="sidebar-navigation"
+                aria-expanded={menuAbierto}
+                onClick={() => setMenuAbierto(!menuAbierto)}
+            >
+                {menuAbierto ? <X size={20} /> : <Menu size={20} />}
+                <span>Menú</span>
+            </button>
+
+            <nav id="sidebar-navigation" onClick={() => setMenuAbierto(false)}>
                 <ul>
 
                     {tienePermiso(rolActual, "dashboard") && (

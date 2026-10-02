@@ -1,13 +1,16 @@
 import { useState } from "react";
 import { useCafeteria } from "../context/CafeteriaContext";
+import { numeroValido } from "../validaciones";
+import { useToast } from "../context/useToast";
 
 function Stock() {
+    const { mostrarToast } = useToast();
 
     const {
         materiasPrimas,
         productos,
         agregarMateriaPrima,
-        agregarProducto,
+        editarMateriaPrima,
         cambiarEstadoMateriaPrima,
         registrarEntradaMateriaPrima,
         registrarSalidaMateriaPrima,
@@ -24,11 +27,14 @@ function Stock() {
     const [cantidad, setCantidad] = useState("");
 
     const [mensajeErrorStock, setMensajeErrorStock] = useState("");
+    const [mensajeErrorMateriaPrima, setMensajeErrorMateriaPrima] = useState("");
 
     const [
         mostrarFormularioMateriaPrima,
         setMostrarFormularioMateriaPrima
     ] = useState(false);
+    const [materiaPrimaEditando, setMateriaPrimaEditando] =
+        useState<number | null>(null);
 
     const [nombreMateriaPrima, setNombreMateriaPrima] = useState("");
     const [categoriaMateriaPrima, setCategoriaMateriaPrima] = useState("");
@@ -43,16 +49,8 @@ function Stock() {
     const [stockInicialMateriaPrima, setStockInicialMateriaPrima] =
         useState("");
 
-    const [mostrarFormularioProducto, setMostrarFormularioProducto] =
-        useState(false);
-    const [nombreProducto, setNombreProducto] = useState("");
-    const [categoriaProducto, setCategoriaProducto] =
-        useState("Comida");
-    const [precioProducto, setPrecioProducto] = useState("");
-    const [sectorProducto, setSectorProducto] = useState("Cocina");
-    const [tipoProducto, setTipoProducto] = useState<
-        "bajo_pedido" | "preelaborado"
-    >("bajo_pedido");
+    const [productoStockSeleccionado, setProductoStockSeleccionado] =
+        useState<number | null>(null);
 
 
     // =========================================================
@@ -63,16 +61,12 @@ function Stock() {
         tipo: "entrada" | "salida"
     ) => {
 
-        if (
-            materiaPrimaSeleccionada === null ||
-            cantidad === ""
-        ) {
+        if (materiaPrimaSeleccionada === null) {
+            setMensajeErrorStock("Seleccioná una materia prima.");
             return;
         }
 
-        const cantidadNumero = Number(cantidad);
-
-        if (cantidadNumero <= 0) {
+        if (!numeroValido(cantidad, Number.MIN_VALUE)) {
 
             setMensajeErrorStock(
                 "La cantidad debe ser mayor que 0."
@@ -80,6 +74,8 @@ function Stock() {
 
             return;
         }
+
+        const cantidadNumero = Number(cantidad);
 
         const materiaPrima = materiasPrimas.find(
             (materia) =>
@@ -107,6 +103,7 @@ function Stock() {
                 cantidadNumero
             );
 
+            mostrarToast("Entrada de stock registrada.");
             setMensajeErrorStock("");
             setCantidad("");
             setMateriaPrimaSeleccionada(null);
@@ -133,11 +130,19 @@ function Stock() {
         }
 
 
-        registrarSalidaMateriaPrima(
+        const salidaRegistrada = registrarSalidaMateriaPrima(
             materiaPrimaSeleccionada,
             cantidadNumero
         );
 
+        if (!salidaRegistrada) {
+            setMensajeErrorStock(
+                `No hay suficiente stock de ${materiaPrima.nombre}. Stock disponible: ${materiaPrima.stockActual} ${materiaPrima.unidad}.`
+            );
+            return;
+        }
+
+        mostrarToast("Salida de stock registrada.");
         setMensajeErrorStock("");
         setCantidad("");
         setMateriaPrimaSeleccionada(null);
@@ -150,79 +155,110 @@ function Stock() {
 
     const guardarMateriaPrima = () => {
 
+        if (!nombreMateriaPrima.trim() || !categoriaMateriaPrima.trim()) {
+            setMensajeErrorMateriaPrima("Completá el nombre y la categoría.");
+            return;
+        }
+
+        if (!numeroValido(stockMinimoMateriaPrima, 0)) {
+            setMensajeErrorMateriaPrima("El stock mínimo debe ser un número igual o mayor que 0.");
+            return;
+        }
+
+        if (materiaPrimaEditando === null && !numeroValido(stockInicialMateriaPrima, 0)) {
+            setMensajeErrorMateriaPrima("La cantidad inicial debe ser un número igual o mayor que 0.");
+            return;
+        }
+
         const stockMinimo = Number(stockMinimoMateriaPrima);
         const stockInicial = Number(stockInicialMateriaPrima);
 
 
-        if (
-            nombreMateriaPrima.trim() === "" ||
-            categoriaMateriaPrima.trim() === "" ||
-            stockMinimo < 0 ||
-            stockInicial < 0
-        ) {
-            return;
-        }
-
-
         const nombreRepetido = materiasPrimas.some(
             (materia) =>
+                materia.id !== materiaPrimaEditando &&
                 materia.nombre.trim().toLowerCase() ===
                 nombreMateriaPrima.trim().toLowerCase()
         );
 
 
         if (nombreRepetido) {
-
-            window.alert(
-                "Ya existe una materia prima con ese nombre."
-            );
-
+            setMensajeErrorMateriaPrima("Ya existe una materia prima con ese nombre.");
             return;
         }
 
 
-        agregarMateriaPrima(
-            nombreMateriaPrima,
-            categoriaMateriaPrima,
-            unidadMateriaPrima,
-            stockMinimo,
-            stockInicial
-        );
+        if (materiaPrimaEditando !== null) {
+            editarMateriaPrima(
+                materiaPrimaEditando,
+                nombreMateriaPrima,
+                categoriaMateriaPrima,
+                unidadMateriaPrima,
+                stockMinimo
+            );
+        } else {
+            const materiaPrimaAgregada = agregarMateriaPrima(
+                nombreMateriaPrima,
+                categoriaMateriaPrima,
+                unidadMateriaPrima,
+                stockMinimo,
+                stockInicial
+            );
 
+            if (!materiaPrimaAgregada) {
+                setMensajeErrorMateriaPrima("No se pudo agregar la materia prima. Revisá si ya existe con ese nombre.");
+                return;
+            }
+        }
+
+        mostrarToast(materiaPrimaEditando !== null
+            ? "Materia prima actualizada."
+            : "Materia prima creada.");
 
         setNombreMateriaPrima("");
         setCategoriaMateriaPrima("");
         setUnidadMateriaPrima("unidad");
         setStockMinimoMateriaPrima("");
         setStockInicialMateriaPrima("");
+        setMateriaPrimaEditando(null);
+        setMensajeErrorMateriaPrima("");
 
         setMostrarFormularioMateriaPrima(false);
     };
 
-    const guardarProducto = () => {
-        if (
-            nombreProducto.trim() === "" ||
-            precioProducto === "" ||
-            Number(precioProducto) < 0
-        ) {
-            return;
-        }
+    const comenzarEdicionMateriaPrima = (id: number) => {
+        const materia = materiasPrimas.find((item) => item.id === id);
+        if (!materia) return;
 
-        agregarProducto(
-            nombreProducto,
-            Number(precioProducto),
-            categoriaProducto,
-            sectorProducto,
-            tipoProducto
-        );
-
-        setNombreProducto("");
-        setCategoriaProducto("Comida");
-        setPrecioProducto("");
-        setSectorProducto("Cocina");
-        setTipoProducto("bajo_pedido");
-        setMostrarFormularioProducto(false);
+        setMateriaPrimaEditando(id);
+        setNombreMateriaPrima(materia.nombre);
+        setCategoriaMateriaPrima(materia.categoria);
+        setUnidadMateriaPrima(materia.unidad);
+        setStockMinimoMateriaPrima(String(materia.stockMinimo));
+        setStockInicialMateriaPrima(String(materia.stockActual));
+        setMensajeErrorMateriaPrima("");
+        setMostrarFormularioMateriaPrima(true);
     };
+
+    const cancelarEdicionMateriaPrima = () => {
+        setMateriaPrimaEditando(null);
+        setNombreMateriaPrima("");
+        setCategoriaMateriaPrima("");
+        setUnidadMateriaPrima("unidad");
+        setStockMinimoMateriaPrima("");
+        setStockInicialMateriaPrima("");
+        setMostrarFormularioMateriaPrima(false);
+        setMensajeErrorMateriaPrima("");
+    };
+
+    const productosPreelaborados = productos.filter(
+        (producto) => producto.tipoElaboracion === "preelaborado"
+    );
+    const productosStockVisibles = productoStockSeleccionado === null
+        ? productosPreelaborados
+        : productosPreelaborados.filter(
+              (producto) => producto.id === productoStockSeleccionado
+          );
 
 
     // =========================================================
@@ -346,6 +382,7 @@ function Stock() {
                         <button
                             className="primary-button"
                             onClick={() => {
+                                cancelarEdicionMateriaPrima();
 
                                 setMostrarFormularioMateriaPrima(
                                     !mostrarFormularioMateriaPrima
@@ -369,9 +406,12 @@ function Stock() {
                         <div className="stock-materia-form">
 
                             <h2>
-                                Nueva materia prima
+                                {materiaPrimaEditando !== null
+                                    ? "Editar materia prima"
+                                    : "Nueva materia prima"}
                             </h2>
 
+                            <div className="stock-form-fields">
 
                             <input
                                 type="text"
@@ -426,6 +466,7 @@ function Stock() {
                                 type="number"
                                 min="0"
                                 step="0.01"
+                                required
                                 placeholder="Stock mínimo"
                                 value={stockMinimoMateriaPrima}
                                 onChange={(e) =>
@@ -436,18 +477,31 @@ function Stock() {
                             />
 
 
-                            <input
-                                type="number"
-                                min="0"
-                                step="0.01"
-                                placeholder="Cantidad inicial"
-                                value={stockInicialMateriaPrima}
-                                onChange={(e) =>
-                                    setStockInicialMateriaPrima(
-                                        e.target.value
-                                    )
-                                }
-                            />
+                            {materiaPrimaEditando !== null ? (
+                                <p className="stock-form-note">
+                                    Stock actual: {stockInicialMateriaPrima} {unidadMateriaPrima}. Para modificarlo, registrá una entrada o salida.
+                                </p>
+                            ) : (
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    required
+                                    placeholder="Cantidad inicial"
+                                    value={stockInicialMateriaPrima}
+                                    onChange={(e) =>
+                                        setStockInicialMateriaPrima(e.target.value)
+                                    }
+                                />
+                            )}
+
+                            </div>
+
+                            {mensajeErrorMateriaPrima && (
+                                <p className="form-field-error" role="alert">
+                                    {mensajeErrorMateriaPrima}
+                                </p>
+                            )}
 
 
                             <div className="stock-movimiento-actions">
@@ -456,19 +510,13 @@ function Stock() {
                                     className="primary-button"
                                     onClick={guardarMateriaPrima}
                                 >
-                                    Guardar
+                                    {materiaPrimaEditando !== null ? "Guardar cambios" : "Guardar"}
                                 </button>
 
 
                                 <button
                                     className="stock-button"
-                                    onClick={() => {
-
-                                        setMostrarFormularioMateriaPrima(
-                                            false
-                                        );
-
-                                    }}
+                                    onClick={cancelarEdicionMateriaPrima}
                                 >
                                     Cancelar
                                 </button>
@@ -578,17 +626,27 @@ function Stock() {
                                                 )
                                             }
                                         >
-                                            Movimiento
+                                            Registrar movimiento
+                                        </button>
+
+                                        <button
+                                            className="stock-button"
+                                            onClick={() => comenzarEdicionMateriaPrima(materia.id)}
+                                        >
+                                            Editar
                                         </button>
 
 
                                         <button
                                             className="stock-button"
                                             onClick={() =>
-                                                cambiarEstadoMateriaPrima(
-                                                    materia.id,
-                                                    !materia.activo
-                                                )
+                                                {
+                                                    const activo = !materia.activo;
+                                                    cambiarEstadoMateriaPrima(materia.id, activo);
+                                                    mostrarToast(activo
+                                                        ? "Materia prima activada."
+                                                        : "Materia prima desactivada.");
+                                                }
                                             }
                                         >
                                             {materia.activo
@@ -665,6 +723,7 @@ function Stock() {
                                 type="number"
                                 min="0"
                                 step="0.01"
+                                required
                                 placeholder="Cantidad"
                                 value={cantidad}
                                 onChange={(e) => {
@@ -741,94 +800,32 @@ function Stock() {
 
                 <>
 
-                <div className="stock-section-actions">
-                    <button
-                        className="primary-button"
-                        onClick={() =>
-                            setMostrarFormularioProducto(
-                                !mostrarFormularioProducto
-                            )
-                        }
-                    >
-                        + Nuevo producto
-                    </button>
-                </div>
-
-                {mostrarFormularioProducto && (
-                    <div className="stock-materia-form">
-                        <h2>Nuevo producto</h2>
-
-                        <input
-                            type="text"
-                            placeholder="Nombre"
-                            value={nombreProducto}
-                            onChange={(e) =>
-                                setNombreProducto(e.target.value)
-                            }
-                        />
-
-                        <input
-                            type="text"
-                            placeholder="Categoría"
-                            value={categoriaProducto}
-                            onChange={(e) =>
-                                setCategoriaProducto(e.target.value)
-                            }
-                        />
-
-                        <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            placeholder="Precio"
-                            value={precioProducto}
-                            onChange={(e) =>
-                                setPrecioProducto(e.target.value)
-                            }
-                        />
-
+                <div className="stock-productos-toolbar">
+                    <div>
+                        <h2>Productos preelaborados</h2>
+                        <p>El stock aumenta al registrar una producción.</p>
+                    </div>
+                    <label>
+                        Consultar producto
                         <select
-                            value={sectorProducto}
-                            onChange={(e) =>
-                                setSectorProducto(e.target.value)
-                            }
-                        >
-                            <option value="Cocina">Cocina</option>
-                            <option value="Cafetería">Cafetería</option>
-                            <option value="Pastelería">Pastelería</option>
-                        </select>
-
-                        <select
-                            value={tipoProducto}
-                            onChange={(e) =>
-                                setTipoProducto(
-                                    e.target.value as typeof tipoProducto
+                            value={productoStockSeleccionado ?? ""}
+                            onChange={(event) =>
+                                setProductoStockSeleccionado(
+                                    event.target.value
+                                        ? Number(event.target.value)
+                                        : null
                                 )
                             }
                         >
-                            <option value="bajo_pedido">Bajo pedido</option>
-                            <option value="preelaborado">Preelaborado</option>
+                            <option value="">Todos los productos</option>
+                            {productosPreelaborados.map((producto) => (
+                                <option key={producto.id} value={producto.id}>
+                                    {producto.nombre}
+                                </option>
+                            ))}
                         </select>
-
-                        <div className="stock-movimiento-actions">
-                            <button
-                                className="primary-button"
-                                onClick={guardarProducto}
-                            >
-                                Guardar
-                            </button>
-
-                            <button
-                                className="stock-button"
-                                onClick={() =>
-                                    setMostrarFormularioProducto(false)
-                                }
-                            >
-                                Cancelar
-                            </button>
-                        </div>
-                    </div>
-                )}
+                    </label>
+                </div>
 
                 <div className="stock-table">
 
@@ -851,19 +848,13 @@ function Stock() {
                         </span>
 
                         <span>
-                            Estado
+                            Estado de stock
                         </span>
 
                     </div>
 
 
-                    {productos
-                        .filter(
-                            (producto) =>
-                                producto.tipoElaboracion ===
-                                "preelaborado"
-                        )
-                        .map((producto) => {
+                    {productosStockVisibles.map((producto) => {
 
                             const stockBajo =
                                 producto.stockActual <=

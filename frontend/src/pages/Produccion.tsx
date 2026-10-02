@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useCafeteria } from "../context/CafeteriaContext";
+import { numeroValido } from "../validaciones";
+import { useToast } from "../context/useToast";
 
 function Produccion() {
+    const { mostrarToast } = useToast();
 
     const {
         productos,
@@ -19,6 +22,9 @@ function Produccion() {
 
     const [mensaje, setMensaje] =
         useState("");
+
+    const [produccionDetalleId, setProduccionDetalleId] =
+        useState<number | null>(null);
 
     // ==========================
     // PRODUCTOS PREELABORADOS
@@ -70,12 +76,9 @@ function Produccion() {
         const cantidadProduccion =
             Number(cantidad);
 
-        if (
-            !cantidad ||
-            cantidadProduccion <= 0
-        ) {
+        if (!numeroValido(cantidad, 1, Number.POSITIVE_INFINITY, true)) {
             setMensaje(
-                "Ingresá una cantidad válida."
+                "Ingresá una cantidad entera mayor que 0."
             );
             return;
         }
@@ -103,6 +106,7 @@ function Produccion() {
         setMensaje(
             `Producción realizada correctamente: ${cantidadProduccion} ${productoSeleccionado?.nombre}.`
         );
+        mostrarToast("Producción registrada correctamente.");
 
         setCantidad("");
     };
@@ -198,6 +202,8 @@ function Produccion() {
                         <input
                             type="number"
                             min="1"
+                            step="1"
+                            required
                             value={cantidad}
                             onChange={(e) =>
                                 setCantidad(
@@ -337,6 +343,10 @@ function Produccion() {
                             Fecha
                         </span>
 
+                        <span>
+                            Detalle
+                        </span>
+
                     </div>
 
 
@@ -360,13 +370,12 @@ function Produccion() {
                                                 produccion.productoId
                                         );
 
+                                    const detalleAbierto =
+                                        produccionDetalleId === produccion.id;
+
                                     return (
-                                        <div
-                                            className="produccion-row"
-                                            key={
-                                                produccion.id
-                                            }
-                                        >
+                                        <div className="produccion-history-entry" key={produccion.id}>
+                                        <div className="produccion-row">
 
                                             <span>
                                                 {
@@ -385,10 +394,50 @@ function Produccion() {
                                                 {new Date(
                                                     produccion.fecha
                                                 ).toLocaleString(
-                                                    "es-AR"
+                                                    "es-AR",
+                                                    {
+                                                        hour12: false,
+                                                        hour: "2-digit",
+                                                        minute: "2-digit"
+                                                    }
                                                 )}
                                             </span>
 
+                                            <button
+                                                className="produccion-detalle-button"
+                                                aria-expanded={detalleAbierto}
+                                                onClick={() =>
+                                                    setProduccionDetalleId(
+                                                        detalleAbierto ? null : produccion.id
+                                                    )
+                                                }
+                                            >
+                                                {detalleAbierto ? "Ocultar" : "Ver detalle"}
+                                            </button>
+
+                                        </div>
+
+                                        {detalleAbierto && (
+                                            <div className="produccion-detalle">
+                                                <strong>Materias primas consumidas</strong>
+                                                {produccion.ingredientes?.length ? (
+                                                    produccion.ingredientes.map((ingrediente) => {
+                                                        const materiaPrima = materiasPrimas.find(
+                                                            (materia) => materia.id === ingrediente.materiaPrimaId
+                                                        );
+
+                                                        return (
+                                                            <div key={ingrediente.materiaPrimaId}>
+                                                                <span>{materiaPrima?.nombre ?? "Materia prima desconocida"}</span>
+                                                                <span>{ingrediente.cantidad} {materiaPrima?.unidad ?? ""}</span>
+                                                            </div>
+                                                        );
+                                                    })
+                                                ) : (
+                                                    <p>No hay detalle de consumo guardado para esta producción.</p>
+                                                )}
+                                            </div>
+                                        )}
                                         </div>
                                     );
                                 }

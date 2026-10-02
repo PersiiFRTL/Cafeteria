@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { emailValido } from "../validaciones";
 
 function Login() {
 
@@ -17,8 +18,11 @@ function Login() {
     const [password, setPassword] =
         useState("");
 
-    const [error, setError] =
-        useState("");
+    const [errores, setErrores] = useState<{
+        email?: string;
+        password?: string;
+        general?: string;
+    }>({});
 
 
     const manejarLogin = async (
@@ -27,21 +31,23 @@ function Login() {
 
         e.preventDefault();
 
-        setError("");
+        const erroresCampos: typeof errores = {};
+        if (email.trim() === "") {
+            erroresCampos.email = "Ingresá tu email.";
+        } else if (!emailValido(email)) {
+            erroresCampos.email = "Ingresá un email válido.";
+        }
+        if (password.trim() === "") {
+            erroresCampos.password = "Ingresá tu contraseña.";
+        }
 
-
-        if (
-            email.trim() === "" ||
-            password.trim() === ""
-        ) {
-
-            setError(
-                "Completá email y contraseña."
-            );
+        if (Object.keys(erroresCampos).length > 0) {
+            setErrores(erroresCampos);
 
             return;
         }
 
+        setErrores({});
 
         const resultado =
             await iniciarSesion(
@@ -51,11 +57,12 @@ function Login() {
 
 
         if (!resultado.correcto) {
-
-            setError(
-                resultado.mensaje ||
-                "Error al iniciar sesión."
-            );
+            const mensajeError = resultado.mensaje || "Error al iniciar sesión.";
+            if (mensajeError === "Email o contraseña incorrectos.") {
+                setErrores({ password: mensajeError });
+            } else {
+                setErrores({ general: mensajeError });
+            }
 
             return;
         }
@@ -91,52 +98,75 @@ function Login() {
                 <form
                     onSubmit={manejarLogin}
                     className="login-form"
+                    noValidate
                 >
 
                     <div className="login-field">
 
-                        <label>
+                        <label htmlFor="login-email">
                             Email
                         </label>
 
                         <input
+                            id="login-email"
                             type="email"
+                            required
                             placeholder="Ingresá tu email"
                             value={email}
-                            onChange={(e) =>
+                            aria-invalid={Boolean(errores.email)}
+                            aria-describedby={errores.email ? "login-email-error" : undefined}
+                            onChange={(e) => {
                                 setEmail(
                                     e.target.value
-                                )
-                            }
+                                );
+                                setErrores({});
+                            }}
                         />
+
+                        {errores.email && (
+                            <p className="login-field-error" id="login-email-error" role="alert">
+                                {errores.email}
+                            </p>
+                        )}
 
                     </div>
 
 
                     <div className="login-field">
 
-                        <label>
+                        <label htmlFor="login-password">
                             Contraseña
                         </label>
 
                         <input
+                            id="login-password"
                             type="password"
+                            required
                             placeholder="Ingresá tu contraseña"
                             value={password}
-                            onChange={(e) =>
+                            aria-invalid={Boolean(errores.password)}
+                            aria-describedby={errores.password ? "login-password-error" : undefined}
+                            onChange={(e) => {
                                 setPassword(
                                     e.target.value
-                                )
-                            }
+                                );
+                                setErrores({});
+                            }}
                         />
+
+                        {errores.password && (
+                            <p className="login-field-error" id="login-password-error" role="alert">
+                                {errores.password}
+                            </p>
+                        )}
 
                     </div>
 
 
-                    {error && (
+                    {errores.general && (
 
-                        <div className="login-error">
-                            {error}
+                        <div className="login-error" role="alert">
+                            {errores.general}
                         </div>
 
                     )}
