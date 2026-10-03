@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { LayoutGrid, List } from "lucide-react";
 import { useCafeteria } from "../context/CafeteriaContext";
 import { useToast } from "../context/useToast";
+
+const PREPARACION_VISTA_KEY = "cafeteria-preparacion-vista";
 
 interface Sector {
     nombre: string;
@@ -28,11 +31,22 @@ function Preparacion() {
     const {
         comandas,
         productos,
-        cambiarEstadoProducto
+        cambiarEstadoProducto,
+        mesas
     } = useCafeteria();
 
     const [sectorSeleccionado, setSectorSeleccionado] =
         useState<string | null>(null);
+    const [vista, setVista] = useState<"grilla" | "lista">(() => {
+        const valorGuardado = localStorage.getItem(PREPARACION_VISTA_KEY);
+        return valorGuardado === "lista" || valorGuardado === "grilla"
+            ? valorGuardado
+            : "grilla";
+    });
+
+    useEffect(() => {
+        localStorage.setItem(PREPARACION_VISTA_KEY, vista);
+    }, [vista]);
 
     const obtenerProducto = (productoId: number) => {
 
@@ -40,6 +54,10 @@ function Preparacion() {
             (producto) => producto.id === productoId
         );
 
+    };
+
+    const obtenerMesa = (mesaId: number) => {
+        return mesas.find((mesa) => mesa.id === mesaId);
     };
 
     const volverSectores = () => {
@@ -68,11 +86,13 @@ function Preparacion() {
 
                 <div className="preparacion-header">
 
-                    <h1>Preparación</h1>
+                    <div className="preparacion-header-copy">
+                        <h1>Preparación</h1>
 
-                    <p>
-                        Seleccione el sector que desea visualizar.
-                    </p>
+                        <p>
+                            Seleccione el sector que desea visualizar.
+                        </p>
+                    </div>
 
                 </div>
 
@@ -179,6 +199,29 @@ function Preparacion() {
 
                 </div>
 
+                <div className="preparacion-vistas" role="group" aria-label="Vista de preparación">
+                    <button
+                        type="button"
+                        aria-label="Vista de grilla"
+                        aria-pressed={vista === "grilla"}
+                        title="Vista de grilla"
+                        className={vista === "grilla" ? "activo" : ""}
+                        onClick={() => setVista("grilla")}
+                    >
+                        <LayoutGrid size={18} aria-hidden="true" />
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Vista de lista"
+                        aria-pressed={vista === "lista"}
+                        title="Vista de lista"
+                        className={vista === "lista" ? "activo" : ""}
+                        onClick={() => setVista("lista")}
+                    >
+                        <List size={18} aria-hidden="true" />
+                    </button>
+                </div>
+
             </div>
 
             {pedidosSector.length === 0 ? (
@@ -202,25 +245,28 @@ function Preparacion() {
 
             ) : (
 
-                <div className="pedidos-sector">
+                <div className={`pedidos-sector ${vista}`}>
 
                     {pedidosSector.map(
                         ({
                             comanda,
                             item,
                             producto
-                        }) => (
+                        }) => {
 
-                            <div
-                                className={`pedido-preparacion estado-${item.estado}`}
-                                key={`${comanda.id}-${item.productoId}`}
-                            >
+                            const mesa = obtenerMesa(comanda.mesaId);
 
-                                <div className="pedido-info">
+                            return (
+                                <div
+                                    className={`pedido-preparacion estado-${item.estado}`}
+                                    key={`${comanda.id}-${item.productoId}`}
+                                >
 
-                                    <div className="pedido-mesa">
-                                        Comanda #{comanda.id} · Mesa {comanda.mesaId}
-                                    </div>
+                                    <div className="pedido-info">
+
+                                        <div className="pedido-mesa">
+                                            Comanda #{comanda.id} · Mesa {mesa?.numero ?? comanda.mesaId}
+                                        </div>
 
                                     <h3>
                                         {producto?.nombre}
@@ -277,11 +323,11 @@ function Preparacion() {
 
                                     )}
 
+                                    </div>
+
                                 </div>
-
-                            </div>
-
-                        )
+                            );
+                        }
                     )}
 
                 </div>
