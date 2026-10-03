@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useCafeteria } from "../context/CafeteriaContext";
 import { useSearchParams } from "react-router-dom";
 import { LayoutGrid, List } from "lucide-react";
@@ -37,6 +37,20 @@ const filtrosComandas: { valor: FiltroComanda; etiqueta: string }[] = [
 
 function Comandas() {
     const { mostrarToast } = useToast();
+    const bloqueoAccion = useRef(false);
+
+    const ejecutarAccionConBloqueo = (accion: () => void) => {
+        if (bloqueoAccion.current) {
+            return;
+        }
+
+        bloqueoAccion.current = true;
+        accion();
+
+        window.setTimeout(() => {
+            bloqueoAccion.current = false;
+        }, 100);
+    };
 
     const [searchParams] = useSearchParams();
     const [filtroComanda, setFiltroComanda] =
@@ -439,9 +453,12 @@ function Comandas() {
 
                                             <button
                                                 className="primary-button"
+                                                disabled={bloqueoAccion.current}
                                                 onClick={() =>
-                                                    enviarAPreparacion(
-                                                        comanda.id
+                                                    ejecutarAccionConBloqueo(() =>
+                                                        enviarAPreparacion(
+                                                            comanda.id
+                                                        )
                                                     )
                                                 }
                                             >

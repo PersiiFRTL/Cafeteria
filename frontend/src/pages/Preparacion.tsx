@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { LayoutGrid, List } from "lucide-react";
 import { useCafeteria } from "../context/CafeteriaContext";
 import { useToast } from "../context/useToast";
@@ -27,6 +27,20 @@ const sectores: Sector[] = [
 
 function Preparacion() {
     const { mostrarToast } = useToast();
+    const bloqueoAccion = useRef(false);
+
+    const ejecutarAccionConBloqueo = (accion: () => void) => {
+        if (bloqueoAccion.current) {
+            return;
+        }
+
+        bloqueoAccion.current = true;
+        accion();
+
+        window.setTimeout(() => {
+            bloqueoAccion.current = false;
+        }, 100);
+    };
 
     const {
         comandas,
@@ -292,11 +306,14 @@ function Preparacion() {
 
                                         <button
                                             className="primary-button"
+                                            disabled={bloqueoAccion.current}
                                             onClick={() =>
-                                                actualizarEstadoPedido(
-                                                    comanda.id,
-                                                    item.productoId,
-                                                    "preparando"
+                                                ejecutarAccionConBloqueo(() =>
+                                                    actualizarEstadoPedido(
+                                                        comanda.id,
+                                                        item.productoId,
+                                                        "preparando"
+                                                    )
                                                 )
                                             }
                                         >
@@ -310,11 +327,14 @@ function Preparacion() {
 
                                         <button
                                             className="primary-button"
+                                            disabled={bloqueoAccion.current}
                                             onClick={() =>
-                                                actualizarEstadoPedido(
-                                                    comanda.id,
-                                                    item.productoId,
-                                                    "listo"
+                                                ejecutarAccionConBloqueo(() =>
+                                                    actualizarEstadoPedido(
+                                                        comanda.id,
+                                                        item.productoId,
+                                                        "listo"
+                                                    )
                                                 )
                                             }
                                         >
