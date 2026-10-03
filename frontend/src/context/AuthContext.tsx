@@ -93,7 +93,7 @@ export function AuthProvider({
         try {
 
             const respuesta = await fetch(
-                "http://localhost:3000/api/login",
+                "/api/login",
                 {
                     method: "POST",
 
