@@ -392,7 +392,14 @@ body {
 /* MESAS */
 
 .mesas-header {
+    position: relative;
     margin-bottom: 30px;
+}
+
+.mesas-take-away-button {
+    position: absolute;
+    top: 24px;
+    right: 0;
 }
 
 .mesas-header h1 {
@@ -743,6 +750,14 @@ body {
     margin-bottom: 8px;
 }
 
+.producto-no-disponible {
+    display: block;
+    max-width: 260px;
+    margin-top: 8px;
+    color: #8b3f1d;
+    font-size: 12px;
+    line-height: 1.35;
+}
 .producto-controls {
     display: flex;
     align-items: center;
@@ -1258,6 +1273,11 @@ body {
     align-items: stretch;
     justify-content: flex-start;
     gap: 8px;
+}
+
+.comanda-acciones > .primary-button {
+    flex: 7 1 0;
+    min-width: 0;
 }
 
 .cancelar-comanda-button {
@@ -3348,7 +3368,13 @@ body {
     }
 
     .productos-header > button,
-    .mesas-header > button {
+    .mesas-header > button:not(.mesas-take-away-button) {
+        width: 100% !important;
+    }
+
+    .mesas-take-away-button {
+        position: static;
+        margin: 12px 0;
         width: 100% !important;
     }
 
@@ -3931,5 +3957,140 @@ button:disabled {
 
     .sidebar-bottom p {
         padding: 6px 10px;
+    }
+}
+
+.take-away-header,
+.take-away-card-header,
+.take-away-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.take-away-header {
+    margin-bottom: 24px;
+}
+
+.take-away-header p,
+.take-away-card-header p {
+    color: var(--color-muted);
+    margin-top: 6px;
+}
+
+.take-away-header .primary-button,
+.take-away-card-footer button {
+    width: auto;
+}
+
+.take-away-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+    gap: 16px;
+}
+
+.take-away-card,
+.take-away-empty,
+.take-away-form {
+    padding: 20px;
+    border: 1px solid var(--color-line);
+    border-radius: 12px;
+    background: var(--color-surface);
+    box-shadow: var(--shadow-soft);
+}
+
+.take-away-card {
+    border-left: 6px solid var(--color-brand);
+}
+
+.take-away-card.estado-finalizada {
+    opacity: 0.8;
+}
+
+.take-away-hora {
+    margin: 14px 0;
+}
+
+.take-away-productos {
+    list-style: none;
+    margin: 0 0 16px;
+    padding: 0;
+}
+
+.take-away-productos li {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--color-line);
+}
+
+.take-away-card-footer > div {
+    display: flex;
+    gap: 8px;
+}
+
+.take-away-empty {
+    text-align: center;
+}
+
+.take-away-empty p {
+    margin-top: 8px;
+}
+
+.take-away-form {
+    margin-bottom: 20px;
+}
+
+.take-away-form h2 {
+    margin-bottom: 14px;
+}
+
+.take-away-form-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    gap: 14px;
+}
+
+.take-away-form-fields label {
+    display: grid;
+    gap: 6px;
+    font-weight: 600;
+}
+
+.take-away-form-fields label span {
+    font-weight: 400;
+}
+
+.take-away-form-fields input {
+    min-width: 0;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    font: inherit;
+}
+
+.take-away-error {
+    margin-top: 12px;
+    color: #8a3025;
+}
+
+@media (max-width: 640px) {
+    .take-away-header,
+    .take-away-card-header,
+    .take-away-card-footer {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .take-away-header .primary-button,
+    .take-away-card-footer button {
+        width: 100%;
+    }
+
+    .take-away-card-footer > div {
+        flex-direction: column;
     }
 }

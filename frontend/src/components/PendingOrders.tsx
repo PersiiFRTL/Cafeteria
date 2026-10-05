@@ -21,7 +21,7 @@ function PendingOrders() {
             <div className="orders-table">
 
                 <div className="order-row order-header">
-                    <span>Mesa</span>
+                    <span>Origen</span>
                     <span>Pedido</span>
                     <span>Sector</span>
                     <span>Estado</span>
@@ -44,7 +44,9 @@ function PendingOrders() {
                             className="order-row"
                             key={`${comanda.id}-${item.productoId}`}
                         >
-                            <span>Mesa {comanda.mesaId}</span>
+                            <span>{comanda.tipoAtencion === "take-away"
+                                ? `Take away · ${comanda.clienteTakeAway?.nombre ?? "Cliente"}`
+                                : `Mesa ${comanda.mesaId}`}</span>
                             <span>
                                 {item.cantidad} {producto?.nombre ?? "Producto"}
                             </span>

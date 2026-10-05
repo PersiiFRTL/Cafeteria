@@ -48,6 +48,7 @@ function App() {
                                     <Route path="/mesas" element={<Mesas />} />
                                 </Route>
 
+
                                 <Route element={<PermissionRoute modulo="mapa" />}>
                                     <Route
                                         path="/mapa"

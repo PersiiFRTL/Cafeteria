@@ -35,7 +35,7 @@ function Dashboard() {
     const productosStockBajo = productos.filter(
         (producto) =>
             producto.activo &&
-            producto.tipoElaboracion === "preelaborado" &&
+            producto.tipoElaboracion !== "bajo_pedido" &&
             producto.stockActual <= producto.stockMinimo
     );
 

@@ -65,7 +65,7 @@ function Productos() {
 
     const [tipoElaboracion, setTipoElaboracion] =
         useState<
-            "bajo_pedido" | "preelaborado"
+            "bajo_pedido" | "preelaborado" | "reventa"
         >("bajo_pedido");
     const [errorPrecio, setErrorPrecio] = useState("");
     const [dialogo, setDialogo] = useState<DialogoProducto | null>(null);
@@ -373,6 +373,7 @@ function Productos() {
                                 e.target.value as
                                     | "bajo_pedido"
                                     | "preelaborado"
+                                    | "reventa"
                             )
                         }
                     >
@@ -383,6 +384,10 @@ function Productos() {
 
                         <option value="preelaborado">
                             Preelaborado
+                        </option>
+
+                        <option value="reventa">
+                            Compra / reventa
                         </option>
 
                     </select>
@@ -591,6 +596,7 @@ function Productos() {
                                                 e.target.value as
                                                     | "bajo_pedido"
                                                     | "preelaborado"
+                                                    | "reventa"
                                             )
                                         }
                                     >
@@ -601,6 +607,10 @@ function Productos() {
 
                                         <option value="preelaborado">
                                             Preelaborado
+                                        </option>
+
+                                        <option value="reventa">
+                                            Compra / reventa
                                         </option>
 
                                     </select>
@@ -683,10 +693,11 @@ function Productos() {
 
                                 <span data-label="Elaboración">
 
-                                    {producto.tipoElaboracion ===
-                                    "preelaborado"
+                                    {producto.tipoElaboracion === "preelaborado"
                                         ? "Preelaborado"
-                                        : "Bajo pedido"}
+                                        : producto.tipoElaboracion === "reventa"
+                                            ? "Compra / reventa"
+                                            : "Bajo pedido"}
 
                                 </span>
 

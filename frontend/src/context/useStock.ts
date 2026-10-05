@@ -12,6 +12,7 @@ export function useStock() {
         operacionesStock: cafeteria.operacionesStock,
         registrarProduccion: cafeteria.registrarProduccion,
         registrarEntradaMateriaPrima: cafeteria.registrarEntradaMateriaPrima,
+        registrarEntradaProducto: cafeteria.registrarEntradaProducto,
         registrarSalidaMateriaPrima: cafeteria.registrarSalidaMateriaPrima,
         editarMateriaPrima: cafeteria.editarMateriaPrima,
         cambiarEstadoMateriaPrima: cafeteria.cambiarEstadoMateriaPrima,

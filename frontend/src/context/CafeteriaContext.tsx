@@ -42,7 +42,8 @@ interface Producto {
     sector: string;
     tipoElaboracion:
         | "bajo_pedido"
-        | "preelaborado";
+        | "preelaborado"
+        | "reventa";
     unidadVenta:
         | "unidad"
         | "porcion"
@@ -128,7 +129,13 @@ interface ProductoComanda {
 
 interface Comanda {
     id: number;
-    mesaId: number;
+    tipoAtencion: "mesa" | "take-away";
+    mesaId?: number;
+    clienteTakeAway?: {
+        nombre: string;
+        telefono: string;
+    };
+    horaRetiro?: string;
     productos: ProductoComanda[];
     estado:
         | "pendiente"
@@ -210,8 +217,9 @@ interface CafeteriaContextType {
     comandas: Comanda[];
 
     crearComanda: (
-        mesaId: number,
-        productos: ProductoComanda[]
+        mesaId: number | undefined,
+        productos: ProductoComanda[],
+        datosTakeAway?: { nombre: string; telefono: string; horaRetiro: string }
     ) => void;
 
     finalizarComanda: (
@@ -255,6 +263,7 @@ interface CafeteriaContextType {
         tipoElaboracion:
             | "bajo_pedido"
             | "preelaborado"
+            | "reventa"
     ) => void;
 
     editarProducto: (
@@ -266,6 +275,7 @@ interface CafeteriaContextType {
         tipoElaboracion:
             | "bajo_pedido"
             | "preelaborado"
+            | "reventa"
     ) => void;
 
     eliminarProductoCatalogo: (id: number) => boolean;
@@ -302,6 +312,11 @@ interface CafeteriaContextType {
         materiaPrimaId: number,
         cantidad: number
     ) => void;
+
+    registrarEntradaProducto: (
+        productoId: number,
+        cantidad: number
+    ) => boolean;
 
     registrarSalidaMateriaPrima: (
         materiaPrimaId: number,
@@ -478,8 +493,9 @@ export function CafeteriaProvider({
     };
 
     const crearComanda = (
-        mesaId: number,
-        productosNuevos: ProductoComanda[]
+        mesaId: number | undefined,
+        productosNuevos: ProductoComanda[],
+        datosTakeAway?: { nombre: string; telefono: string; horaRetiro: string }
     ) => {
 
         const productosPreparados =
@@ -491,7 +507,15 @@ export function CafeteriaProvider({
 
         const nuevaComanda: Comanda = {
             id: comandas.length + 1,
-            mesaId: mesaId,
+            tipoAtencion: datosTakeAway ? "take-away" : "mesa",
+            ...(mesaId !== undefined ? { mesaId } : {}),
+            ...(datosTakeAway ? {
+                clienteTakeAway: {
+                    nombre: datosTakeAway.nombre.trim(),
+                    telefono: datosTakeAway.telefono.trim()
+                },
+                horaRetiro: datosTakeAway.horaRetiro
+            } : {}),
             productos: productosPreparados,
             estado: "pendiente",
             fechaCreacion:
@@ -505,7 +529,7 @@ export function CafeteriaProvider({
             ]
         );
 
-        setMesas(
+        if (mesaId !== undefined) setMesas(
             (mesasActuales) =>
                 mesasActuales.map(
                     (mesa) =>
@@ -594,7 +618,7 @@ export function CafeteriaProvider({
                 return;
             }
 
-            if (producto.tipoElaboracion === "preelaborado") {
+            if (producto.tipoElaboracion !== "bajo_pedido") {
                 devolucionesProductos.set(
                     producto.id,
                     (devolucionesProductos.get(producto.id) ?? 0) +
@@ -828,8 +852,8 @@ export function CafeteriaProvider({
         return comandas.find(
             (comanda) =>
                 comanda.mesaId === mesaId &&
-                comanda.estado !==
-                    "finalizada"
+                comanda.estado !== "finalizada" &&
+                comanda.estado !== "cancelada"
         );
     };
 
@@ -1337,10 +1361,7 @@ function procesarStockComanda(
         // PRODUCTO PREELABORADO
         // ==================================
 
-        if (
-            producto.tipoElaboracion ===
-            "preelaborado"
-        ) {
+        if (producto.tipoElaboracion !== "bajo_pedido") {
 
             if (
                 producto.stockActual <
@@ -1714,19 +1735,22 @@ function procesarStockComanda(
         tipoElaboracion:
             | "bajo_pedido"
             | "preelaborado"
+            | "reventa"
     ) => {
 
         const nuevoProducto: Producto = {
 
-            id: productos.length + 1,
+            id: productos.length > 0
+                ? Math.max(...productos.map((producto) => producto.id)) + 1
+                : 1,
 
-            nombre: nombre,
+            nombre: nombre.trim(),
 
-            precio: precio,
+            precio,
 
-            categoria: categoria,
+            categoria: categoria.trim(),
 
-            sector: sector,
+            sector: sector.trim(),
 
             tipoElaboracion:
                 tipoElaboracion,
@@ -1759,6 +1783,7 @@ function procesarStockComanda(
         tipoElaboracion:
             | "bajo_pedido"
             | "preelaborado"
+            | "reventa"
     ) => {
 
         setProductos(
@@ -1870,6 +1895,48 @@ function procesarStockComanda(
         );
     };
 
+    const registrarEntradaProducto = (
+        productoId: number,
+        cantidad: number
+    ): boolean => {
+        if (!Number.isInteger(cantidad) || cantidad <= 0) {
+            return false;
+        }
+
+        const producto = productos.find((item) => item.id === productoId);
+        if (!producto || producto.tipoElaboracion !== "reventa") {
+            return false;
+        }
+
+        const fecha = new Date().toISOString();
+        const nuevoMovimiento: MovimientoStock = {
+            id: Date.now(),
+            tipo: "entrada",
+            categoria: "producto",
+            referenciaId: productoId,
+            cantidad,
+            fecha,
+            descripcion: `Ingreso de ${cantidad} ${producto.unidadVenta} de ${producto.nombre} para reventa`
+        };
+        const nuevaOperacion: OperacionStock = {
+            id: Date.now() + 1,
+            tipo: "entrada",
+            referenciaId: productoId,
+            fecha,
+            descripcion: nuevoMovimiento.descripcion,
+            movimientos: [nuevoMovimiento]
+        };
+
+        setProductos((actuales) => actuales.map((item) =>
+            item.id === productoId
+                ? { ...item, stockActual: item.stockActual + cantidad }
+                : item
+        ));
+        setMovimientosStock((actuales) => [...actuales, nuevoMovimiento]);
+        setOperacionesStock((actuales) => [...actuales, nuevaOperacion]);
+
+        return true;
+    };
     const registrarEntradaMateriaPrima = (
     materiaPrimaId: number,
     cantidad: number
@@ -2240,6 +2307,7 @@ function procesarStockComanda(
                 editarMateriaPrima,
                 cambiarEstadoMateriaPrima,
                 registrarEntradaMateriaPrima,
+                registrarEntradaProducto,
                 registrarSalidaMateriaPrima,
 
                 recetas,

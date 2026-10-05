@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { tienePermiso } from "../config/permisos";
@@ -6,8 +6,7 @@ import type { RolEmpleado } from "../config/permisos";
 import { useAuth } from "../context/AuthContext";
 
 function Sidebar() {
-    const { usuario, cerrarSesion } = useAuth();
-    const navigate = useNavigate();
+    const { usuario } = useAuth();
     const [menuAbierto, setMenuAbierto] = useState(false);
 
     if (!usuario) {
@@ -42,6 +41,7 @@ function Sidebar() {
                             </NavLink>
                         </li>
                     )}
+
 
                     {tienePermiso(rolActual, "mesas") && (
                         <li>

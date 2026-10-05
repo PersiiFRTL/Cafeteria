@@ -144,7 +144,7 @@ function Comandas() {
 
 
     const obtenerMesa = (
-        mesaId: number
+        mesaId: number | undefined
     ) => {
 
         return mesas.find(
@@ -316,11 +316,9 @@ function Comandas() {
                                             </h2>
 
                                             <p>
-                                                Mesa{" "}
-                                                {
-                                                    mesa?.numero ??
-                                                    "-"
-                                                }
+                                                {comanda.tipoAtencion === "take-away"
+                                                    ? `Take away · ${comanda.clienteTakeAway?.nombre ?? "Cliente"}`
+                                                    : `Mesa ${mesa?.numero ?? "-"}`}
                                             </p>
 
                                         </div>
@@ -480,16 +478,20 @@ function Comandas() {
                                                 <button
                                                     className="primary-button"
                                                     onClick={() => setConfirmacion({
-                                                        titulo: "Dejar mesa disponible",
-                                                        mensaje: `¿Confirmás dejar disponible la Mesa ${mesa?.numero}?`,
-                                                        textoConfirmar: "Dejar disponible",
+                                                        titulo: comanda.tipoAtencion === "take-away" ? "Confirmar retiro" : "Dejar mesa disponible",
+                                                        mensaje: comanda.tipoAtencion === "take-away"
+                                                            ? `¿Confirmás que se retiró el pedido #${comanda.id}?`
+                                                            : `¿Confirmás dejar disponible la Mesa ${mesa?.numero}?`,
+                                                        textoConfirmar: comanda.tipoAtencion === "take-away" ? "Marcar retirado" : "Dejar disponible",
                                                         accion: () => {
                                                             finalizarComanda(comanda.id);
-                                                            mostrarToast(`Mesa ${mesa?.numero ?? ""} disponible.`);
+                                                            mostrarToast(comanda.tipoAtencion === "take-away"
+                                                                ? "Pedido marcado como retirado."
+                                                                : `Mesa ${mesa?.numero ?? ""} disponible.`);
                                                         }
                                                     })}
                                                 >
-                                                    ✓ Dejar mesa disponible
+                                                    {comanda.tipoAtencion === "take-away" ? "✓ Marcar retirado" : "✓ Dejar mesa disponible"}
                                                 </button>
 
                                             </div>

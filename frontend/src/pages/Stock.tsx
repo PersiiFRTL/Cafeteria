@@ -19,6 +19,7 @@ function Stock() {
         editarMateriaPrima,
         cambiarEstadoMateriaPrima,
         registrarEntradaMateriaPrima,
+        registrarEntradaProducto,
         registrarSalidaMateriaPrima,
         operacionesStock
     } = useStock();
@@ -31,6 +32,9 @@ function Stock() {
         useState<number | null>(null);
 
     const [cantidad, setCantidad] = useState("");
+    const [productoReventaSeleccionado, setProductoReventaSeleccionado] = useState<number | null>(null);
+    const [cantidadEntradaProducto, setCantidadEntradaProducto] = useState("");
+    const [errorEntradaProducto, setErrorEntradaProducto] = useState("");
 
     const [mensajeErrorStock, setMensajeErrorStock] = useState("");
     const [mensajeErrorMateriaPrima, setMensajeErrorMateriaPrima] = useState("");
@@ -283,10 +287,10 @@ function Stock() {
         setMensajeErrorMateriaPrima("");
     };
 
-    const productosPreelaborados = productos.filter(
-        (producto) => producto.tipoElaboracion === "preelaborado"
+    const productosConStock = productos.filter(
+        (producto) => producto.tipoElaboracion !== "bajo_pedido"
     );
-    const productosPreelaboradosFiltrados = productosPreelaborados.filter((producto) => {
+    const productosConStockFiltrados = productosConStock.filter((producto) => {
         const textoBusqueda = busquedaProductoStockDebounce;
 
         return (
@@ -294,8 +298,36 @@ function Stock() {
             coincideBusqueda(producto.categoria, textoBusqueda)
         );
     });
-    const productosStockVisibles = productosPreelaboradosFiltrados;
+    const productosStockVisibles = productosConStockFiltrados;
 
+    const productosReventa = productos.filter(
+        (producto) => producto.tipoElaboracion === "reventa" && producto.activo
+    );
+
+    const registrarEntradaReventa = () => {
+        if (productoReventaSeleccionado === null) {
+            setErrorEntradaProducto("Seleccioná un producto de reventa.");
+            return;
+        }
+        if (!numeroValido(cantidadEntradaProducto, 1, Number.POSITIVE_INFINITY, true)) {
+            setErrorEntradaProducto("Ingresá una cantidad entera mayor que 0.");
+            return;
+        }
+
+        const registrada = registrarEntradaProducto(
+            productoReventaSeleccionado,
+            Number(cantidadEntradaProducto)
+        );
+        if (!registrada) {
+            setErrorEntradaProducto("No se pudo registrar la entrada de stock.");
+            return;
+        }
+
+        mostrarToast("Entrada de stock de reventa registrada.");
+        setProductoReventaSeleccionado(null);
+        setCantidadEntradaProducto("");
+        setErrorEntradaProducto("");
+    };
 
     // =========================================================
     // CAMBIAR DE PESTAÑA
@@ -848,8 +880,8 @@ function Stock() {
 
                 <div className="stock-productos-toolbar">
                     <div>
-                        <h2>Productos preelaborados</h2>
-                        <p>El stock aumenta al registrar una producción.</p>
+                        <h2>Productos con stock</h2>
+                        <p>Los preelaborados aumentan con la producción; las compras y reventas, con entradas de stock.</p>
                     </div>
                     <label className="stock-search-inline">
                         <span>Buscar producto</span>
@@ -862,6 +894,51 @@ function Stock() {
                         />
                     </label>
                 </div>
+
+                {productosReventa.length > 0 ? (
+                    <section className="stock-materia-form stock-reventa-entrada" aria-labelledby="titulo-entrada-reventa">
+                        <h2 id="titulo-entrada-reventa">Registrar entrada de compra / reventa</h2>
+                        <div className="stock-form-fields">
+                            <label>
+                                Producto
+                                <select
+                                    value={productoReventaSeleccionado ?? ""}
+                                    onChange={(event) => {
+                                        setProductoReventaSeleccionado(event.target.value ? Number(event.target.value) : null);
+                                        setErrorEntradaProducto("");
+                                    }}
+                                >
+                                    <option value="">Seleccionar producto</option>
+                                    {productosReventa.map((producto) => (
+                                        <option key={producto.id} value={producto.id}>{producto.nombre}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label>
+                                Cantidad de unidades
+                                <input
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    inputMode="numeric"
+                                    value={cantidadEntradaProducto}
+                                    onChange={(event) => {
+                                        setCantidadEntradaProducto(event.target.value);
+                                        setErrorEntradaProducto("");
+                                    }}
+                                />
+                            </label>
+                        </div>
+                        {errorEntradaProducto && <p className="form-field-error" role="alert">{errorEntradaProducto}</p>}
+                        <div className="stock-movimiento-actions">
+                            <button type="button" className="primary-button" onClick={registrarEntradaReventa}>
+                                Registrar entrada
+                            </button>
+                        </div>
+                    </section>
+                ) : (
+                    <p className="stock-form-note">Para cargar existencias sin receta, creá primero un producto de tipo Compra / reventa.</p>
+                )}
 
                 <div className="stock-table">
 
@@ -919,7 +996,7 @@ function Stock() {
 
 
                                     <span>
-                                        Preelaborado
+                                        {producto.tipoElaboracion === "reventa" ? "Compra / reventa" : "Preelaborado"}
                                     </span>
 
 
@@ -1000,12 +1077,13 @@ function Stock() {
                                             <div>
 
                                                 <strong>
-
-                                                    {operacion.tipo ===
-                                                        "produccion"
+                                                    {operacion.tipo === "produccion"
                                                         ? "🏭 Producción"
-                                                        : "📋 Comanda"}
-
+                                                        : operacion.tipo === "entrada"
+                                                            ? "📥 Entrada de stock"
+                                                            : operacion.tipo === "salida"
+                                                                ? "📤 Salida de stock"
+                                                                : "📋 Comanda"}
                                                 </strong>
 
 

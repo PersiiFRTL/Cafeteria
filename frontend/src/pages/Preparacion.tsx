@@ -70,7 +70,7 @@ function Preparacion() {
 
     };
 
-    const obtenerMesa = (mesaId: number) => {
+    const obtenerMesa = (mesaId: number | undefined) => {
         return mesas.find((mesa) => mesa.id === mesaId);
     };
 
@@ -279,7 +279,9 @@ function Preparacion() {
                                     <div className="pedido-info">
 
                                         <div className="pedido-mesa">
-                                            Comanda #{comanda.id} · Mesa {mesa?.numero ?? comanda.mesaId}
+                                            {comanda.tipoAtencion === "take-away"
+                                                ? `Take away · ${comanda.clienteTakeAway?.nombre ?? "Cliente"} · Retiro ${comanda.horaRetiro?.slice(11, 16) ?? "sin horario"} · Pedido #${comanda.id}`
+                                                : `Comanda #${comanda.id} · Mesa ${mesa?.numero ?? comanda.mesaId}`}
                                         </div>
 
                                     <h3>

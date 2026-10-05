@@ -30,6 +30,21 @@ function NuevaComanda() {
     const mesaId = Number(
         searchParams.get("mesaId") ?? searchParams.get("mesa")
     );
+    const esTakeAway = searchParams.get("tipo") === "take-away";
+    const rutaVolver = "/mesas";
+    const [nombreCliente, setNombreCliente] = useState("");
+    const [telefonoCliente, setTelefonoCliente] = useState("");
+    const [horaRetiro, setHoraRetiro] = useState(() => {
+        const fecha = new Date(Date.now() + 30 * 60 * 1000);
+        fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
+        return fecha.toISOString().slice(0, 16);
+    });
+    const [fechaMinimaRetiro] = useState(() => {
+        const fecha = new Date();
+        fecha.setMinutes(fecha.getMinutes() - fecha.getTimezoneOffset());
+        return fecha.toISOString().slice(0, 16);
+    });
+    const [errorTakeAway, setErrorTakeAway] = useState("");
     const idComandaEditar = searchParams.get("editar");
     const modoEditar = idComandaEditar !== null;
 
@@ -74,12 +89,14 @@ function NuevaComanda() {
     );
 
     const solicitarSalida = (destino: string) => {
-        if (hayCambiosSinGuardar) {
+        if (hayCambiosSinGuardar || esTakeAway) {
             setDialogo({
-                titulo: "¿Salir sin guardar?",
-                mensaje: "Los productos seleccionados se perderán si sales de esta página.",
-                textoConfirmar: "Salir y descartar",
-                textoCancelar: "Seguir en la comanda",
+                titulo: esTakeAway ? "¿Cancelar pedido take away?" : "¿Salir sin guardar?",
+                mensaje: esTakeAway
+                    ? "Se perderán los datos y productos cargados para este pedido."
+                    : "Los productos seleccionados se perderán si sales de esta página.",
+                textoConfirmar: esTakeAway ? "Sí, cancelar pedido" : "Salir y descartar",
+                textoCancelar: esTakeAway ? "Seguir con el pedido" : "Seguir en la comanda",
                 destructivo: true,
                 confirmar: () => navigate(destino),
                 cancelar: () => setDialogo(null)
@@ -213,7 +230,7 @@ function NuevaComanda() {
 
         const cantidadSolicitada = cantidadSeleccionada + 1;
 
-        if (producto.tipoElaboracion === "preelaborado") {
+        if (producto.tipoElaboracion !== "bajo_pedido") {
             return cantidadSolicitada <= producto.stockActual;
         }
 
@@ -235,7 +252,7 @@ function NuevaComanda() {
                 continue;
             }
 
-            if (productoSeleccionado.tipoElaboracion === "preelaborado") {
+            if (productoSeleccionado.tipoElaboracion !== "bajo_pedido") {
                 if (cantidad > productoSeleccionado.stockActual) {
                     return false;
                 }
@@ -278,8 +295,23 @@ function NuevaComanda() {
         );
     };
 
+    const obtenerMotivoProductoNoDisponible = (productoId: number) => {
+        const producto = productos.find((item) => item.id === productoId);
+        if (!producto) return "Producto no disponible.";
+
+        if (producto.tipoElaboracion !== "bajo_pedido") {
+            return `Stock insuficiente. Disponible: ${producto.stockActual} ${producto.unidadVenta}.`;
+        }
+
+        const receta = recetas.find((item) => item.productoId === productoId);
+        if (!receta || receta.ingredientes.length === 0) {
+            return "Falta una receta con ingredientes; no se puede agregar a la comanda.";
+        }
+
+        return "No alcanza el stock de ingredientes para preparar este producto.";
+    };
     const guardarComanda = () => {
-        if (!Number.isInteger(mesaId)) {
+        if (!esTakeAway && !Number.isInteger(mesaId)) {
             return;
         }
 
@@ -314,25 +346,48 @@ function NuevaComanda() {
         } else {
 
             crearComanda(
-                mesaId,
-                productosComanda
+                esTakeAway ? undefined : mesaId,
+                productosComanda,
+                esTakeAway
+                    ? {
+                          nombre: nombreCliente,
+                          telefono: telefonoCliente,
+                          horaRetiro: new Date(horaRetiro).toISOString()
+                      }
+                    : undefined
             );
         }
 
-        mostrarToast(modoEditar ? "Comanda actualizada." : "Comanda creada correctamente.");
-        navigate("/mesas");
+        mostrarToast(modoEditar
+            ? "Comanda actualizada."
+            : esTakeAway
+                ? "Pedido take away creado correctamente."
+                : "Comanda creada correctamente.");
+        navigate(esTakeAway ? "/comandas" : "/mesas");
     };
 
     const confirmarComanda = () => {
-        if (!Number.isInteger(mesaId)) {
+        if (!esTakeAway && !Number.isInteger(mesaId)) {
             return;
         }
 
+        if (esTakeAway && !nombreCliente.trim()) {
+            setErrorTakeAway("Ingresá el nombre del cliente.");
+            return;
+        }
+        if (esTakeAway && (!horaRetiro || new Date(horaRetiro).getTime() < Date.now())) {
+            setErrorTakeAway("Elegí un horario de retiro actual o futuro.");
+            return;
+        }
+        setErrorTakeAway("");
+
         setDialogo({
-            titulo: modoEditar ? "Editar comanda" : "Crear comanda",
+            titulo: modoEditar ? "Editar comanda" : esTakeAway ? "Crear pedido take away" : "Crear comanda",
             mensaje: modoEditar
                 ? `¿Confirmás los cambios de la comanda para la Mesa ${numeroMesa}?`
-                : `¿Crear la comanda para la Mesa ${numeroMesa}?`,
+                : esTakeAway
+                    ? `¿Crear el pedido de ${nombreCliente.trim()} para retirar el ${new Date(horaRetiro).toLocaleString("es-AR")}?`
+                    : `¿Crear la comanda para la Mesa ${numeroMesa}?`,
             textoConfirmar: modoEditar ? "Guardar cambios" : "Crear comanda",
             confirmar: guardarComanda,
             cancelar: () => setDialogo(null)
@@ -344,13 +399,51 @@ function NuevaComanda() {
 
             <div className="comanda-header">
                 <div>
-                    <h1>Nueva comanda</h1>
+                    <h1>{esTakeAway ? "Nuevo pedido take away" : "Nueva comanda"}</h1>
 
                     <p>
-                        Mesa {numeroMesa}
+                        {esTakeAway ? "Pedido para retirar en la cafetería" : `Mesa ${numeroMesa}`}
                     </p>
                 </div>
             </div>
+
+            {esTakeAway && (
+                <section className="take-away-form" aria-labelledby="take-away-datos-titulo">
+                    <h2 id="take-away-datos-titulo">Datos del retiro</h2>
+                    <div className="take-away-form-fields">
+                        <label>
+                            Nombre del cliente
+                            <input
+                                type="text"
+                                autoComplete="name"
+                                value={nombreCliente}
+                                onChange={(event) => setNombreCliente(event.target.value)}
+                                required
+                            />
+                        </label>
+                        <label>
+                            Teléfono <span>(opcional)</span>
+                            <input
+                                type="tel"
+                                autoComplete="tel"
+                                value={telefonoCliente}
+                                onChange={(event) => setTelefonoCliente(event.target.value)}
+                            />
+                        </label>
+                        <label>
+                            Fecha y hora de retiro
+                            <input
+                                type="datetime-local"
+                                value={horaRetiro}
+                                min={fechaMinimaRetiro}
+                                onChange={(event) => setHoraRetiro(event.target.value)}
+                                required
+                            />
+                        </label>
+                    </div>
+                    {errorTakeAway && <p className="take-away-error" role="alert">{errorTakeAway}</p>}
+                </section>
+            )}
 
             <div className="comanda-layout">
 
@@ -396,6 +489,12 @@ function NuevaComanda() {
                                                 $
                                                 {formatearPrecio(producto.precio)}
                                             </strong>
+
+                                            {!puedeAgregar && (
+                                                <small className="producto-no-disponible" role="status">
+                                                    {obtenerMotivoProductoNoDisponible(producto.id)}
+                                                </small>
+                                            )}
 
                                         </div>
 
@@ -502,7 +601,7 @@ function NuevaComanda() {
 
                         <button
                             className="secondary-button cancelar-button"
-                            onClick={() => solicitarSalida("/mesas")}
+                            onClick={() => solicitarSalida(rutaVolver)}
                         >
                             Cancelar
                         </button>

@@ -29,6 +29,9 @@ function Mesas() {
     const puedeEditarMapa = usuario
         ? tienePermiso(usuario.rol, "mapa")
         : false;
+    const puedeCrearComanda = usuario
+        ? tienePermiso(usuario.rol, "nueva-comanda")
+        : false;
 
     const [mesaSeleccionada, setMesaSeleccionada] =
         useState<Mesa | null>(null);
@@ -57,6 +60,16 @@ function Mesas() {
                     </p>
 
                 </div>
+
+                {puedeCrearComanda && (
+                    <button
+                        className="primary-button mesas-take-away-button"
+                        onClick={() => navigate("/nueva-comanda?tipo=take-away")}
+                        style={{ width: "auto", minWidth: "180px" }}
+                    >
+                        🥡 Nuevo take away
+                    </button>
+                )}
 
                 {puedeEditarMapa && (
                     <button
