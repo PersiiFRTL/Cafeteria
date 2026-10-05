@@ -1,3 +1,5 @@
+import { useRef } from "react";
+
 interface ModalConfirmacionProps {
     titulo: string;
     mensaje: string;
@@ -19,11 +21,14 @@ function ModalConfirmacion({
     textoCancelar = "Cancelar",
     destructivo = false
 }: ModalConfirmacionProps) {
+    const dialogRef = useRef<HTMLElement>(null);
+
     return (
         <div className="sistema-modal-overlay">
             <section
                 className="sistema-modal"
                 role="alertdialog"
+                ref={dialogRef}
                 aria-modal="true"
                 aria-labelledby="sistema-modal-titulo"
                 aria-describedby="sistema-modal-mensaje"
@@ -33,6 +38,21 @@ function ModalConfirmacion({
                             cancelar();
                         } else {
                             cerrar();
+                        }
+                    }
+                    if (event.key === "Tab") {
+                        const controles = dialogRef.current?.querySelectorAll<HTMLElement>(
+                            'button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+                        );
+                        if (!controles?.length) return;
+                        const primero = controles[0];
+                        const ultimo = controles[controles.length - 1];
+                        if (event.shiftKey && document.activeElement === primero) {
+                            event.preventDefault();
+                            ultimo.focus();
+                        } else if (!event.shiftKey && document.activeElement === ultimo) {
+                            event.preventDefault();
+                            primero.focus();
                         }
                     }
                 }}

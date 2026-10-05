@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useCafeteria } from "../context/CafeteriaContext";
+import { useStock } from "../context/useStock";
 import { coincideBusqueda, normalizarTexto, numeroValido } from "../validaciones";
 import { useToast } from "../context/useToast";
 
@@ -21,7 +21,7 @@ function Stock() {
         registrarEntradaMateriaPrima,
         registrarSalidaMateriaPrima,
         operacionesStock
-    } = useCafeteria();
+    } = useStock();
 
     const [vista, setVista] = useState<
         "materiasPrimas" | "productos" | "movimientos"
@@ -1034,21 +1034,24 @@ function Stock() {
                                             {operacion.movimientos.map(
                                                 (movimiento) => {
 
-                                                    const nombre =
-                                                        movimiento.categoria ===
-                                                        "materiaPrima"
-
+                                                    const materiaPrima =
+                                                        movimiento.categoria === "materiaPrima"
                                                             ? materiasPrimas.find(
                                                                 (materia) =>
-                                                                    materia.id ===
-                                                                    movimiento.referenciaId
-                                                            )?.nombre
-
-                                                            : productos.find(
-                                                                (producto) =>
-                                                                    producto.id ===
-                                                                    movimiento.referenciaId
-                                                            )?.nombre;
+                                                                    materia.id === movimiento.referenciaId
+                                                            )
+                                                            : undefined;
+                                                    const producto =
+                                                        movimiento.categoria === "producto"
+                                                            ? productos.find(
+                                                                (productoActual) =>
+                                                                    productoActual.id === movimiento.referenciaId
+                                                            )
+                                                            : undefined;
+                                                    const nombre =
+                                                        materiaPrima?.nombre ?? producto?.nombre;
+                                                    const unidad =
+                                                        materiaPrima?.unidad ?? producto?.unidadVenta;
 
 
                                                     return (
@@ -1067,10 +1070,8 @@ function Stock() {
 
 
                                                             <strong>
-                                                                -
-                                                                {
-                                                                    movimiento.cantidad
-                                                                }
+                                                                - {formatearCantidad(movimiento.cantidad)}
+                                                                {unidad ? ` ${unidad}` : ""}
                                                             </strong>
 
                                                         </div>

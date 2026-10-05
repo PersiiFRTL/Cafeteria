@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useCafeteria } from "../context/CafeteriaContext";
+import { useCatalogo } from "../context/useCatalogo";
 import { numeroValido } from "../validaciones";
 import { useToast } from "../context/useToast";
 
@@ -12,7 +12,7 @@ function Recetas() {
         recetas,
         agregarReceta,
         editarReceta
-    } = useCafeteria();
+    } = useCatalogo();
 
     const [productoSeleccionado, setProductoSeleccionado] =
         useState<number | null>(null);

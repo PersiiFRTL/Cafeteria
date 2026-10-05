@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useCafeteria } from "../context/CafeteriaContext";
+import { useInformes } from "../context/useInformes";
 
 const INFORMES_PERIODO_KEY = "cafeteria-informes-periodo";
 
@@ -11,7 +11,7 @@ function Informes() {
         productos,
         materiasPrimas,
         movimientosStock
-    } = useCafeteria();
+    } = useInformes();
 
     const [periodo, setPeriodo] = useState<
     "hoy" | "7dias" | "30dias" | "todo"

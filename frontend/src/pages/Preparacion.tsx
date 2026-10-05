@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { LayoutGrid, List } from "lucide-react";
-import { useCafeteria } from "../context/CafeteriaContext";
+import { useComandas } from "../context/useComandas";
 import { useToast } from "../context/useToast";
 
 const PREPARACION_VISTA_KEY = "cafeteria-preparacion-vista";
@@ -47,7 +47,7 @@ function Preparacion() {
         productos,
         cambiarEstadoProducto,
         mesas
-    } = useCafeteria();
+    } = useComandas();
 
     const [sectorSeleccionado, setSectorSeleccionado] =
         useState<string | null>(null);

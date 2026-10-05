@@ -8,6 +8,7 @@ export type Modulo =
     | "dashboard"
     | "mesas"
     | "comandas"
+    | "nueva-comanda"
     | "preparacion"
     | "productos"
     | "stock"
@@ -27,6 +28,7 @@ export const permisosPorRol: Record<
         "dashboard",
         "mesas",
         "comandas",
+        "nueva-comanda",
         "preparacion",
         "productos",
         "stock",
@@ -40,7 +42,8 @@ export const permisosPorRol: Record<
     EMPLEADO: [
         "dashboard",
         "mesas",
-        "comandas"
+        "comandas",
+        "nueva-comanda"
     ],
 
     COCINA: [

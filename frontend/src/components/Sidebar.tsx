@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 import { tienePermiso } from "../config/permisos";
@@ -7,6 +7,7 @@ import { useAuth } from "../context/AuthContext";
 
 function Sidebar() {
     const { usuario, cerrarSesion } = useAuth();
+    const navigate = useNavigate();
     const [menuAbierto, setMenuAbierto] = useState(false);
 
     if (!usuario) {
@@ -36,96 +37,83 @@ function Sidebar() {
 
                     {tienePermiso(rolActual, "dashboard") && (
                         <li>
-                            <Link to="/">
+                            <NavLink to="/">
                                 🏠 Dashboard
-                            </Link>
+                            </NavLink>
                         </li>
                     )}
 
                     {tienePermiso(rolActual, "mesas") && (
                         <li>
-                            <Link to="/mesas">
+                            <NavLink to="/mesas">
                                 🪑 Mesas
-                            </Link>
+                            </NavLink>
                         </li>
                     )}
 
                     {tienePermiso(rolActual, "comandas") && (
                         <li>
-                            <Link to="/comandas">
+                            <NavLink to="/comandas">
                                 📋 Comandas
-                            </Link>
+                            </NavLink>
                         </li>
                     )}
 
                     {tienePermiso(rolActual, "preparacion") && (
                         <li>
-                            <Link to="/preparacion">
+                            <NavLink to="/preparacion">
                                 🕒 Preparación
-                            </Link>
+                            </NavLink>
                         </li>
                     )}
 
                     {tienePermiso(rolActual, "productos") && (
                         <li>
-                            <Link to="/productos">
+                            <NavLink to="/productos">
                                 🛍 Productos
-                            </Link>
+                            </NavLink>
                         </li>
                     )}
 
                     {tienePermiso(rolActual, "recetas") && (
                         <li>
-                            <Link to="/recetas">
+                            <NavLink to="/recetas">
                                 📋 Recetas
-                            </Link>
+                            </NavLink>
                         </li>
                     )}
 
                     {tienePermiso(rolActual, "stock") && (
                         <li>
-                            <Link to="/stock">
+                            <NavLink to="/stock">
                                 📦 Stock
-                            </Link>
+                            </NavLink>
                         </li>
                     )}
 
                     {tienePermiso(rolActual, "produccion") && (
                         <li>
-                            <Link to="/produccion">
+                            <NavLink to="/produccion">
                                 🏭 Producción
-                            </Link>
+                            </NavLink>
                         </li>
                     )}
 
                     {tienePermiso(rolActual, "empleados") && (
                         <li>
-                            <Link to="/empleados">
+                            <NavLink to="/empleados">
                                 👥 Empleados
-                            </Link>
+                            </NavLink>
                         </li>
                     )}
                     {tienePermiso(rolActual, "informes") && (
                         <li>
-                            <Link to="/informes">📊 Informes</Link>
+                            <NavLink to="/informes">📊 Informes</NavLink>
                         </li>
                     )}
 
                 </ul>
             </nav>
-
-            <div className="sidebar-bottom">
-                <p>👤 {usuario.nombre}</p>
-
-                <p>{usuario.rol}</p>
-
-                <button
-                    className="logout-button"
-                    onClick={cerrarSesion}
-                >
-                    🚪 Cerrar sesión
-                </button>
-            </div>
         </aside>
     );
 }

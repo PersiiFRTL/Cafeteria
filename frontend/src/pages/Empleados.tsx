@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
-import { useCafeteria } from "../context/CafeteriaContext";
+import { usePersonal } from "../context/usePersonal";
 import { contrasenaValida, emailValido } from "../validaciones";
 import { useToast } from "../context/useToast";
 
@@ -17,7 +17,7 @@ function Empleados() {
         agregarEmpleado,
         editarEmpleado,
         cambiarEstadoEmpleado
-    } = useCafeteria();
+    } = usePersonal();
 
 
     const [mostrarFormulario, setMostrarFormulario] =

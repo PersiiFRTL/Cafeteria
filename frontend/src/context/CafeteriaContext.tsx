@@ -2,18 +2,15 @@ import {
     createContext,
     useContext,
     useState,
+    useEffect,
+    useCallback,
     type ReactNode
 } from "react";
 import type {
     ElementoMapa
 } from "../types/mapa";
 
-import mesasIniciales from "../data/mesas.json";
-import productosIniciales from "../data/productos.json";
-import materiasPrimasIniciales from "../data/materiasPrimas.json";
-import recetasIniciales from "../data/recetas.json";
-import produccionesIniciales from "../data/producciones.json";
-import empleadosIniciales from "../data/empleados.json";
+import { repositorioDemo } from "../services/demoCafeteriaRepository";
 
 // ==========================
 // TIPOS
@@ -204,6 +201,10 @@ const renumerarMesasSegunMapa = (
 
 interface CafeteriaContextType {
 
+    estadoDatos: "cargando" | "listo" | "error";
+    errorDatos: string | null;
+    recargarDatos: () => Promise<void>;
+
     mesas: Mesa[];
 
     comandas: Comanda[];
@@ -381,40 +382,34 @@ export function CafeteriaProvider({
 }: {
     children: ReactNode;
 }) {
+    const [estadoDatos, setEstadoDatos] = useState<"cargando" | "listo" | "error">("cargando");
+    const [errorDatos, setErrorDatos] = useState<string | null>(null);
 
     const [elementosMapa, setElementosMapa] =
         useState<ElementoMapa[]>(() => cargarMapa());
 
-    const [mesas, setMesas] =
-        useState<Mesa[]>(() =>
-            renumerarMesasSegunMapa(
-                mesasIniciales as Mesa[],
-                elementosMapa
-            )
-        );
+    const [mesas, setMesas] = useState<Mesa[]>([]);
 
     const [comandas, setComandas] =
         useState<Comanda[]>([]);
 
-    const [productos, setProductos] =
-        useState<Producto[]>(productosIniciales as Producto[]);
+    const [productos, setProductos] = useState<Producto[]>([]);
 
     const [materiasPrimas, setMateriasPrimas] =
         useState<MateriaPrima[]>(
-            materiasPrimasIniciales as MateriaPrima[]
+            []
         );
 
     const [recetas, setRecetas] =
         useState<Receta[]>(
-            recetasIniciales
+            []
         );
 
-        const [empleados, setEmpleados] =
-            useState<Empleado[]>(empleadosIniciales as Empleado[]);
+        const [empleados, setEmpleados] = useState<Empleado[]>([]);
 
     const [producciones, setProducciones] =
         useState<Produccion[]>(
-            produccionesIniciales
+            []
         );
 
     const [movimientosStock, setMovimientosStock] =
@@ -422,6 +417,32 @@ export function CafeteriaProvider({
 
     const [operacionesStock, setOperacionesStock] =
         useState<OperacionStock[]>([]);
+
+    const recargarDatos = useCallback(async () => {
+        setEstadoDatos("cargando");
+        setErrorDatos(null);
+        try {
+            const datos = await repositorioDemo.cargarDatosIniciales();
+            setMesas(renumerarMesasSegunMapa(datos.mesas as Mesa[], cargarMapa()));
+            setProductos(datos.productos as Producto[]);
+            setMateriasPrimas(datos.materiasPrimas as MateriaPrima[]);
+            setRecetas(datos.recetas);
+            setEmpleados(datos.empleados as Empleado[]);
+            setProducciones(datos.producciones);
+            setEstadoDatos("listo");
+        } catch {
+            setErrorDatos("No se pudieron cargar los datos. Revisá la conexión e intentá nuevamente.");
+            setEstadoDatos("error");
+        }
+    }, []);
+
+    useEffect(() => {
+        const temporizador = window.setTimeout(() => {
+            void recargarDatos();
+        }, 0);
+
+        return () => window.clearTimeout(temporizador);
+    }, [recargarDatos]);
 
     // ==========================
     // COMANDAS
@@ -2192,6 +2213,10 @@ function procesarStockComanda(
     return (
         <CafeteriaContext.Provider
             value={{
+
+                estadoDatos,
+                errorDatos,
+                recargarDatos,
 
                 mesas,
 

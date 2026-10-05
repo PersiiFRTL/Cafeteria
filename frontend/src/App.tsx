@@ -108,10 +108,9 @@ function App() {
                                     />
                                 </Route>
 
-                                <Route 
-                                    path="/nueva-comanda" 
-                                    element={<NuevaComanda />} 
-                                    />
+                                <Route element={<PermissionRoute modulo="nueva-comanda" />}>
+                                    <Route path="/nueva-comanda" element={<NuevaComanda />} />
+                                </Route>
                                     
                                 <Route
                                     path="/acceso-denegado"

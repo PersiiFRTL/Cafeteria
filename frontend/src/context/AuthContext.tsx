@@ -1,7 +1,8 @@
 import {
     createContext,
     useContext,
-    useState
+    useState,
+    useEffect
 } from "react";
 import type { ReactNode } from "react";
 
@@ -56,6 +57,7 @@ interface AuthContextType {
     cerrarSesion: () => void;
 
     estaAutenticado: boolean;
+    estadoSesion: "cargando" | "lista";
 }
 
 
@@ -74,12 +76,17 @@ export function AuthProvider({
     children
 }: AuthProviderProps) {
 
-    const [
-        usuario,
-        setUsuario
-    ] = useState<UsuarioAutenticado | null>(() =>
-        leerUsuarioGuardado()
-    );
+    const [usuario, setUsuario] = useState<UsuarioAutenticado | null>(null);
+    const [estadoSesion, setEstadoSesion] = useState<"cargando" | "lista">("cargando");
+
+    useEffect(() => {
+        const temporizador = window.setTimeout(() => {
+            setUsuario(leerUsuarioGuardado());
+            setEstadoSesion("lista");
+        }, 0);
+
+        return () => window.clearTimeout(temporizador);
+    }, []);
 
 
     const iniciarSesion = async (
@@ -172,7 +179,8 @@ export function AuthProvider({
                 usuario,
                 iniciarSesion,
                 cerrarSesion,
-                estaAutenticado
+                estaAutenticado,
+                estadoSesion
             }}
         >
 

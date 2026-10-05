@@ -17,6 +17,7 @@ function Login() {
 
     const [password, setPassword] =
         useState("");
+    const [iniciandoSesion, setIniciandoSesion] = useState(false);
 
     const [errores, setErrores] = useState<{
         email?: string;
@@ -48,12 +49,8 @@ function Login() {
         }
 
         setErrores({});
-
-        const resultado =
-            await iniciarSesion(
-                email,
-                password
-            );
+        setIniciandoSesion(true);
+        const resultado = await iniciarSesion(email, password);
 
 
         if (!resultado.correcto) {
@@ -63,6 +60,7 @@ function Login() {
             } else {
                 setErrores({ general: mensajeError });
             }
+            setIniciandoSesion(false);
 
             return;
         }
@@ -98,6 +96,7 @@ function Login() {
                 <form
                     onSubmit={manejarLogin}
                     className="login-form"
+                    aria-busy={iniciandoSesion}
                     noValidate
                 >
 
@@ -175,8 +174,10 @@ function Login() {
                     <button
                         type="submit"
                         className="primary-button login-button"
+                        disabled={iniciandoSesion}
+                        aria-busy={iniciandoSesion}
                     >
-                        Iniciar sesión
+                        {iniciandoSesion ? "Iniciando sesión…" : "Iniciar sesión"}
                     </button>
 
                 </form>

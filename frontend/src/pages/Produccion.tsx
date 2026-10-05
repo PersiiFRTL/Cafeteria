@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useCafeteria } from "../context/CafeteriaContext";
+import { useStock } from "../context/useStock";
 import { numeroValido } from "../validaciones";
 import { useToast } from "../context/useToast";
 
@@ -12,7 +12,7 @@ function Produccion() {
         materiasPrimas,
         producciones,
         registrarProduccion
-    } = useCafeteria();
+    } = useStock();
 
     const [productoId, setProductoId] =
         useState<number | null>(null);

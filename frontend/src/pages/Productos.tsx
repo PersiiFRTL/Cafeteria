@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useCafeteria } from "../context/CafeteriaContext";
+import { useCatalogo } from "../context/useCatalogo";
 import { coincideBusqueda, formatearPrecio, normalizarTexto, parsearPrecio } from "../validaciones";
 import ModalConfirmacion from "../components/ModalConfirmacion";
 import { useToast } from "../context/useToast";
@@ -22,7 +22,7 @@ function Productos() {
         editarProducto,
         cambiarEstadoProductoCatalogo,
         eliminarProductoCatalogo
-    } = useCafeteria();
+    } = useCatalogo();
 
     const [mostrarFormulario, setMostrarFormulario] =
         useState(false);

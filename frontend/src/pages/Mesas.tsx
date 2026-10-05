@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { tienePermiso } from "../config/permisos";
 import { useAuth } from "../context/AuthContext";
-import { useCafeteria } from "../context/CafeteriaContext";
+import { useComandas } from "../context/useComandas";
 import ModalConfirmacion from "../components/ModalConfirmacion";
 import { useToast } from "../context/useToast";
 
@@ -24,7 +24,7 @@ function Mesas() {
         elementosMapa,
         obtenerComandaDeMesa,
         cancelarComanda
-    } = useCafeteria();
+    } = useComandas();
 
     const puedeEditarMapa = usuario
         ? tienePermiso(usuario.rol, "mapa")
@@ -72,7 +72,7 @@ function Mesas() {
 
             {elementosMapa.length === 0 ? (
 
-                <div className="mesas-sin-mapa">
+                <div className="mesas-sin-mapa" role="status">
 
                     <h2>
                         🗺️ El mapa todavía no está configurado
@@ -99,6 +99,7 @@ function Mesas() {
                                     <div
                                         key={elemento.id}
                                         className="mesas-mapa-linea"
+                                        aria-hidden="true"
                                         style={{
                                             left: elemento.x,
                                             top: elemento.y,
@@ -143,6 +144,9 @@ function Mesas() {
                                 <div
                                     key={elemento.id}
                                     className={`mesas-mapa-mesa ${mesa.estado}`}
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-label={`Mesa ${mesa.numero}, ${mesa.estado === "libre" ? "libre" : "ocupada"}, capacidad ${mesa.capacidad}`}
                                     style={{
                                         left: elemento.x,
                                         top: elemento.y,
@@ -154,6 +158,12 @@ function Mesas() {
                                     onClick={() =>
                                         seleccionarMesa(mesa)
                                     }
+                                    onKeyDown={(event) => {
+                                        if (event.key === "Enter" || event.key === " ") {
+                                            event.preventDefault();
+                                            seleccionarMesa(mesa);
+                                        }
+                                    }}
                                 >
 
                                     <strong>

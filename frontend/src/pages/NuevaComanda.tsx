@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import ModalConfirmacion from "../components/ModalConfirmacion";
-import { useCafeteria } from "../context/CafeteriaContext";
+import { useComandas } from "../context/useComandas";
+import { useCatalogo } from "../context/useCatalogo";
 import { formatearPrecio } from "../validaciones";
 import { useToast } from "../context/useToast";
 
@@ -37,10 +38,9 @@ function NuevaComanda() {
         editarComanda,
         comandas,
         mesas,
-        productos,
-        recetas,
-        materiasPrimas
-    } = useCafeteria();
+        productos
+    } = useComandas();
+    const { recetas, materiasPrimas } = useCatalogo();
 
     useEffect(() => {
         if (!modoEditar || !idComandaEditar) {

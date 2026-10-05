@@ -1,6 +1,6 @@
 import StatCard from "../components/StatCard";
 import PendingOrders from "../components/PendingOrders";
-import { useCafeteria } from "../context/CafeteriaContext";
+import { useDashboard } from "../context/useDashboard";
 
 function Dashboard() {
     const {
@@ -8,7 +8,7 @@ function Dashboard() {
         comandas,
         productos,
         materiasPrimas
-    } = useCafeteria();
+    } = useDashboard();
 
     const mesasOcupadas = mesas.filter(
         (mesa) => mesa.estado === "ocupada"

@@ -1,9 +1,9 @@
 import { useNavigate } from "react-router-dom";
-import { useCafeteria } from "../context/CafeteriaContext";
+import { useComandas } from "../context/useComandas";
 
 function PendingOrders() {
     const navigate = useNavigate();
-    const { comandas, productos } = useCafeteria();
+    const { comandas, productos } = useComandas();
 
     const comandasPendientes = comandas.filter(
         (comanda) =>         

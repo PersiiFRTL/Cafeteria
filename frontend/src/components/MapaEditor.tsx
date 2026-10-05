@@ -2,9 +2,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { DragEvent, PointerEvent as ReactPointerEvent } from "react";
 
-import {
-    useCafeteria
-} from "../context/CafeteriaContext";
+import { useMapa } from "../context/useMapa";
 
 import type {
     ElementoMapa
@@ -40,7 +38,7 @@ function MapaEditor() {
         agregarElementoMapa,
         editarElementoMapa,
         eliminarElementoMapa
-    } = useCafeteria();
+    } = useMapa();
 
     const canvasRef = useRef<HTMLDivElement>(null);
     const [herramientaSeleccionada, setHerramientaSeleccionada] =
@@ -66,6 +64,26 @@ function MapaEditor() {
         );
     };
 
+    const hayColisionMesa = (
+        x: number,
+        y: number,
+        ancho: number,
+        alto: number,
+        excluirId?: string
+    ) => elementosMapa.some((elemento) => {
+        if (elemento.tipo === "linea" || elemento.id === excluirId) {
+            return false;
+        }
+
+        const otroAncho = elemento.ancho * 40;
+        const otroAlto = elemento.alto * 40;
+        // Los bordes pueden tocarse; solo se bloquea el solapamiento de área.
+        return x < elemento.x + otroAncho &&
+            x + ancho > elemento.x &&
+            y < elemento.y + otroAlto &&
+            y + alto > elemento.y;
+    });
+
     const crearElemento = (
         herramienta: TipoHerramienta,
         x: number,
@@ -81,6 +99,13 @@ function MapaEditor() {
                         ""
                     )
                 );
+
+            const anchoMesa = (capacidad >= 6 ? 3 : 2) * 40;
+            const altoMesa = 2 * 40;
+            if (hayColisionMesa(x, y, anchoMesa, altoMesa)) {
+                mostrarToast("No se puede superponer una mesa con otro objeto.");
+                return;
+            }
 
             const mesaDisponible =
                 obtenerMesaDisponible(
@@ -235,16 +260,25 @@ function MapaEditor() {
         const maxX = Math.max(0, rect.width - dimensiones.ancho);
         const maxY = Math.max(0, rect.height - dimensiones.alto);
 
+        const x = ajustarCoordenada(
+            e.clientX - rect.left - arrastre.offsetX,
+            maxX
+        );
+        const y = ajustarCoordenada(
+            e.clientY - rect.top - arrastre.offsetY,
+            maxY
+        );
+        if (
+            elemento.tipo !== "linea" &&
+            hayColisionMesa(x, y, dimensiones.ancho, dimensiones.alto, elemento.id)
+        ) {
+            return;
+        }
+
         setArrastre({
             ...arrastre,
-            x: ajustarCoordenada(
-                e.clientX - rect.left - arrastre.offsetX,
-                maxX
-            ),
-            y: ajustarCoordenada(
-                e.clientY - rect.top - arrastre.offsetY,
-                maxY
-            )
+            x,
+            y
         });
     };
 
@@ -268,6 +302,15 @@ function MapaEditor() {
             const y = rect
                 ? ajustarCoordenada(e.clientY - rect.top - arrastre.offsetY, maxY)
                 : arrastre.y;
+
+            if (
+                elemento.tipo !== "linea" &&
+                hayColisionMesa(x, y, dimensiones.ancho, dimensiones.alto, elemento.id)
+            ) {
+                mostrarToast("No se puede superponer una mesa con otro objeto.");
+                setArrastre(null);
+                return;
+            }
 
             editarElementoMapa({
                 ...elemento,

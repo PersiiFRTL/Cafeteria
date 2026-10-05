@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useCafeteria } from "../context/CafeteriaContext";
+import { useComandas } from "../context/useComandas";
 import { useSearchParams } from "react-router-dom";
 import { LayoutGrid, List } from "lucide-react";
 import ModalConfirmacion from "../components/ModalConfirmacion";
@@ -82,7 +82,7 @@ function Comandas() {
         finalizarComanda,
         cancelarComanda,
         procesarStockComanda
-    } = useCafeteria();
+    } = useComandas();
 
     const [mensajeError, setMensajeError] =
         useState<string | null>(null);
@@ -249,7 +249,7 @@ function Comandas() {
 
             {mensajeError && (
 
-                <div className="comandas-error">
+                <div className="comandas-error" role="alert">
 
                     {mensajeError}
 
@@ -260,7 +260,7 @@ function Comandas() {
 
             {comandasVisibles.length === 0 ? (
 
-                <div className="comandas-empty">
+                <div className="comandas-empty" role="status" aria-live="polite">
 
                     <h2>
                         {comandasSeleccionadas.length === 0

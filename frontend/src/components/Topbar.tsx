@@ -1,9 +1,24 @@
 import { useAuth } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 function Topbar() {
     const { usuario, cerrarSesion } = useAuth();
     const navigate = useNavigate();
+    const { pathname } = useLocation();
+    const titulo = ({
+        "/": "Panel principal",
+        "/mesas": "Mesas",
+        "/mapa": "Mapa del local",
+        "/comandas": "Comandas",
+        "/nueva-comanda": "Nueva comanda",
+        "/preparacion": "Preparación",
+        "/productos": "Productos",
+        "/recetas": "Recetas",
+        "/stock": "Stock",
+        "/produccion": "Producción",
+        "/empleados": "Empleados",
+        "/informes": "Informes"
+    } as Record<string, string>)[pathname] ?? "Cafetería";
 
     const manejarCierreSesion = () => {
         cerrarSesion();
@@ -13,7 +28,7 @@ function Topbar() {
     return (
         <header className="topbar">
             <div>
-                <h2>Dashboard</h2>
+                <h2>{titulo}</h2>
             </div>
 
             <div className="topbar-user">
