@@ -6,6 +6,19 @@ import { useCatalogo } from "../context/useCatalogo";
 import { formatearPrecio } from "../validaciones";
 import { useToast } from "../context/useToast";
 
+const filtrarCaracteresTelefono = (valor: string) =>
+    valor.replace(/[^\d+()\s.-]/g, "").replace(/(?!^)\+/g, "").slice(0, 24);
+
+const telefonoValido = (valor: string) => {
+    const telefono = valor.trim();
+    const digitos = telefono.replace(/\D/g, "");
+    return /^[\d+()\s.-]+$/.test(telefono) &&
+        digitos.length >= 6 &&
+        digitos.length <= 15 &&
+        (telefono.match(/\+/g)?.length ?? 0) <= 1 &&
+        (!telefono.includes("+") || telefono.startsWith("+"));
+};
+
 interface DialogoComanda {
     titulo: string;
     mensaje: string;
@@ -45,6 +58,7 @@ function NuevaComanda() {
         return fecha.toISOString().slice(0, 16);
     });
     const [errorTakeAway, setErrorTakeAway] = useState("");
+    const [errorTelefono, setErrorTelefono] = useState("");
     const idComandaEditar = searchParams.get("editar");
     const modoEditar = idComandaEditar !== null;
 
@@ -363,7 +377,7 @@ function NuevaComanda() {
             : esTakeAway
                 ? "Pedido take away creado correctamente."
                 : "Comanda creada correctamente.");
-        navigate(esTakeAway ? "/comandas" : "/mesas");
+        navigate("/mesas");
     };
 
     const confirmarComanda = () => {
@@ -375,6 +389,12 @@ function NuevaComanda() {
             setErrorTakeAway("Ingresá el nombre del cliente.");
             return;
         }
+        if (esTakeAway && telefonoCliente.trim() && !telefonoValido(telefonoCliente)) {
+            setErrorTelefono("Ingresá un teléfono válido con entre 6 y 15 dígitos.");
+            return;
+        }
+        setErrorTelefono("");
+
         if (esTakeAway && (!horaRetiro || new Date(horaRetiro).getTime() < Date.now())) {
             setErrorTakeAway("Elegí un horario de retiro actual o futuro.");
             return;
@@ -425,10 +445,22 @@ function NuevaComanda() {
                             Teléfono <span>(opcional)</span>
                             <input
                                 type="tel"
+                                inputMode="tel"
                                 autoComplete="tel"
+                                maxLength={24}
+                                aria-invalid={Boolean(errorTelefono)}
+                                aria-describedby={errorTelefono ? "telefono-take-away-error" : undefined}
                                 value={telefonoCliente}
-                                onChange={(event) => setTelefonoCliente(event.target.value)}
+                                onChange={(event) => {
+                                    setTelefonoCliente(filtrarCaracteresTelefono(event.target.value));
+                                    setErrorTelefono("");
+                                }}
                             />
+                            {errorTelefono && (
+                                <span id="telefono-take-away-error" className="form-field-error" role="alert">
+                                    {errorTelefono}
+                                </span>
+                            )}
                         </label>
                         <label>
                             Fecha y hora de retiro

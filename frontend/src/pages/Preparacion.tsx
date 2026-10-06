@@ -4,6 +4,34 @@ import { useComandas } from "../context/useComandas";
 import { useToast } from "../context/useToast";
 
 const PREPARACION_VISTA_KEY = "cafeteria-preparacion-vista";
+const PREPARACION_FILTRO_KEY = "cafeteria-preparacion-filtro";
+
+type FiltroComanda =
+    | "todas"
+    | "pendiente"
+    | "preparando"
+    | "lista"
+    | "finalizada"
+    | "cancelada";
+
+const filtrosComandas: { valor: FiltroComanda; etiqueta: string }[] = [
+    { valor: "todas", etiqueta: "Todas" },
+    { valor: "pendiente", etiqueta: "Pendientes" },
+    { valor: "preparando", etiqueta: "En preparación" },
+    { valor: "lista", etiqueta: "Listas" },
+    { valor: "finalizada", etiqueta: "Finalizadas" },
+    { valor: "cancelada", etiqueta: "Canceladas" }
+];
+
+const etiquetasEstado: Record<FiltroComanda | "listo", string> = {
+    todas: "Todas",
+    pendiente: "Pendiente",
+    preparando: "En preparación",
+    lista: "Lista",
+    listo: "Listo",
+    finalizada: "Finalizada",
+    cancelada: "Cancelada"
+};
 
 interface Sector {
     nombre: string;
@@ -51,6 +79,12 @@ function Preparacion() {
 
     const [sectorSeleccionado, setSectorSeleccionado] =
         useState<string | null>(null);
+    const [filtroComanda, setFiltroComanda] = useState<FiltroComanda>(() => {
+        const valorGuardado = localStorage.getItem(PREPARACION_FILTRO_KEY) as FiltroComanda | null;
+        return filtrosComandas.some((filtro) => filtro.valor === valorGuardado)
+            ? valorGuardado ?? "todas"
+            : "todas";
+    });
     const [vista, setVista] = useState<"grilla" | "lista">(() => {
         const valorGuardado = localStorage.getItem(PREPARACION_VISTA_KEY);
         return valorGuardado === "lista" || valorGuardado === "grilla"
@@ -61,6 +95,10 @@ function Preparacion() {
     useEffect(() => {
         localStorage.setItem(PREPARACION_VISTA_KEY, vista);
     }, [vista]);
+
+    useEffect(() => {
+        localStorage.setItem(PREPARACION_FILTRO_KEY, filtroComanda);
+    }, [filtroComanda]);
 
     const obtenerProducto = (productoId: number) => {
 
@@ -147,47 +185,24 @@ function Preparacion() {
      * PRODUCTOS DEL SECTOR SELECCIONADO
      */
 
-    const pedidosSector = comandas
-        .filter(
-            (comanda) =>
-                comanda.estado === "preparando"
-        )
-        .flatMap(
-        (comanda) =>
+    const comandasFiltradas = comandas.filter(
+        (comanda) => filtroComanda === "todas" || comanda.estado === filtroComanda
+    );
 
+    const pedidosSector = comandasFiltradas
+        .flatMap((comanda) =>
             comanda.productos
-                .filter((item) => {
-
-                    const producto =
-                        obtenerProducto(
-                            item.productoId
-                        );
-
-                    return (
-                        producto?.sector ===
-                        sectorSeleccionado
-                    );
-
-                })
+                .filter((item) => obtenerProducto(item.productoId)?.sector === sectorSeleccionado)
                 .map((item) => ({
-
                     comanda,
                     item,
-                    producto:
-                        obtenerProducto(
-                            item.productoId
-                        )
-
+                    producto: obtenerProducto(item.productoId)
                 }))
-        ).sort((pedidoA, pedidoB) => {
-        const prioridad = {
-            pendiente: 0,
-            preparando: 1,
-            listo: 2
-        };
-
-        return prioridad[pedidoA.item.estado] - prioridad[pedidoB.item.estado];
-    });
+        )
+        .sort((pedidoA, pedidoB) => {
+            const prioridad = { pendiente: 0, preparando: 1, listo: 2 };
+            return prioridad[pedidoA.item.estado] - prioridad[pedidoB.item.estado];
+        });
 
     return (
         <div className="dashboard-content">
@@ -212,6 +227,23 @@ function Preparacion() {
                     </p>
 
                 </div>
+            </div>
+
+            <div className="comandas-toolbar">
+                <div className="comandas-filtros" role="group" aria-label="Filtrar comandas del sector por estado">
+                    {filtrosComandas.map((filtro) => (
+                        <button
+                            key={filtro.valor}
+                            type="button"
+                            className={`comandas-filtro ${filtroComanda === filtro.valor ? "activo" : ""}`}
+                            data-estado={filtro.valor}
+                            aria-pressed={filtroComanda === filtro.valor}
+                            onClick={() => setFiltroComanda(filtro.valor)}
+                        >
+                            {filtro.etiqueta}
+                        </button>
+                    ))}
+                </div>
 
                 <div className="preparacion-vistas" role="group" aria-label="Vista de preparación">
                     <button
@@ -235,7 +267,6 @@ function Preparacion() {
                         <List size={18} aria-hidden="true" />
                     </button>
                 </div>
-
             </div>
 
             {pedidosSector.length === 0 ? (
@@ -247,12 +278,15 @@ function Preparacion() {
                     </div>
 
                     <h2>
-                        No hay pedidos pendientes
+                        {filtroComanda === "todas"
+                            ? "No hay pedidos en este sector"
+                            : "No hay comandas en este filtro"}
                     </h2>
 
                     <p>
-                        Todos los pedidos de{" "}
-                        {sectorSeleccionado} están listos.
+                        {filtroComanda === "todas"
+                            ? `Todavía no hay pedidos de ${sectorSeleccionado}.`
+                            : `No hay comandas con estado ${etiquetasEstado[filtroComanda].toLowerCase()} en ${sectorSeleccionado}.`}
                     </p>
 
                 </div>
@@ -269,6 +303,8 @@ function Preparacion() {
                         }) => {
 
                             const mesa = obtenerMesa(comanda.mesaId);
+                            const comandaCerrada = comanda.estado === "finalizada" || comanda.estado === "cancelada";
+                            const estadoVisible = comandaCerrada ? comanda.estado : item.estado;
 
                             return (
                                 <div
@@ -294,16 +330,16 @@ function Preparacion() {
                                     </p>
 
                                     <span
-                                        className={`estado-producto ${item.estado}`}
+                                        className={`estado-producto ${estadoVisible}`}
                                     >
-                                        {item.estado}
+                                        {etiquetasEstado[estadoVisible]}
                                     </span>
 
                                 </div>
 
                                 <div className="pedido-acciones">
 
-                                    {item.estado ===
+                                    {!comandaCerrada && item.estado ===
                                         "pendiente" && (
 
                                         <button
@@ -324,7 +360,7 @@ function Preparacion() {
 
                                     )}
 
-                                    {item.estado ===
+                                    {!comandaCerrada && item.estado ===
                                         "preparando" && (
 
                                         <button

@@ -5,6 +5,7 @@ export function useMapa() {
     const cafeteria = useCafeteria();
     return {
         mesas: cafeteria.mesas,
+        crearMesaMapa: cafeteria.crearMesaMapa,
         elementosMapa: cafeteria.elementosMapa,
         agregarElementoMapa: cafeteria.agregarElementoMapa,
         editarElementoMapa: cafeteria.editarElementoMapa,

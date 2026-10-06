@@ -15,5 +15,6 @@ export interface ElementoMapa {
     rotacion: number;
 
     mesaId?: number;
+    capacidad?: number;
     grosor?: number;
 }

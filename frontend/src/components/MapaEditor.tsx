@@ -18,6 +18,15 @@ type TipoHerramienta =
 
 type OrientacionLinea = "horizontal" | "vertical";
 
+let contadorIdMapa = 0;
+
+const crearIdElementoMapa = () => {
+    const identificador = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${++contadorIdMapa}`;
+    return `mapa-${identificador}`;
+};
+
 interface ArrastreMapa {
     elementoId: string;
     pointerId: number;
@@ -34,6 +43,7 @@ function MapaEditor() {
 
     const {
         mesas,
+        crearMesaMapa,
         elementosMapa,
         agregarElementoMapa,
         editarElementoMapa,
@@ -110,11 +120,10 @@ function MapaEditor() {
             const mesaDisponible =
                 obtenerMesaDisponible(
                     capacidad
-                );
+                ) ?? crearMesaMapa(capacidad);
 
             const nuevoElemento: ElementoMapa = {
-                id:
-                    `mapa-${Date.now()}`,
+                id: crearIdElementoMapa(),
 
                 tipo: "mesa",
 
@@ -133,22 +142,20 @@ function MapaEditor() {
 
                 rotacion: 0,
 
-                mesaId:
-                    mesaDisponible?.id
+                mesaId: mesaDisponible.id,
+                capacidad: mesaDisponible.capacidad
             };
 
             agregarElementoMapa(
                 nuevoElemento
             );
-            mostrarToast(mesaDisponible
-                ? "Mesa agregada al mapa."
-                : "Mesa agregada sin asignar.");
+            mostrarToast(`Mesa ${mesaDisponible.numero} agregada al mapa.`);
 
             return;
         }
 
         agregarElementoMapa({
-            id: `mapa-${Date.now()}`,
+            id: crearIdElementoMapa(),
             tipo: "linea",
             x,
             y,

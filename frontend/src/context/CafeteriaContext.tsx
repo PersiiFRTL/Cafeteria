@@ -172,38 +172,105 @@ const renumerarMesasSegunMapa = (
     mesas: Mesa[],
     elementos: ElementoMapa[]
 ): Mesa[] => {
+    const idsEnMapa = new Set<number>();
     const mesasEnMapa: Mesa[] = [];
-    const idsMesasEnMapa = new Set<number>();
 
     elementos.forEach((elemento) => {
-        if (
-            elemento.tipo !== "mesa" ||
-            elemento.mesaId === undefined ||
-            idsMesasEnMapa.has(elemento.mesaId)
-        ) {
+        if (elemento.tipo !== "mesa" || elemento.mesaId === undefined || idsEnMapa.has(elemento.mesaId)) {
             return;
         }
 
-        const mesa = mesas.find(
-            (mesaActual) => mesaActual.id === elemento.mesaId
-        );
-
+        const mesa = mesas.find((mesaActual) => mesaActual.id === elemento.mesaId);
         if (mesa) {
             mesasEnMapa.push(mesa);
-            idsMesasEnMapa.add(mesa.id);
+            idsEnMapa.add(mesa.id);
         }
     });
 
     const mesasSinUbicar = mesas
-        .filter((mesa) => !idsMesasEnMapa.has(mesa.id))
+        .filter((mesa) => !idsEnMapa.has(mesa.id))
         .sort((mesaA, mesaB) => mesaA.numero - mesaB.numero);
 
-    return [...mesasEnMapa, ...mesasSinUbicar].map(
-        (mesa, index) => ({
+    return [...mesasEnMapa, ...mesasSinUbicar].map((mesa, indice) => ({
+        ...mesa,
+        numero: indice + 1
+    }));
+};
+
+const sincronizarMesasConMapa = (
+    mesasIniciales: Mesa[],
+    elementosIniciales: ElementoMapa[]
+): { mesas: Mesa[]; elementos: ElementoMapa[] } => {
+    const mesas = [...mesasIniciales];
+    const idsMesasAsignadas = new Set<number>();
+    const idsElementos = new Set<string>();
+    let siguienteIdMesa = Math.max(0, ...mesas.map((mesa) => mesa.id)) + 1;
+
+    const elementos = elementosIniciales.map((elemento, indice) => {
+        let idElemento = elemento.id || `mapa-${indice + 1}`;
+        let sufijo = 1;
+        while (idsElementos.has(idElemento)) {
+            idElemento = `${elemento.id || `mapa-${indice + 1}`}-${sufijo++}`;
+        }
+        idsElementos.add(idElemento);
+
+        const elementoActualizado: ElementoMapa = {
+            ...elemento,
+            id: idElemento
+        };
+
+        if (elemento.tipo !== "mesa") {
+            return elementoActualizado;
+        }
+
+        const mesaReferenciada = mesas.find((mesa) => mesa.id === elemento.mesaId);
+        let mesaAsignada = mesaReferenciada && !idsMesasAsignadas.has(mesaReferenciada.id)
+            ? mesaReferenciada
+            : undefined;
+
+        if (!mesaAsignada) {
+            // Los mapas guardados antes de incluir capacidad no permiten recuperar
+            // el aforo exacto: se conserva la forma y se elige un aforo compatible.
+            const capacidad = elemento.capacidad ?? mesaReferenciada?.capacidad ??
+                (elemento.ancho >= 3 ? 8 : 4);
+            mesaAsignada = mesas.find((mesa) =>
+                mesa.capacidad === capacidad && !idsMesasAsignadas.has(mesa.id)
+            );
+
+            if (!mesaAsignada) {
+                mesaAsignada = {
+                    id: siguienteIdMesa++,
+                    numero: Math.max(0, ...mesas.map((mesa) => mesa.numero)) + 1,
+                    capacidad,
+                    estado: "libre"
+                };
+                mesas.push(mesaAsignada);
+            }
+
+            elementoActualizado.mesaId = mesaAsignada.id;
+        }
+
+        elementoActualizado.capacidad = mesaAsignada.capacidad;
+        idsMesasAsignadas.add(mesaAsignada.id);
+        return elementoActualizado;
+    });
+
+    const mesasEnMapa = elementos
+        .filter((elemento) => elemento.tipo === "mesa" && elemento.mesaId !== undefined)
+        .map((elemento) => mesas.find((mesa) => mesa.id === elemento.mesaId))
+        .filter((mesa): mesa is Mesa => mesa !== undefined);
+    const idsEnMapa = new Set(mesasEnMapa.map((mesa) => mesa.id));
+    const mesasSinUbicar = mesas
+        .filter((mesa) => !idsEnMapa.has(mesa.id))
+        .sort((mesaA, mesaB) => mesaA.numero - mesaB.numero);
+
+    return {
+        elementos,
+        mesas: [...mesasEnMapa, ...mesasSinUbicar].map((mesa, indice) => ({
             ...mesa,
-            numero: index + 1
-        })
-    );
+            numero: indice + 1
+        }))
+    };
 };
 
 interface CafeteriaContextType {
@@ -213,6 +280,8 @@ interface CafeteriaContextType {
     recargarDatos: () => Promise<void>;
 
     mesas: Mesa[];
+
+    crearMesaMapa: (capacidad: number) => Mesa;
 
     comandas: Comanda[];
 
@@ -438,7 +507,16 @@ export function CafeteriaProvider({
         setErrorDatos(null);
         try {
             const datos = await repositorioDemo.cargarDatosIniciales();
-            setMesas(renumerarMesasSegunMapa(datos.mesas as Mesa[], cargarMapa()));
+            const mapaGuardado = cargarMapa();
+            const mapaSincronizado = sincronizarMesasConMapa(
+                datos.mesas as Mesa[],
+                mapaGuardado
+            );
+            setMesas(mapaSincronizado.mesas);
+            setElementosMapa(mapaSincronizado.elementos);
+            if (JSON.stringify(mapaSincronizado.elementos) !== JSON.stringify(mapaGuardado)) {
+                localStorage.setItem(MAPA_STORAGE_KEY, JSON.stringify(mapaSincronizado.elementos));
+            }
             setProductos(datos.productos as Producto[]);
             setMateriasPrimas(datos.materiasPrimas as MateriaPrima[]);
             setRecetas(datos.recetas);
@@ -905,68 +983,50 @@ export function CafeteriaProvider({
         );
     };
 
+    const crearMesaMapa = (capacidad: number): Mesa => {
+        const nuevaMesa: Mesa = {
+            id: Math.max(0, ...mesas.map((mesa) => mesa.id)) + 1,
+            numero: Math.max(0, ...mesas.map((mesa) => mesa.numero)) + 1,
+            capacidad,
+            estado: "libre"
+        };
+
+        setMesas((mesasActuales) => [...mesasActuales, nuevaMesa]);
+        return nuevaMesa;
+    };
+
     // Mapa de mesas
-    const agregarElementoMapa = (
-    elemento: ElementoMapa
-) => {
+    const guardarElementosMapa = (elementos: ElementoMapa[]) => {
+        setElementosMapa(elementos);
+        localStorage.setItem(MAPA_STORAGE_KEY, JSON.stringify(elementos));
+    };
 
-    setElementosMapa((actuales) => {
+    const agregarElementoMapa = (elemento: ElementoMapa) => {
+        const nuevos = [...elementosMapa, elemento];
+        guardarElementosMapa(nuevos);
+        if (elemento.tipo === "mesa") {
+            setMesas((mesasActuales) => renumerarMesasSegunMapa(mesasActuales, nuevos));
+        }
+    };
 
-        const nuevos = [
-            ...actuales,
-            elemento
-        ];
+    const eliminarElementoMapa = (id: string) => {
+        const elementoEliminado = elementosMapa.find((elemento) => elemento.id === id);
+        const nuevos = elementosMapa.filter((elemento) => elemento.id !== id);
+        guardarElementosMapa(nuevos);
+        if (elementoEliminado?.tipo === "mesa") {
+            setMesas((mesasActuales) => renumerarMesasSegunMapa(mesasActuales, nuevos));
+        }
+    };
 
-        localStorage.setItem(
-            MAPA_STORAGE_KEY,
-            JSON.stringify(nuevos)
+    const editarElementoMapa = (elementoActualizado: ElementoMapa) => {
+        const nuevos = elementosMapa.map((elemento) =>
+            elemento.id === elementoActualizado.id ? elementoActualizado : elemento
         );
-
-        return nuevos;
-    });
-};
-    const eliminarElementoMapa = (
-    id: string
-) => {
-
-    setElementosMapa((actuales) => {
-
-        const nuevos =
-            actuales.filter(
-                (elemento) =>
-                    elemento.id !== id
-            );
-
-        localStorage.setItem(
-            MAPA_STORAGE_KEY,
-            JSON.stringify(nuevos)
-        );
-
-        return nuevos;
-    });
-};
-const editarElementoMapa = (
-    elementoActualizado: ElementoMapa
-) => {
-
-    setElementosMapa((actuales) => {
-
-        const nuevos =
-            actuales.map((elemento) =>
-                elemento.id ===
-                elementoActualizado.id
-                    ? elementoActualizado
-                    : elemento
-            );
-
-        localStorage.setItem(
-            MAPA_STORAGE_KEY,
-            JSON.stringify(nuevos)
-        );
-
-        return nuevos;
-    });
-};
+        guardarElementosMapa(nuevos);
+        if (elementoActualizado.tipo === "mesa") {
+            setMesas((mesasActuales) => renumerarMesasSegunMapa(mesasActuales, nuevos));
+        }
+    };
 
     // Empleados 
 
@@ -2327,6 +2387,7 @@ function procesarStockComanda(
                 cambiarEstadoEmpleado,
 
                 elementosMapa,
+                crearMesaMapa,
                 agregarElementoMapa,
                 editarElementoMapa,
                 eliminarElementoMapa,
