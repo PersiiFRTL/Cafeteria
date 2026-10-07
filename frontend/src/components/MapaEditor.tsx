@@ -51,6 +51,7 @@ function MapaEditor() {
     } = useMapa();
 
     const canvasRef = useRef<HTMLDivElement>(null);
+    const ignorarClickLienzoRef = useRef(false);
     const [herramientaSeleccionada, setHerramientaSeleccionada] =
         useState<TipoHerramienta | null>(null);
     const [largoLinea, setLargoLinea] = useState(6);
@@ -213,6 +214,7 @@ function MapaEditor() {
 
         e.preventDefault();
         e.stopPropagation();
+        ignorarClickLienzoRef.current = true;
 
         const canvas = canvasRef.current;
         if (!canvas) return;
@@ -608,8 +610,15 @@ function MapaEditor() {
                 onDrop={manejarDrop}
                 onPointerMove={manejarMovimientoArrastre}
                 onPointerUp={terminarArrastre}
-                onPointerCancel={() => setArrastre(null)}
+                onPointerCancel={() => {
+                    setArrastre(null);
+                    ignorarClickLienzoRef.current = false;
+                }}
                 onClick={(e) => {
+                    if (ignorarClickLienzoRef.current) {
+                        ignorarClickLienzoRef.current = false;
+                        return;
+                    }
                     if (e.target !== e.currentTarget) {
                         return;
                     }
@@ -647,7 +656,10 @@ function MapaEditor() {
                                     elemento.id
                                 }
                                 onPointerDown={(e) => manejarInicioArrastreElemento(e, elemento)}
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(e) => {
+                                    ignorarClickLienzoRef.current = false;
+                                    e.stopPropagation();
+                                }}
                                 className={
                                     elemento.tipo ===
                                     "mesa"

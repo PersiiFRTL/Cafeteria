@@ -561,7 +561,8 @@ export function CafeteriaProvider({
         if (
             productosComanda.some(
                 (producto) =>
-                    producto.estado === "preparando"
+                    producto.estado === "preparando" ||
+                    producto.estado === "listo"
             )
         ) {
             return "preparando";

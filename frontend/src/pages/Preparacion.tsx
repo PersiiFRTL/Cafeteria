@@ -185,14 +185,23 @@ function Preparacion() {
      * PRODUCTOS DEL SECTOR SELECCIONADO
      */
 
-    const comandasFiltradas = comandas.filter(
-        (comanda) => filtroComanda === "todas" || comanda.estado === filtroComanda
-    );
-
-    const pedidosSector = comandasFiltradas
+    const pedidosSector = comandas
         .flatMap((comanda) =>
             comanda.productos
                 .filter((item) => obtenerProducto(item.productoId)?.sector === sectorSeleccionado)
+                .filter((item) => {
+                    if (filtroComanda === "todas") return true;
+                    if (filtroComanda === "finalizada" || filtroComanda === "cancelada") {
+                        return comanda.estado === filtroComanda;
+                    }
+                    if (comanda.estado === "finalizada" || comanda.estado === "cancelada") {
+                        return false;
+                    }
+                    return (filtroComanda === "lista"
+                        ? item.estado === "listo"
+                        : item.estado === filtroComanda) ||
+                        (filtroComanda === "lista" && comanda.estado === "lista");
+                })
                 .map((item) => ({
                     comanda,
                     item,

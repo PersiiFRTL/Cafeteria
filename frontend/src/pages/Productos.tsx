@@ -479,6 +479,13 @@ function Productos() {
                 </div>
 
 
+                {productosFiltrados.length === 0 && (
+                    <div className="productos-vacio" role="status">
+                        <h2>No se encontraron productos</h2>
+                        <p>Probá cambiar la búsqueda o los filtros seleccionados.</p>
+                    </div>
+                )}
+
                 {productosFiltrados.map(
                     (producto) => {
 

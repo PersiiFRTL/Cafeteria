@@ -6,7 +6,6 @@ const INFORMES_PERIODO_KEY = "cafeteria-informes-periodo";
 function Informes() {
 
     const {
-        mesas,
         comandas,
         productos,
         materiasPrimas,
@@ -14,16 +13,21 @@ function Informes() {
     } = useInformes();
 
     const [periodo, setPeriodo] = useState<
-    "hoy" | "7dias" | "30dias" | "todo"
+    "hoy" | "7dias" | "30dias" | "todo" | "rango"
     >(() => {
         const valorGuardado = localStorage.getItem(INFORMES_PERIODO_KEY) as
             | "hoy"
             | "7dias"
             | "30dias"
             | "todo"
+            | "rango"
             | null;
-        return valorGuardado ?? "todo";
+        return valorGuardado === "hoy" || valorGuardado === "7dias" || valorGuardado === "30dias" || valorGuardado === "rango" || valorGuardado === "todo"
+            ? valorGuardado
+            : "todo";
     });
+    const [fechaDesde, setFechaDesde] = useState("");
+    const [fechaHasta, setFechaHasta] = useState("");
 
     useEffect(() => {
         localStorage.setItem(INFORMES_PERIODO_KEY, periodo);
@@ -49,17 +53,19 @@ if (periodo === "30dias") {
     );
 }
 
-const comandasFiltradas =
-    periodo === "todo"
-        ? comandas
-        : comandas.filter((comanda) => {
-              const fecha =
-                  new Date(
-                      comanda.fechaCreacion
-                  );
+const fechaInicioRango = fechaDesde ? new Date(`${fechaDesde}T00:00:00`) : null;
+const fechaFinRango = fechaHasta ? new Date(`${fechaHasta}T23:59:59.999`) : null;
+const dentroDelPeriodo = (valor: string) => {
+    const fecha = new Date(valor);
+    if (periodo === "todo") return true;
+    if (periodo === "rango") {
+        return (!fechaInicioRango || fecha >= fechaInicioRango) &&
+            (!fechaFinRango || fecha <= fechaFinRango);
+    }
+    return fecha >= inicioPeriodo;
+};
 
-              return fecha >= inicioPeriodo;
-          });
+const comandasFiltradas = comandas.filter((comanda) => dentroDelPeriodo(comanda.fechaCreacion));
 
     const comandasFinalizadas =
     comandasFiltradas.filter(
@@ -89,18 +95,6 @@ const comandasFiltradas =
         comandasFiltradas.filter(
             (comanda) =>
                 comanda.estado === "lista"
-        ).length;
-
-    const mesasLibres =
-        mesas.filter(
-            (mesa) =>
-                mesa.estado === "libre"
-        ).length;
-
-    const mesasOcupadas =
-        mesas.filter(
-            (mesa) =>
-                mesa.estado === "ocupada"
         ).length;
 
     const productosSolicitados = new Map<
@@ -150,19 +144,7 @@ const comandasFiltradas =
                 b.cantidad - a.cantidad
         );
 
-const movimientosFiltrados =
-    periodo === "todo"
-        ? movimientosStock
-        : movimientosStock.filter(
-              (movimiento) => {
-                  const fecha =
-                      new Date(
-                          movimiento.fecha
-                      );
-
-                  return fecha >= inicioPeriodo;
-              }
-          );
+const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPeriodo(movimiento.fecha));
 
     const movimientosPorTipo = {
         entrada: movimientosFiltrados.filter(
@@ -200,7 +182,7 @@ const movimientosFiltrados =
         );
 
     return (
-        <div className="dashboard-content">
+        <div className="dashboard-content informes-printable">
 
             <div className="informes-header">
 
@@ -263,7 +245,25 @@ const movimientosFiltrados =
                     >
                         Todo
                     </button>
+                    <button
+                        type="button"
+                        className={periodo === "rango" ? "filtro-activo" : ""}
+                        onClick={() => setPeriodo("rango")}
+                    >
+                        Rango específico
+                    </button>
                 </div>
+
+                {periodo === "rango" && (
+                    <div className="informes-rango">
+                        <label>Desde <input type="date" value={fechaDesde} onChange={(event) => setFechaDesde(event.target.value)} /></label>
+                        <label>Hasta <input type="date" value={fechaHasta} min={fechaDesde || undefined} onChange={(event) => setFechaHasta(event.target.value)} /></label>
+                    </div>
+                )}
+
+                <button type="button" className="primary-button informes-no-print" onClick={() => window.print()}>
+                    Imprimir / guardar como PDF
+                </button>
 
             </div>
 
@@ -299,22 +299,6 @@ const movimientosFiltrados =
                             {comandasCanceladas}
                         </strong>
                         <p>Canceladas</p>
-                    </div>
-
-                    <div className="informe-card">
-                        <span>🟢</span>
-                        <strong>
-                            {mesasLibres}
-                        </strong>
-                        <p>Mesas libres</p>
-                    </div>
-
-                    <div className="informe-card">
-                        <span>🔴</span>
-                        <strong>
-                            {mesasOcupadas}
-                        </strong>
-                        <p>Mesas ocupadas</p>
                     </div>
 
                 </div>
@@ -482,29 +466,19 @@ const movimientosFiltrados =
 
                 ) : (
 
-                    <div className="informe-lista">
-
-                        {materiasPrimasConStockBajo.map(
-                            (materia) => (
-
-                                <div key={materia.id}>
-
-                                    <span>
-                                        {materia.nombre}
-                                    </span>
-
-                                    <strong>
-                                        {materia.stockActual}{" "}
-                                        {materia.unidad}
-                                        {" / mínimo "}
-                                        {materia.stockMinimo}
-                                    </strong>
-
-                                </div>
-
-                            )
-                        )}
-
+                    <div className="informe-stock-bajo-table" role="table" aria-label="Materias primas con stock bajo">
+                        <div className="informe-stock-bajo-row encabezado" role="row">
+                            <strong role="columnheader">Insumo</strong>
+                            <strong role="columnheader">Stock disponible</strong>
+                            <strong role="columnheader">Mínimo de alerta</strong>
+                        </div>
+                        {materiasPrimasConStockBajo.map((materia) => (
+                            <div className="informe-stock-bajo-row" role="row" key={materia.id}>
+                                <span role="cell">{materia.nombre}</span>
+                                <span role="cell">{materia.stockActual} {materia.unidad}</span>
+                                <span role="cell">{materia.stockMinimo} {materia.unidad}</span>
+                            </div>
+                        ))}
                     </div>
 
                 )}

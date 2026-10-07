@@ -27,25 +27,9 @@ export default defineConfig({
 
     VitePWA({
       registerType: 'autoUpdate',
-
-      manifest: {
-        name: 'Sistema de gestión de cafetería',
-        short_name: 'Cafetería',
-        description: 'Sistema interno de gestión de la cafetería',
-        theme_color: '#ffffff',
-        background_color: '#ffffff',
-        display: 'standalone',
-        start_url: '/',
-        scope: '/',
-
-        icons: [
-          {
-            src: '/icon-512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
-        ]
-      }
+      // El manifest vive en public/ y se enlaza explícitamente desde index.html.
+      // Evita que el plugin genere un segundo manifest/link automáticamente.
+      manifest: false
     })
   ]
 })

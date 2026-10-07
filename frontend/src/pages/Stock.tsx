@@ -471,9 +471,14 @@ function Stock() {
 
                     {mostrarFormularioMateriaPrima && (
 
-                        <div className="stock-materia-form">
+                        <div
+                            className={`stock-materia-form ${materiaPrimaEditando !== null ? "stock-modal-dialog" : ""}`}
+                            role={materiaPrimaEditando !== null ? "dialog" : undefined}
+                            aria-modal={materiaPrimaEditando !== null ? true : undefined}
+                            aria-labelledby={materiaPrimaEditando !== null ? "stock-form-title" : undefined}
+                        >
 
-                            <h2>
+                            <h2 id="stock-form-title">
                                 {materiaPrimaEditando !== null
                                     ? "Editar materia prima"
                                     : "Nueva materia prima"}
@@ -637,6 +642,13 @@ function Stock() {
                         </div>
 
 
+                        {materiasPrimasFiltradas.length === 0 && (
+                            <div className="stock-empty" role="status">
+                                <h2>No se encontraron materias primas</h2>
+                                <p>Probá cambiar la búsqueda.</p>
+                            </div>
+                        )}
+
                         {materiasPrimasFiltradas.map((materia) => {
 
                             const stockBajo =
@@ -694,10 +706,10 @@ function Stock() {
                                     </span>
 
 
-                                    <div className="stock-actions">
+                            <div className="stock-actions">
 
                                         <button
-                                            className="stock-button"
+                                            className="stock-button stock-action-primary"
                                             onClick={() =>
                                                 seleccionarMateriaPrima(
                                                     materia.id
@@ -708,7 +720,7 @@ function Stock() {
                                         </button>
 
                                         <button
-                                            className="stock-button"
+                                            className="stock-button stock-action-edit"
                                             onClick={() => comenzarEdicionMateriaPrima(materia.id)}
                                         >
                                             Editar
@@ -749,9 +761,9 @@ function Stock() {
 
                     {materiaPrimaSeleccionada !== null && (
 
-                        <div className="stock-movimiento">
+                        <div className="stock-movimiento stock-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="stock-movimiento-title">
 
-                            <h2>
+                            <h2 id="stock-movimiento-title">
                                 Registrar movimiento
                             </h2>
 
@@ -967,7 +979,14 @@ function Stock() {
                     </div>
 
 
-                    {productosStockVisibles.map((producto) => {
+                {productosStockVisibles.length === 0 && (
+                    <div className="stock-empty" role="status">
+                        <h2>No se encontraron productos con stock</h2>
+                        <p>Probá cambiar la búsqueda.</p>
+                    </div>
+                )}
+
+                {productosStockVisibles.map((producto) => {
 
                             const stockBajo =
                                 producto.stockActual <=
