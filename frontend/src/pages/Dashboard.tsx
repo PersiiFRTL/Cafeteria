@@ -1,6 +1,7 @@
 import StatCard from "../components/StatCard";
 import PendingOrders from "../components/PendingOrders";
 import { useDashboard } from "../context/useDashboard";
+import { contarComandasFinalizadasDelDia } from "../domain/operacionesCafeteria";
 
 function Dashboard() {
     const {
@@ -20,17 +21,7 @@ function Dashboard() {
         comanda.estado === "preparando"
     ).length;
 
-    const hoy = new Date();
-    const comandasListasHoy = comandas.filter((comanda) => {
-        const fechaComanda = new Date(comanda.fechaCreacion);
-
-        return (
-            comanda.estado === "finalizada" &&
-            fechaComanda.getFullYear() === hoy.getFullYear() &&
-            fechaComanda.getMonth() === hoy.getMonth() &&
-            fechaComanda.getDate() === hoy.getDate()
-        );
-    }).length;
+    const comandasListasHoy = contarComandasFinalizadasDelDia(comandas, new Date());
 
     const productosStockBajo = productos.filter(
         (producto) =>

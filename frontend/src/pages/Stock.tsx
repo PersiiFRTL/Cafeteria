@@ -39,6 +39,12 @@ function Stock() {
     const [mensajeErrorStock, setMensajeErrorStock] = useState("");
     const [mensajeErrorMateriaPrima, setMensajeErrorMateriaPrima] = useState("");
 
+    const cerrarModalMovimiento = () => {
+        setCantidad("");
+        setMateriaPrimaSeleccionada(null);
+        setMensajeErrorStock("");
+    };
+
     const [
         mostrarFormularioMateriaPrima,
         setMostrarFormularioMateriaPrima
@@ -472,17 +478,33 @@ function Stock() {
                     {mostrarFormularioMateriaPrima && (
 
                         <div
+                            className={materiaPrimaEditando !== null ? "stock-modal-overlay" : undefined}
+                            onMouseDown={(event) => {
+                                if (materiaPrimaEditando !== null && event.target === event.currentTarget) {
+                                    cancelarEdicionMateriaPrima();
+                                }
+                            }}
+                        >
+                        <div
                             className={`stock-materia-form ${materiaPrimaEditando !== null ? "stock-modal-dialog" : ""}`}
                             role={materiaPrimaEditando !== null ? "dialog" : undefined}
                             aria-modal={materiaPrimaEditando !== null ? true : undefined}
                             aria-labelledby={materiaPrimaEditando !== null ? "stock-form-title" : undefined}
+                            onMouseDown={(event) => event.stopPropagation()}
                         >
 
-                            <h2 id="stock-form-title">
-                                {materiaPrimaEditando !== null
-                                    ? "Editar materia prima"
-                                    : "Nueva materia prima"}
-                            </h2>
+                            <div className="stock-modal-heading">
+                                <h2 id="stock-form-title">
+                                    {materiaPrimaEditando !== null
+                                        ? "Editar materia prima"
+                                        : "Nueva materia prima"}
+                                </h2>
+                                {materiaPrimaEditando !== null && (
+                                    <button type="button" className="stock-modal-close" aria-label="Cerrar edición" onClick={cancelarEdicionMateriaPrima}>
+                                        ×
+                                    </button>
+                                )}
+                            </div>
 
                             <div className="stock-form-fields">
 
@@ -596,6 +618,7 @@ function Stock() {
 
                             </div>
 
+                        </div>
                         </div>
 
                     )}
@@ -761,11 +784,20 @@ function Stock() {
 
                     {materiaPrimaSeleccionada !== null && (
 
-                        <div className="stock-movimiento stock-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="stock-movimiento-title">
+                        <div
+                            className="stock-modal-overlay"
+                            onMouseDown={(event) => {
+                                if (event.target === event.currentTarget) cerrarModalMovimiento();
+                            }}
+                        >
+                        <div className="stock-movimiento stock-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="stock-movimiento-title" onMouseDown={(event) => event.stopPropagation()}>
 
-                            <h2 id="stock-movimiento-title">
-                                Registrar movimiento
-                            </h2>
+                            <div className="stock-modal-heading">
+                                <h2 id="stock-movimiento-title">Registrar movimiento</h2>
+                                <button type="button" className="stock-modal-close" aria-label="Cerrar movimiento" onClick={cerrarModalMovimiento}>
+                                    ×
+                                </button>
+                            </div>
 
 
                             <p>
@@ -855,24 +887,16 @@ function Stock() {
 
 
                                 <button
+                                    type="button"
                                     className="stock-button"
-                                    onClick={() => {
-
-                                        setCantidad("");
-
-                                        setMateriaPrimaSeleccionada(
-                                            null
-                                        );
-
-                                        setMensajeErrorStock("");
-
-                                    }}
+                                    onClick={cerrarModalMovimiento}
                                 >
                                     Cancelar
                                 </button>
 
                             </div>
 
+                        </div>
                         </div>
 
                     )}

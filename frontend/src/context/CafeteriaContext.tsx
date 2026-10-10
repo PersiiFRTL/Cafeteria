@@ -11,6 +11,14 @@ import type {
 } from "../types/mapa";
 
 import { repositorioDemo } from "../services/demoCafeteriaRepository";
+import {
+    agregarProductosPendientesAComanda,
+    calcularEstadoComanda,
+    crearComandaEnMemoria,
+    descontarStockMateriaPrima,
+    finalizarComandaYLiberarMesa,
+    obtenerComandaActivaDeMesa
+} from "../domain/operacionesCafeteria";
 
 // ==========================
 // TIPOS
@@ -541,129 +549,33 @@ export function CafeteriaProvider({
     // COMANDAS
     // ==========================
 
-    const calcularEstadoComanda = (
-        productosComanda: ProductoComanda[]
-    ): Comanda["estado"] => {
-
-        if (productosComanda.length === 0) {
-            return "pendiente";
-        }
-
-        if (
-            productosComanda.every(
-                (producto) =>
-                    producto.estado === "listo"
-            )
-        ) {
-            return "lista";
-        }
-
-        if (
-            productosComanda.some(
-                (producto) =>
-                    producto.estado === "preparando" ||
-                    producto.estado === "listo"
-            )
-        ) {
-            return "preparando";
-        }
-
-        return "pendiente";
-    };
-
     const crearComanda = (
         mesaId: number | undefined,
         productosNuevos: ProductoComanda[],
         datosTakeAway?: { nombre: string; telefono: string; horaRetiro: string }
     ) => {
 
-        const productosPreparados =
-            productosNuevos.map((producto) => ({
-                ...producto,
-                cantidadStockProcesada:
-                    producto.cantidadStockProcesada ?? 0
-            }));
-
-        const nuevaComanda: Comanda = {
-            id: comandas.length + 1,
-            tipoAtencion: datosTakeAway ? "take-away" : "mesa",
-            ...(mesaId !== undefined ? { mesaId } : {}),
-            ...(datosTakeAway ? {
-                clienteTakeAway: {
-                    nombre: datosTakeAway.nombre.trim(),
-                    telefono: datosTakeAway.telefono.trim()
-                },
-                horaRetiro: datosTakeAway.horaRetiro
-            } : {}),
-            productos: productosPreparados,
-            estado: "pendiente",
-            fechaCreacion:
-                new Date().toISOString()
-        };
-
-        setComandas(
-            (comandasActuales) => [
-                ...comandasActuales,
-                nuevaComanda
-            ]
+        const resultado = crearComandaEnMemoria(
+            comandas,
+            mesas,
+            mesaId,
+            productosNuevos,
+            new Date().toISOString(),
+            datosTakeAway
         );
 
-        if (mesaId !== undefined) setMesas(
-            (mesasActuales) =>
-                mesasActuales.map(
-                    (mesa) =>
-                        mesa.id === mesaId
-                            ? {
-                                ...mesa,
-                                estado: "ocupada"
-                            }
-                            : mesa
-                )
-        );
+        setComandas((comandasActuales) => [...comandasActuales, resultado.comanda]);
+        if (mesaId !== undefined) setMesas(resultado.mesas);
     };
 
     const finalizarComanda = (
         comandaId: number
     ) => {
 
-        const comanda =
-            comandas.find(
-                (item) =>
-                    item.id === comandaId
-            );
-
-        if (!comanda) {
-            return;
-        }
-
-        setComandas(
-            (comandasActuales) =>
-                comandasActuales.map(
-                    (comandaActual) =>
-                        comandaActual.id ===
-                        comandaId
-                            ? {
-                                ...comandaActual,
-                                estado:
-                                    "finalizada"
-                            }
-                            : comandaActual
-                )
-        );
-
-        setMesas(
-            (mesasActuales) =>
-                mesasActuales.map(
-                    (mesa) =>
-                        mesa.id ===
-                        comanda.mesaId
-                            ? {
-                                ...mesa,
-                                estado: "libre"
-                            }
-                            : mesa
-                )
-        );
+        const resultado = finalizarComandaYLiberarMesa(comandas, mesas, comandaId);
+        if (!resultado) return;
+        setComandas(resultado.comandas);
+        setMesas(resultado.mesas);
     };
 
     const cancelarComanda = (
@@ -815,69 +727,8 @@ export function CafeteriaProvider({
         productosNuevos: ProductoComanda[]
     ) => {
 
-        setComandas(
-            (comandasActuales) =>
-                comandasActuales.map(
-                    (comanda) => {
-
-                        if (
-                            comanda.id !==
-                            comandaId
-                        ) {
-                            return comanda;
-                        }
-
-                        const productosActualizados =
-                            [
-                                ...comanda.productos
-                            ];
-
-                        productosNuevos.forEach(
-                            (productoNuevo) => {
-
-                                const productoExistente =
-                                    productosActualizados.find(
-                                        (producto) =>
-                                            producto.productoId ===
-                                            productoNuevo.productoId
-                                    );
-
-                                if (
-                                    productoExistente
-                                ) {
-
-                                    productoExistente.cantidad +=
-                                        productoNuevo.cantidad;
-
-                                    productoExistente.estado =
-                                        "pendiente";
-
-                                    return;
-                                }
-
-                                productosActualizados.push(
-                                    {
-                                        ...productoNuevo,
-                                        cantidadStockProcesada:
-                                            productoNuevo
-                                                .cantidadStockProcesada ??
-                                            0
-                                    }
-                                );
-                            }
-                        );
-
-                        return {
-                            ...comanda,
-                            productos:
-                                productosActualizados,
-                            estado:
-                                calcularEstadoComanda(
-                                    productosActualizados
-                                )
-                        };
-                    }
-                )
+        setComandas((comandasActuales) =>
+            agregarProductosPendientesAComanda(comandasActuales, comandaId, productosNuevos)
         );
     };
     const editarComanda = (
@@ -928,12 +779,7 @@ export function CafeteriaProvider({
         mesaId: number
     ) => {
 
-        return comandas.find(
-            (comanda) =>
-                comanda.mesaId === mesaId &&
-                comanda.estado !== "finalizada" &&
-                comanda.estado !== "cancelada"
-        );
+        return obtenerComandaActivaDeMesa(comandas, mesaId);
     };
 
     const cambiarEstadoProducto = (
@@ -2161,48 +2007,20 @@ function procesarStockComanda(
     cantidad: number
 ): boolean => {
 
-    if (cantidad <= 0) {
-        return false;
-    }
-
     const materia =
         materiasPrimas.find(
             (item) =>
                 item.id === materiaPrimaId
         );
 
-    if (!materia) {
-        return false;
-    }
-
-    // ==========================
-    // VALIDAR STOCK DISPONIBLE
-    // ==========================
-
-    if (materia.stockActual < cantidad) {
-        return false;
-    }
-
-
-    // ==========================
-    // DESCONTAR STOCK
-    // ==========================
-
-    setMateriasPrimas(
-        (materiasActuales) =>
-            materiasActuales.map(
-                (materiaActual) =>
-                    materiaActual.id ===
-                    materiaPrimaId
-                        ? {
-                            ...materiaActual,
-                            stockActual:
-                                materiaActual.stockActual -
-                                cantidad
-                        }
-                        : materiaActual
-            )
+    const materiasActualizadas = descontarStockMateriaPrima(
+        materiasPrimas,
+        materiaPrimaId,
+        cantidad
     );
+    if (!materia || !materiasActualizadas) return false;
+
+    setMateriasPrimas(materiasActualizadas);
 
 
     // ==========================
@@ -2399,6 +2217,8 @@ function procesarStockComanda(
     );
 }
 
+// El provider y su hook se mantienen juntos porque comparten el contexto privado.
+// oxlint-disable-next-line react/only-export-components
 export function useCafeteria() {
 
     const context =

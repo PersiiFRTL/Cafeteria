@@ -2,6 +2,34 @@ import { useEffect, useState } from "react";
 import { useInformes } from "../context/useInformes";
 
 const INFORMES_PERIODO_KEY = "cafeteria-informes-periodo";
+const INFORMES_RANGO_KEY = "cafeteria-informes-rango";
+
+interface RangoFechas {
+    desde: string;
+    hasta: string;
+}
+
+const leerRangoGuardado = (): RangoFechas | null => {
+    try {
+        const valor = localStorage.getItem(INFORMES_RANGO_KEY);
+        if (!valor) return null;
+        const rango = JSON.parse(valor) as RangoFechas;
+        return /^\d{4}-\d{2}-\d{2}$/.test(rango.desde) &&
+            /^\d{4}-\d{2}-\d{2}$/.test(rango.hasta)
+            && rango.desde <= rango.hasta
+            && rango.hasta <= fechaLocalISO(new Date())
+            ? rango
+            : null;
+    } catch {
+        return null;
+    }
+};
+
+const fechaLocalISO = (fecha: Date) => {
+    const local = new Date(fecha);
+    local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
+    return local.toISOString().slice(0, 10);
+};
 
 function Informes() {
 
@@ -22,16 +50,27 @@ function Informes() {
             | "todo"
             | "rango"
             | null;
-        return valorGuardado === "hoy" || valorGuardado === "7dias" || valorGuardado === "30dias" || valorGuardado === "rango" || valorGuardado === "todo"
+        return valorGuardado === "rango" && !leerRangoGuardado()
+            ? "todo"
+            : valorGuardado === "hoy" || valorGuardado === "7dias" || valorGuardado === "30dias" || valorGuardado === "rango" || valorGuardado === "todo"
             ? valorGuardado
             : "todo";
     });
-    const [fechaDesde, setFechaDesde] = useState("");
-    const [fechaHasta, setFechaHasta] = useState("");
+    const [rangoAplicado, setRangoAplicado] = useState<RangoFechas | null>(leerRangoGuardado);
+    const [fechaDesde, setFechaDesde] = useState(() => leerRangoGuardado()?.desde ?? "");
+    const [fechaHasta, setFechaHasta] = useState(() => leerRangoGuardado()?.hasta ?? "");
+    const [editandoRango, setEditandoRango] = useState(false);
+    const [errorRango, setErrorRango] = useState("");
 
     useEffect(() => {
         localStorage.setItem(INFORMES_PERIODO_KEY, periodo);
     }, [periodo]);
+
+    useEffect(() => {
+        if (periodo === "rango" && rangoAplicado) {
+            localStorage.setItem(INFORMES_RANGO_KEY, JSON.stringify(rangoAplicado));
+        }
+    }, [periodo, rangoAplicado]);
 
     const ahora = new Date();
 
@@ -53,19 +92,64 @@ if (periodo === "30dias") {
     );
 }
 
-const fechaInicioRango = fechaDesde ? new Date(`${fechaDesde}T00:00:00`) : null;
-const fechaFinRango = fechaHasta ? new Date(`${fechaHasta}T23:59:59.999`) : null;
+const fechaInicioRango = rangoAplicado ? new Date(`${rangoAplicado.desde}T00:00:00`) : null;
+const fechaFinRango = rangoAplicado ? new Date(`${rangoAplicado.hasta}T23:59:59.999`) : null;
 const dentroDelPeriodo = (valor: string) => {
     const fecha = new Date(valor);
     if (periodo === "todo") return true;
     if (periodo === "rango") {
-        return (!fechaInicioRango || fecha >= fechaInicioRango) &&
-            (!fechaFinRango || fecha <= fechaFinRango);
+        return Boolean(fechaInicioRango && fechaFinRango && fecha >= fechaInicioRango && fecha <= fechaFinRango);
     }
     return fecha >= inicioPeriodo;
 };
 
 const comandasFiltradas = comandas.filter((comanda) => dentroDelPeriodo(comanda.fechaCreacion));
+
+const aplicarRangoFechas = () => {
+    const fechaHoy = fechaLocalISO(new Date());
+    if (!fechaDesde || !fechaHasta) {
+        setErrorRango("Elegí una fecha de inicio y una fecha de fin.");
+        return;
+    }
+    if (fechaDesde > fechaHoy || fechaHasta > fechaHoy) {
+        setErrorRango("Las fechas no pueden ser posteriores a hoy.");
+        return;
+    }
+    if (fechaHasta < fechaDesde) {
+        setErrorRango("La fecha Hasta no puede ser anterior a Desde.");
+        return;
+    }
+
+    setRangoAplicado({ desde: fechaDesde, hasta: fechaHasta });
+    setPeriodo("rango");
+    setEditandoRango(false);
+    setErrorRango("");
+};
+
+const imprimirInforme = () => {
+    const hoy = fechaLocalISO(new Date());
+    let rangoNombre: RangoFechas | null = null;
+    if (periodo === "rango") {
+        rangoNombre = rangoAplicado;
+    } else if (periodo === "hoy") {
+        rangoNombre = { desde: hoy, hasta: hoy };
+    } else if (periodo === "7dias" || periodo === "30dias") {
+        rangoNombre = { desde: fechaLocalISO(inicioPeriodo), hasta: hoy };
+    }
+
+    const nombreInforme = rangoNombre
+        ? `Informe_${rangoNombre.desde}_${rangoNombre.hasta}`
+        : "Informe_Todo";
+    const tituloAnterior = document.title;
+    const restaurarTitulo = () => {
+        document.title = tituloAnterior;
+        window.removeEventListener("afterprint", restaurarTitulo);
+    };
+
+    document.title = nombreInforme;
+    window.addEventListener("afterprint", restaurarTitulo, { once: true });
+    window.print();
+};
 
     const comandasFinalizadas =
     comandasFiltradas.filter(
@@ -200,9 +284,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                                 ? "filtro-activo"
                                 : ""
                         }
-                        onClick={() =>
-                            setPeriodo("hoy")
-                        }
+                        onClick={() => { setPeriodo("hoy"); setEditandoRango(false); }}
                     >
                         Hoy
                     </button>
@@ -213,9 +295,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                                 ? "filtro-activo"
                                 : ""
                         }
-                        onClick={() =>
-                            setPeriodo("7dias")
-                        }
+                        onClick={() => { setPeriodo("7dias"); setEditandoRango(false); }}
                     >
                         Últimos 7 días
                     </button>
@@ -226,9 +306,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                                 ? "filtro-activo"
                                 : ""
                         }
-                        onClick={() =>
-                            setPeriodo("30dias")
-                        }
+                        onClick={() => { setPeriodo("30dias"); setEditandoRango(false); }}
                     >
                         Últimos 30 días
                     </button>
@@ -239,29 +317,66 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                                 ? "filtro-activo"
                                 : ""
                         }
-                        onClick={() =>
-                            setPeriodo("todo")
-                        }
+                        onClick={() => { setPeriodo("todo"); setEditandoRango(false); }}
                     >
                         Todo
                     </button>
                     <button
                         type="button"
-                        className={periodo === "rango" ? "filtro-activo" : ""}
-                        onClick={() => setPeriodo("rango")}
+                        className={periodo === "rango" || editandoRango ? "filtro-activo" : ""}
+                        onClick={() => {
+                            setFechaDesde(rangoAplicado?.desde ?? "");
+                            setFechaHasta(rangoAplicado?.hasta ?? "");
+                            setErrorRango("");
+                            setEditandoRango(true);
+                        }}
                     >
                         Rango específico
                     </button>
                 </div>
 
-                {periodo === "rango" && (
+                {(periodo === "rango" || editandoRango) && (
+                    <div className="informes-rango-panel">
                     <div className="informes-rango">
-                        <label>Desde <input type="date" value={fechaDesde} onChange={(event) => setFechaDesde(event.target.value)} /></label>
-                        <label>Hasta <input type="date" value={fechaHasta} min={fechaDesde || undefined} onChange={(event) => setFechaHasta(event.target.value)} /></label>
+                        <label>
+                            Desde
+                            <input
+                                type="date"
+                                value={fechaDesde}
+                                max={fechaLocalISO(new Date())}
+                                disabled={!editandoRango}
+                                aria-invalid={Boolean(errorRango)}
+                                aria-describedby={errorRango ? "error-rango-fechas" : undefined}
+                                onChange={(event) => { setFechaDesde(event.target.value); setErrorRango(""); }}
+                            />
+                        </label>
+                        <label>
+                            Hasta
+                            <input
+                                type="date"
+                                value={fechaHasta}
+                                min={fechaDesde || undefined}
+                                max={fechaLocalISO(new Date())}
+                                disabled={!editandoRango}
+                                aria-invalid={Boolean(errorRango)}
+                                aria-describedby={errorRango ? "error-rango-fechas" : undefined}
+                                onChange={(event) => { setFechaHasta(event.target.value); setErrorRango(""); }}
+                            />
+                        </label>
+                    </div>
+                    {errorRango && <p id="error-rango-fechas" className="form-field-error" role="alert">{errorRango}</p>}
+                    {editandoRango ? (
+                        <div className="informes-rango-acciones">
+                            <button type="button" className="primary-button" onClick={aplicarRangoFechas}>Aplicar rango</button>
+                            <button type="button" className="secondary-button" onClick={() => { setEditandoRango(false); setErrorRango(""); }}>Cancelar</button>
+                        </div>
+                    ) : (
+                        <p className="informes-rango-aplicado">Mostrando del {rangoAplicado?.desde} al {rangoAplicado?.hasta}</p>
+                    )}
                     </div>
                 )}
 
-                <button type="button" className="primary-button informes-no-print" onClick={() => window.print()}>
+                <button type="button" className="primary-button informes-no-print" onClick={imprimirInforme}>
                     Imprimir / guardar como PDF
                 </button>
 

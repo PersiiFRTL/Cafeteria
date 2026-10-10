@@ -32,6 +32,7 @@ function Productos() {
 
     const [busqueda, setBusqueda] = useState("");
     const [busquedaDebounce, setBusquedaDebounce] = useState("");
+    const [filtroSector, setFiltroSector] = useState("Todos");
 
     useEffect(() => {
         const temporizador = window.setTimeout(() => {
@@ -44,11 +45,10 @@ function Productos() {
     const productosFiltrados = productos.filter((producto) => {
         const textoBusqueda = busquedaDebounce;
 
-        return (
-            coincideBusqueda(producto.nombre, textoBusqueda) ||
-            coincideBusqueda(producto.categoria, textoBusqueda) ||
-            coincideBusqueda(producto.sector, textoBusqueda)
-        );
+        const coincideNombre = coincideBusqueda(producto.nombre, textoBusqueda);
+        const coincideSector = filtroSector === "Todos" || producto.sector === filtroSector;
+
+        return coincideNombre && coincideSector;
     });
 
     const [nombre, setNombre] =
@@ -435,9 +435,24 @@ function Productos() {
                     type="search"
                     className="stock-buscador"
                     placeholder="Buscar producto..."
+                    aria-label="Buscar por nombre de producto"
                     value={busqueda}
                     onChange={(event) => setBusqueda(event.target.value)}
                 />
+            </div>
+
+            <div className="productos-filtros-sector" role="group" aria-label="Filtrar productos por sector">
+                {["Todos", "Cocina", "Cafetería", "Pastelería"].map((sectorOpcion) => (
+                    <button
+                        key={sectorOpcion}
+                        type="button"
+                        className={`productos-filtro-sector${filtroSector === sectorOpcion ? " activo" : ""}`}
+                        aria-pressed={filtroSector === sectorOpcion}
+                        onClick={() => setFiltroSector(sectorOpcion)}
+                    >
+                        {sectorOpcion}
+                    </button>
+                ))}
             </div>
 
             {/* ==========================

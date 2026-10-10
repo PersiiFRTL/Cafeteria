@@ -38,6 +38,7 @@ const filtrosComandas: { valor: FiltroComanda; etiqueta: string }[] = [
 function Comandas() {
     const { mostrarToast } = useToast();
     const bloqueoAccion = useRef(false);
+    const [accionBloqueada, setAccionBloqueada] = useState(false);
 
     const ejecutarAccionConBloqueo = (accion: () => void) => {
         if (bloqueoAccion.current) {
@@ -45,11 +46,13 @@ function Comandas() {
         }
 
         bloqueoAccion.current = true;
+        setAccionBloqueada(true);
         accion();
 
         window.setTimeout(() => {
             bloqueoAccion.current = false;
-        }, 100);
+            setAccionBloqueada(false);
+        }, 1000);
     };
 
     const [searchParams] = useSearchParams();
@@ -451,7 +454,7 @@ function Comandas() {
 
                                             <button
                                                 className="primary-button"
-                                                disabled={bloqueoAccion.current}
+                                                disabled={accionBloqueada}
                                                 onClick={() =>
                                                     ejecutarAccionConBloqueo(() =>
                                                         enviarAPreparacion(

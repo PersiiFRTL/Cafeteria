@@ -36,6 +36,7 @@ function NuevaComanda() {
     const [cantidadesIniciales, setCantidadesIniciales] =
         useState<Record<number, number>>({});
     const [dialogo, setDialogo] = useState<DialogoComanda | null>(null);
+    const [filtroSector, setFiltroSector] = useState<"Todos" | "Cocina" | "Cafetería" | "Pastelería">("Todos");
 
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -71,6 +72,8 @@ function NuevaComanda() {
     } = useComandas();
     const { recetas, materiasPrimas } = useCatalogo();
 
+    // Sincroniza el formulario con la comanda que llega desde el contexto al editar.
+    // oxlint-disable react/set-state-in-effect
     useEffect(() => {
         if (!modoEditar || !idComandaEditar) {
             return;
@@ -93,6 +96,7 @@ function NuevaComanda() {
         setCantidades(cantidadesIniciales);
         setCantidadesIniciales(cantidadesIniciales);
     }, [modoEditar, idComandaEditar, comandas]);
+    // oxlint-enable react/set-state-in-effect
 
     const hayCambiosSinGuardar = Array.from(new Set([
         ...Object.keys(cantidades),
@@ -414,6 +418,10 @@ function NuevaComanda() {
         });
     };
 
+    const productosDelSector = productos.filter((producto) =>
+        producto.activo && (filtroSector === "Todos" || producto.sector === filtroSector)
+    );
+
     return (
         <div className="dashboard-content">
 
@@ -432,7 +440,7 @@ function NuevaComanda() {
                     <h2 id="take-away-datos-titulo">Datos del retiro</h2>
                     <div className="take-away-form-fields">
                         <label>
-                            Nombre del cliente
+                            <span className="take-away-field-title">Nombre del cliente</span>
                             <input
                                 type="text"
                                 autoComplete="name"
@@ -442,7 +450,7 @@ function NuevaComanda() {
                             />
                         </label>
                         <label>
-                            Teléfono <span>(opcional)</span>
+                            <span className="take-away-field-title">Teléfono <span>(opcional)</span></span>
                             <input
                                 type="tel"
                                 inputMode="tel"
@@ -463,7 +471,7 @@ function NuevaComanda() {
                             )}
                         </label>
                         <label>
-                            Fecha y hora de retiro
+                            <span className="take-away-field-title">Fecha y hora de retiro</span>
                             <input
                                 type="datetime-local"
                                 value={horaRetiro}
@@ -483,13 +491,27 @@ function NuevaComanda() {
 
                     <h2>Productos</h2>
 
+                    <div className="comanda-filtros-sector" role="group" aria-label="Filtrar productos por sector">
+                        {(["Todos", "Cocina", "Cafetería", "Pastelería"] as const).map((sector) => (
+                            <button
+                                key={sector}
+                                type="button"
+                                className={`comanda-filtro-sector ${filtroSector === sector ? "activo" : ""}`}
+                                aria-pressed={filtroSector === sector}
+                                onClick={() => setFiltroSector(sector)}
+                            >
+                                {sector}
+                            </button>
+                        ))}
+                    </div>
+
                     <div className="productos-container">
 
-                        {productos
-                            .filter(
-                                (producto) =>
-                                    producto.activo
-                            )
+                        {productosDelSector.length === 0 ? (
+                            <p className="comanda-productos-vacio" role="status">
+                                No hay productos activos en el sector {filtroSector}.
+                            </p>
+                        ) : productosDelSector
                             .map((producto) => {
 
                                 const cantidad =
