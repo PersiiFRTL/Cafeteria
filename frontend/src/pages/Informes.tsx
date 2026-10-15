@@ -344,7 +344,6 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                                 type="date"
                                 value={fechaDesde}
                                 max={fechaLocalISO(new Date())}
-                                disabled={!editandoRango}
                                 aria-invalid={Boolean(errorRango)}
                                 aria-describedby={errorRango ? "error-rango-fechas" : undefined}
                                 onChange={(event) => { setFechaDesde(event.target.value); setErrorRango(""); }}
@@ -357,7 +356,6 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                                 value={fechaHasta}
                                 min={fechaDesde || undefined}
                                 max={fechaLocalISO(new Date())}
-                                disabled={!editandoRango}
                                 aria-invalid={Boolean(errorRango)}
                                 aria-describedby={errorRango ? "error-rango-fechas" : undefined}
                                 onChange={(event) => { setFechaHasta(event.target.value); setErrorRango(""); }}
@@ -365,13 +363,19 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                         </label>
                     </div>
                     {errorRango && <p id="error-rango-fechas" className="form-field-error" role="alert">{errorRango}</p>}
-                    {editandoRango ? (
-                        <div className="informes-rango-acciones">
-                            <button type="button" className="primary-button" onClick={aplicarRangoFechas}>Aplicar rango</button>
-                            <button type="button" className="secondary-button" onClick={() => { setEditandoRango(false); setErrorRango(""); }}>Cancelar</button>
-                        </div>
-                    ) : (
-                        <p className="informes-rango-aplicado">Mostrando del {rangoAplicado?.desde} al {rangoAplicado?.hasta}</p>
+                    <div className="informes-rango-acciones">
+                        <button
+                            type="button"
+                            className="primary-button informes-aplicar-rango"
+                            onClick={aplicarRangoFechas}
+                        >
+                            Aplicar rango
+                        </button>
+                    </div>
+                    {periodo === "rango" && rangoAplicado && (
+                        <p className="informes-rango-aplicado">
+                            Rango aplicado: {rangoAplicado.desde} al {rangoAplicado.hasta}
+                        </p>
                     )}
                     </div>
                 )}

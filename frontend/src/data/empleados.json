@@ -3,23 +3,23 @@
         "id": 1,
         "nombre": "Administrador",
         "email": "admin@cafeteria.com",
-        "password": "1234",
+        "password": "",
         "rol": "ADMINISTRADOR",
         "activo": true
     },
     {
         "id": 2,
         "nombre": "Juan Pérez",
-        "email": "juan@cafeteria.com",
-        "password": "1234",
+        "email": "empleado@cafeteria.com",
+        "password": "",
         "rol": "EMPLEADO",
         "activo": true
     },
     {
         "id": 3,
         "nombre": "Carlos Gómez",
-        "email": "carlos@cafeteria.com",
-        "password": "1234",
+        "email": "cocina@cafeteria.com",
+        "password": "",
         "rol": "COCINA",
         "activo": true
     }

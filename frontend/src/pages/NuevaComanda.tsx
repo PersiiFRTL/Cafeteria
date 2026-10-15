@@ -363,7 +363,7 @@ function NuevaComanda() {
 
         } else {
 
-            crearComanda(
+            const creada = crearComanda(
                 esTakeAway ? undefined : mesaId,
                 productosComanda,
                 esTakeAway
@@ -374,6 +374,18 @@ function NuevaComanda() {
                       }
                     : undefined
             );
+
+            if (!creada) {
+                setDialogo({
+                    titulo: "No se pudo crear la comanda",
+                    mensaje: !esTakeAway && mesas.find((mesa) => mesa.id === mesaId)?.estado === "ocupada"
+                        ? "Esta mesa ya tiene una comanda activa. Volvé a Mesas y seleccioná una mesa libre."
+                        : "Agregá al menos un producto y verificá que las cantidades sean válidas.",
+                    textoConfirmar: "Volver al pedido",
+                    confirmar: () => setDialogo(null)
+                });
+                return;
+            }
         }
 
         mostrarToast(modoEditar

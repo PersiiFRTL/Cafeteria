@@ -4027,6 +4027,23 @@ button:disabled {
     border-radius: 6px;
 }
 
+.informes-rango-acciones {
+    display: flex;
+    margin-top: 12px;
+}
+
+.informes-aplicar-rango {
+    width: auto;
+    min-width: 132px;
+    padding: 9px 16px;
+}
+
+.informes-rango-aplicado {
+    margin: 10px 0 0;
+    color: #65564b;
+    font-size: 0.9rem;
+}
+
 .informes-no-print {
     margin-top: 12px;
 }

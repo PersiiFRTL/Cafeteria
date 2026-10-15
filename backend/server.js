@@ -1,8 +1,8 @@
 const express = require("express");
-const empleados = require("../frontend/src/data/empleados.json");
+const { verificarConexionSupabase } = require("./supabaseClient");
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT || process.env.port || 3000);
 const allowedFrontendOrigins = new Set([
     "http://localhost:5173",
     "http://127.0.0.1:5173"
@@ -38,45 +38,17 @@ app.get("/", (req, res) => {
     });
 });
 
-app.post("/api/login", (req, res) => {
-    const email = String(req.body?.email ?? "").trim().toLowerCase();
-    const password = String(req.body?.password ?? "");
+app.get("/api/health/supabase", async (req, res) => {
+    const estado = await verificarConexionSupabase();
+    const status = estado.conectado ? 200 : estado.configurado ? 502 : 503;
 
-    if (!email || !password) {
-        return res.status(400).json({
-            mensaje: "Email y contraseña son obligatorios"
-        });
-    }
-
-    const empleado = empleados.find(
-        (empleadoActual) =>
-            empleadoActual.email.trim().toLowerCase() === email &&
-            empleadoActual.password === password &&
-            empleadoActual.activo
-    );
-
-    if (!empleado) {
-        return res.status(401).json({
-            mensaje: "Email o contraseña incorrectos"
-        });
-    }
-
-    const usuario = {
-        id: empleado.id,
-        nombre: empleado.nombre,
-        email: empleado.email,
-        rol: empleado.rol
-    };
-
-    return res.json({
-        success: true,
-        mensaje: "Login correcto",
-        usuario
+    return res.status(status).json({
+        servicio: "supabase",
+        ...estado
     });
 });
 
 app.listen(PORT, () => {
-    console.log(
-        `Servidor ejecutándose en http://localhost:${PORT}`
-    );
+    console.log(`Servidor ejecutándose en http://localhost:${PORT}`);
+    console.log(`Supabase: ${process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL ? "configurado" : "sin configurar"}`);
 });

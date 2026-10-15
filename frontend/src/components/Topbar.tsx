@@ -20,8 +20,8 @@ function Topbar() {
         "/informes": "Informes"
     } as Record<string, string>)[pathname] ?? "Cafetería";
 
-    const manejarCierreSesion = () => {
-        cerrarSesion();
+    const manejarCierreSesion = async () => {
+        await cerrarSesion();
         navigate("/login", { replace: true });
     };
 

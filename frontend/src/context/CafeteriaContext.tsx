@@ -14,6 +14,7 @@ import { repositorioDemo } from "../services/demoCafeteriaRepository";
 import {
     agregarProductosPendientesAComanda,
     calcularEstadoComanda,
+    calcularConsumoStockComanda,
     crearComandaEnMemoria,
     descontarStockMateriaPrima,
     finalizarComandaYLiberarMesa,
@@ -297,7 +298,7 @@ interface CafeteriaContextType {
         mesaId: number | undefined,
         productos: ProductoComanda[],
         datosTakeAway?: { nombre: string; telefono: string; horaRetiro: string }
-    ) => void;
+    ) => boolean;
 
     finalizarComanda: (
         comandaId: number
@@ -553,7 +554,7 @@ export function CafeteriaProvider({
         mesaId: number | undefined,
         productosNuevos: ProductoComanda[],
         datosTakeAway?: { nombre: string; telefono: string; horaRetiro: string }
-    ) => {
+    ): boolean => {
 
         const resultado = crearComandaEnMemoria(
             comandas,
@@ -564,8 +565,11 @@ export function CafeteriaProvider({
             datosTakeAway
         );
 
+        if (!resultado) return false;
+
         setComandas((comandasActuales) => [...comandasActuales, resultado.comanda]);
         if (mesaId !== undefined) setMesas(resultado.mesas);
+        return true;
     };
 
     const finalizarComanda = (
@@ -1219,170 +1223,19 @@ function procesarStockComanda(
     }
 
 
-    // ==========================
-    // CALCULAR DIFERENCIAS
-    // ==========================
+    // Calcula y valida todos los consumos antes de cambiar estados o inventario.
+    const planConsumo = calcularConsumoStockComanda(
+        comanda.productos,
+        productos,
+        recetas,
+        materiasPrimas
+    );
+    if (!planConsumo) return false;
 
-    const consumosProducto: {
-        productoId: number;
-        cantidad: number;
-    }[] = [];
-
-    const consumosMateriaPrima: {
-        materiaPrimaId: number;
-        cantidad: number;
-    }[] = [];
-
-
-    for (const item of comanda.productos) {
-
-        // --------------------------------
-        // CANTIDAD TODAVÍA NO PROCESADA
-        // --------------------------------
-
-        const cantidadPendiente =
-            item.cantidad -
-            item.cantidadStockProcesada;
-
-
-        if (cantidadPendiente <= 0) {
-            continue;
-        }
-
-
-        // --------------------------------
-        // BUSCAR PRODUCTO
-        // --------------------------------
-
-        const producto = productos.find(
-            (p) => p.id === item.productoId
-        );
-
-
-        if (!producto) {
-            return false;
-        }
-
-
-        // ==================================
-        // PRODUCTO PREELABORADO
-        // ==================================
-
-        if (producto.tipoElaboracion !== "bajo_pedido") {
-
-            if (
-                producto.stockActual <
-                cantidadPendiente
-            ) {
-                return false;
-            }
-
-
-            consumosProducto.push({
-                productoId: producto.id,
-                cantidad: cantidadPendiente
-            });
-
-        }
-
-
-        // ==================================
-        // PRODUCTO BAJO PEDIDO
-        // ==================================
-
-        else {
-
-            const receta = recetas.find(
-                (r) =>
-                    r.productoId ===
-                    producto.id
-            );
-
-
-            if (!receta) {
-                return false;
-            }
-
-
-            for (
-                const ingrediente
-                of receta.ingredientes
-            ) {
-
-                const cantidadNecesaria =
-                    ingrediente.cantidad *
-                    cantidadPendiente;
-
-
-                consumosMateriaPrima.push({
-                    materiaPrimaId:
-                        ingrediente.materiaPrimaId,
-
-                    cantidad:
-                        cantidadNecesaria
-                });
-            }
-        }
-    }
-
-
-    // ==========================
-    // AGRUPAR MATERIAS PRIMAS
-    // ==========================
-
-    const consumosAgrupados =
-        new Map<number, number>();
-
-
-    for (
-        const consumo
-        of consumosMateriaPrima
-    ) {
-
-        const cantidadActual =
-            consumosAgrupados.get(
-                consumo.materiaPrimaId
-            ) ?? 0;
-
-        consumosAgrupados.set(
-            consumo.materiaPrimaId,
-            cantidadActual +
-                consumo.cantidad
-        );
-    }
-
-
-    // ==========================
-    // VALIDAR MATERIAS PRIMAS
-    // ==========================
-
-    for (
-        const [
-            materiaPrimaId,
-            cantidadNecesaria
-        ]
-        of consumosAgrupados
-    ) {
-
-        const materiaPrima =
-            materiasPrimas.find(
-                (mp) =>
-                    mp.id === materiaPrimaId
-            );
-
-
-        if (!materiaPrima) {
-            return false;
-        }
-
-
-        if (
-            materiaPrima.stockActual <
-            cantidadNecesaria
-        ) {
-            return false;
-        }
-    }
+    const consumosProducto = planConsumo.productos;
+    const consumosAgrupados = new Map(
+        planConsumo.materiasPrimas.map(({ materiaPrimaId, cantidad }) => [materiaPrimaId, cantidad])
+    );
 
 
     // ==========================

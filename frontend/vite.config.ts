@@ -1,9 +1,15 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { fileURLToPath, URL } from 'node:url'
+
+const backendEnvDir = fileURLToPath(new URL('../backend', import.meta.url))
 
 // https://vite.dev/config/
 export default defineConfig({
+  // En desarrollo, las variables VITE_* ya configuradas en backend/.env
+  // son visibles para Vite. Solo las variables con prefijo VITE_ se exponen.
+  envDir: backendEnvDir,
   server: {
     host: true,
     proxy: {

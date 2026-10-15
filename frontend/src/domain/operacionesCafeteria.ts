@@ -32,6 +32,92 @@ export interface MateriaPrimaOperacion {
     stockActual: number;
 }
 
+interface ItemStockComandaOperacion {
+    productoId: number;
+    cantidad: number;
+    cantidadStockProcesada: number;
+}
+
+interface ProductoStockComandaOperacion {
+    id: number;
+    tipoElaboracion: string;
+    stockActual: number;
+}
+
+interface RecetaStockComandaOperacion {
+    productoId: number;
+    ingredientes: { materiaPrimaId: number; cantidad: number }[];
+}
+
+interface ConsumoStockOperacion {
+    productoId: number;
+    cantidad: number;
+}
+
+interface ConsumoMateriaPrimaOperacion {
+    materiaPrimaId: number;
+    cantidad: number;
+}
+
+// Calcula consumos sin modificar el inventario; null significa que el pedido no puede procesarse.
+export function calcularConsumoStockComanda<TMateria extends MateriaPrimaOperacion>(
+    items: ItemStockComandaOperacion[],
+    productos: ProductoStockComandaOperacion[],
+    recetas: RecetaStockComandaOperacion[],
+    materiasPrimas: TMateria[]
+): { productos: ConsumoStockOperacion[]; materiasPrimas: ConsumoMateriaPrimaOperacion[] } | null {
+    const consumoProductos = new Map<number, number>();
+    const consumoMateriasPrimas = new Map<number, number>();
+
+    for (const item of items) {
+        if (!Number.isFinite(item.cantidad) || item.cantidad <= 0 ||
+            !Number.isFinite(item.cantidadStockProcesada) || item.cantidadStockProcesada < 0) {
+            return null;
+        }
+
+        const cantidadPendiente = item.cantidad - item.cantidadStockProcesada;
+        if (cantidadPendiente <= 0) continue;
+
+        const producto = productos.find((actual) => actual.id === item.productoId);
+        if (!producto) return null;
+
+        if (producto.tipoElaboracion !== "bajo_pedido") {
+            consumoProductos.set(
+                producto.id,
+                (consumoProductos.get(producto.id) ?? 0) + cantidadPendiente
+            );
+            continue;
+        }
+
+        const receta = recetas.find((actual) => actual.productoId === producto.id);
+        if (!receta || receta.ingredientes.length === 0) return null;
+
+        for (const ingrediente of receta.ingredientes) {
+            if (!Number.isFinite(ingrediente.cantidad) || ingrediente.cantidad <= 0) return null;
+            consumoMateriasPrimas.set(
+                ingrediente.materiaPrimaId,
+                (consumoMateriasPrimas.get(ingrediente.materiaPrimaId) ?? 0) +
+                    ingrediente.cantidad * cantidadPendiente
+            );
+        }
+    }
+
+    for (const [productoId, cantidad] of consumoProductos) {
+        const producto = productos.find((actual) => actual.id === productoId);
+        if (!producto || producto.stockActual < cantidad) return null;
+    }
+
+    for (const [materiaPrimaId, cantidad] of consumoMateriasPrimas) {
+        const materiaPrima = materiasPrimas.find((actual) => actual.id === materiaPrimaId);
+        if (!materiaPrima || materiaPrima.stockActual < cantidad) return null;
+    }
+
+    return {
+        productos: Array.from(consumoProductos, ([productoId, cantidad]) => ({ productoId, cantidad })),
+        materiasPrimas: Array.from(consumoMateriasPrimas, ([materiaPrimaId, cantidad]) => ({ materiaPrimaId, cantidad }))
+    };
+}
+
 // Cuenta las comandas finalizadas cuya fecha de creación corresponde al día indicado.
 export function contarComandasFinalizadasDelDia<T extends { estado: string; fechaCreacion: string }>(
     comandas: T[],
@@ -66,7 +152,18 @@ export function crearComandaEnMemoria<TMesa extends MesaOperacion>(
     productos: ProductoComandaOperacion[],
     fechaCreacion: string,
     datosTakeAway?: { nombre: string; telefono: string; horaRetiro: string }
-): { comanda: ComandaOperacion; mesas: TMesa[] } {
+): { comanda: ComandaOperacion; mesas: TMesa[] } | null {
+    if (productos.length === 0 || productos.some((producto) =>
+        !Number.isFinite(producto.cantidad) || producto.cantidad <= 0
+    )) {
+        return null;
+    }
+
+    if (mesaId !== undefined) {
+        const mesa = mesas.find((actual) => actual.id === mesaId);
+        if (!mesa || mesa.estado !== "libre") return null;
+    }
+
     const comanda: ComandaOperacion = {
         id: comandas.length + 1,
         tipoAtencion: datosTakeAway ? "take-away" : "mesa",

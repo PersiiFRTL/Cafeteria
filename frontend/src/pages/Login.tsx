@@ -8,7 +8,8 @@ function Login() {
     const navigate = useNavigate();
 
     const {
-        iniciarSesion
+        iniciarSesion,
+        errorSesion
     } = useAuth();
 
 
@@ -50,7 +51,14 @@ function Login() {
 
         setErrores({});
         setIniciandoSesion(true);
-        const resultado = await iniciarSesion(email, password);
+        let resultado: Awaited<ReturnType<typeof iniciarSesion>>;
+        try {
+            resultado = await iniciarSesion(email, password);
+        } catch {
+            setErrores({ general: "No se pudo conectar con Supabase. Intentá nuevamente." });
+            setIniciandoSesion(false);
+            return;
+        }
 
 
         if (!resultado.correcto) {
@@ -168,6 +176,12 @@ function Login() {
                             {errores.general}
                         </div>
 
+                    )}
+
+                    {!errores.general && errorSesion && (
+                        <div className="login-error" role="alert">
+                            {errorSesion}
+                        </div>
                     )}
 
 
