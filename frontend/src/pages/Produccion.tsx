@@ -62,7 +62,7 @@ function Produccion() {
     // PRODUCIR
     // ==========================
 
-    const producir = () => {
+    const producir = async () => {
 
         setMensaje("");
 
@@ -91,7 +91,7 @@ function Produccion() {
         }
 
         const resultado =
-            registrarProduccion(
+            await registrarProduccion(
                 productoId,
                 cantidadProduccion
             );

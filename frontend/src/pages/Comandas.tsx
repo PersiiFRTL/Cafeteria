@@ -21,7 +21,7 @@ type VistaComandas = "grilla" | "lista";
 interface ConfirmacionComanda {
     titulo: string;
     mensaje: string;
-    accion: () => void;
+    accion: () => void | Promise<void>;
     textoConfirmar: string;
     destructivo?: boolean;
 }
@@ -40,19 +40,19 @@ function Comandas() {
     const bloqueoAccion = useRef(false);
     const [accionBloqueada, setAccionBloqueada] = useState(false);
 
-    const ejecutarAccionConBloqueo = (accion: () => void) => {
+    const ejecutarAccionConBloqueo = async (accion: () => void | Promise<void>) => {
         if (bloqueoAccion.current) {
             return;
         }
 
         bloqueoAccion.current = true;
         setAccionBloqueada(true);
-        accion();
-
-        window.setTimeout(() => {
+        try {
+            await accion();
+        } finally {
             bloqueoAccion.current = false;
             setAccionBloqueada(false);
-        }, 1000);
+        }
     };
 
     const [searchParams] = useSearchParams();
@@ -84,7 +84,8 @@ function Comandas() {
         productos,
         finalizarComanda,
         cancelarComanda,
-        procesarStockComanda
+        procesarStockComanda,
+        errorDatos
     } = useComandas();
 
     const [mensajeError, setMensajeError] =
@@ -161,21 +162,21 @@ function Comandas() {
     // ENVIAR A PREPARACIÓN
     // ==========================
 
-    const enviarAPreparacion = (
+    const enviarAPreparacion = async (
         comandaId: number
     ) => {
 
         setMensajeError(null);
 
         const resultado =
-            procesarStockComanda(
+            await procesarStockComanda(
                 comandaId
             );
 
         if (!resultado) {
 
             setMensajeError(
-                "No hay suficiente stock para procesar esta comanda."
+                errorDatos || "No hay suficiente stock para procesar esta comanda."
             );
 
             return;
@@ -486,11 +487,15 @@ function Comandas() {
                                                             ? `¿Confirmás que se retiró el pedido #${comanda.id}?`
                                                             : `¿Confirmás dejar disponible la Mesa ${mesa?.numero}?`,
                                                         textoConfirmar: comanda.tipoAtencion === "take-away" ? "Marcar retirado" : "Dejar disponible",
-                                                        accion: () => {
-                                                            finalizarComanda(comanda.id);
-                                                            mostrarToast(comanda.tipoAtencion === "take-away"
-                                                                ? "Pedido marcado como retirado."
-                                                                : `Mesa ${mesa?.numero ?? ""} disponible.`);
+                                                        accion: async () => {
+                                                            const finalizada = await finalizarComanda(comanda.id);
+                                                            if (finalizada) {
+                                                                mostrarToast(comanda.tipoAtencion === "take-away"
+                                                                    ? "Pedido marcado como retirado."
+                                                                    : `Mesa ${mesa?.numero ?? ""} disponible.`);
+                                                            } else {
+                                                                setMensajeError(errorDatos || "No se pudo finalizar la comanda.");
+                                                            }
                                                         }
                                                     })}
                                                 >
@@ -510,9 +515,13 @@ function Comandas() {
                                                     titulo: "Cancelar comanda",
                                                     mensaje: `¿Cancelar la Comanda #${comanda.id}? El stock procesado será devuelto.`,
                                                     textoConfirmar: "Cancelar comanda",
-                                                    accion: () => {
-                                                        cancelarComanda(comanda.id);
-                                                        mostrarToast("Comanda cancelada y stock devuelto.");
+                                                    accion: async () => {
+                                                        const cancelada = await cancelarComanda(comanda.id);
+                                                        if (cancelada) {
+                                                            mostrarToast("Comanda cancelada y stock devuelto.");
+                                                        } else {
+                                                            setMensajeError(errorDatos || "No se pudo cancelar la comanda.");
+                                                        }
                                                     },
                                                     destructivo: true
                                                 })}
@@ -543,8 +552,10 @@ function Comandas() {
                     destructivo={confirmacion.destructivo}
                     cerrar={() => setConfirmacion(null)}
                     confirmar={() => {
-                        confirmacion.accion();
-                        setConfirmacion(null);
+                        void (async () => {
+                            await confirmacion.accion();
+                            setConfirmacion(null);
+                        })();
                     }}
                     cancelar={() => setConfirmacion(null)}
                 />

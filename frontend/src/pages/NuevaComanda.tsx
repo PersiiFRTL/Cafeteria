@@ -68,7 +68,8 @@ function NuevaComanda() {
         editarComanda,
         comandas,
         mesas,
-        productos
+        productos,
+        errorDatos
     } = useComandas();
     const { recetas, materiasPrimas } = useCatalogo();
 
@@ -328,7 +329,7 @@ function NuevaComanda() {
 
         return "No alcanza el stock de ingredientes para preparar este producto.";
     };
-    const guardarComanda = () => {
+    const guardarComanda = async () => {
         if (!esTakeAway && !Number.isInteger(mesaId)) {
             return;
         }
@@ -345,7 +346,7 @@ function NuevaComanda() {
 
         if (modoEditar && idComandaEditar) {
 
-            const resultado = editarComanda(
+            const resultado = await editarComanda(
                 Number(idComandaEditar),
                 productosComanda
             );
@@ -353,7 +354,7 @@ function NuevaComanda() {
             if (!resultado) {
                 setDialogo({
                     titulo: "No se pudo editar la comanda",
-                    mensaje: "Es posible que ya haya sido enviada a preparación.",
+                    mensaje: errorDatos || "Es posible que ya haya sido enviada a preparación.",
                     textoConfirmar: "Cerrar",
                     confirmar: () => setDialogo(null)
                 });
@@ -363,7 +364,7 @@ function NuevaComanda() {
 
         } else {
 
-            const creada = crearComanda(
+            const creada = await crearComanda(
                 esTakeAway ? undefined : mesaId,
                 productosComanda,
                 esTakeAway
@@ -380,7 +381,7 @@ function NuevaComanda() {
                     titulo: "No se pudo crear la comanda",
                     mensaje: !esTakeAway && mesas.find((mesa) => mesa.id === mesaId)?.estado === "ocupada"
                         ? "Esta mesa ya tiene una comanda activa. Volvé a Mesas y seleccioná una mesa libre."
-                        : "Agregá al menos un producto y verificá que las cantidades sean válidas.",
+                        : errorDatos || "Agregá al menos un producto y verificá que las cantidades sean válidas.",
                     textoConfirmar: "Volver al pedido",
                     confirmar: () => setDialogo(null)
                 });

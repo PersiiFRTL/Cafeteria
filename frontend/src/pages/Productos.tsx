@@ -85,7 +85,7 @@ function Productos() {
     };
 
 
-    const crearProducto = () => {
+    const crearProducto = async () => {
 
         if (nombre.trim() === "") {
             setErrorPrecio("Ingresá el nombre del producto.");
@@ -98,13 +98,18 @@ function Productos() {
             return;
         }
 
-        agregarProducto(
+        const guardado = await agregarProducto(
             nombre,
             precioNumero,
             categoria,
             sector,
             tipoElaboracion
         );
+
+        if (!guardado) {
+            mostrarToast("No se pudo guardar el producto en Supabase. Revisá tus permisos y la conexión.");
+            return;
+        }
 
         mostrarToast("Producto creado correctamente.");
 
@@ -154,7 +159,7 @@ function Productos() {
     };
 
 
-    const guardarEdicion = () => {
+    const guardarEdicion = async () => {
 
         if (productoEditando === null) {
             return;
@@ -171,7 +176,7 @@ function Productos() {
             return;
         }
 
-        editarProducto(
+        const guardado = await editarProducto(
             productoEditando,
             nombre,
             precioNumero,
@@ -179,6 +184,11 @@ function Productos() {
             sector,
             tipoElaboracion
         );
+
+        if (!guardado) {
+            mostrarToast("No se pudo actualizar el producto en Supabase. Revisá tus permisos y la conexión.");
+            return;
+        }
 
         mostrarToast("Producto actualizado correctamente.");
 
@@ -195,8 +205,8 @@ function Productos() {
             textoConfirmar: "Eliminar",
             destructivo: true,
             cancelar: () => setDialogo(null),
-            confirmar: () => {
-                if (!eliminarProductoCatalogo(id)) {
+            confirmar: async () => {
+                if (!await eliminarProductoCatalogo(id)) {
                     setDialogo({
                         titulo: "No se puede eliminar el producto",
                         mensaje: "Tiene pedidos u operaciones en el historial. Podés desactivarlo en su lugar.",
@@ -212,8 +222,11 @@ function Productos() {
         });
     };
 
-    const alternarEstadoProducto = (id: number, activo: boolean) => {
-        cambiarEstadoProductoCatalogo(id, activo);
+    const alternarEstadoProducto = async (id: number, activo: boolean) => {
+        if (!await cambiarEstadoProductoCatalogo(id, activo)) {
+            mostrarToast("No se pudo cambiar el estado del producto en Supabase.");
+            return;
+        }
         mostrarToast(activo ? "Producto activado." : "Producto desactivado.");
     };
 

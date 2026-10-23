@@ -36,7 +36,7 @@ function Mesas() {
     const [mesaSeleccionada, setMesaSeleccionada] =
         useState<Mesa | null>(null);
     const [confirmarCancelarComanda, setConfirmarCancelarComanda] =
-        useState<(() => void) | null>(null);
+        useState<(() => void | Promise<void>) | null>(null);
 
     const seleccionarMesa = (mesa: Mesa) => {
         setMesaSeleccionada(mesa);
@@ -332,8 +332,12 @@ function Mesas() {
 
                                                 <button
                                                     className="secondary-button"
-                                                    onClick={() => setConfirmarCancelarComanda(() => () => {
-                                                        cancelarComanda(comanda.id);
+                                                    onClick={() => setConfirmarCancelarComanda(() => async () => {
+                                                        const cancelada = await cancelarComanda(comanda.id);
+                                                        if (!cancelada) {
+                                                            mostrarToast("No se pudo cancelar la comanda. Intentá nuevamente.");
+                                                            return;
+                                                        }
                                                         cerrarPanel();
                                                         mostrarToast("Comanda cancelada y mesa liberada.");
                                                     })}
@@ -367,8 +371,9 @@ function Mesas() {
                     destructivo
                     cerrar={() => setConfirmarCancelarComanda(null)}
                     confirmar={() => {
-                        confirmarCancelarComanda();
-                        setConfirmarCancelarComanda(null);
+                        void Promise.resolve(confirmarCancelarComanda()).finally(() => {
+                            setConfirmarCancelarComanda(null);
+                        });
                     }}
                     cancelar={() => setConfirmarCancelarComanda(null)}
                 />

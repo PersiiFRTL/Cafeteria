@@ -25,7 +25,7 @@ function Recetas() {
     const [errorCantidad, setErrorCantidad] =
         useState("");
 
-    const agregarIngrediente = () => {
+    const agregarIngrediente = async () => {
 
         if (productoSeleccionado === null || materiaPrimaSeleccionada === null) {
             setErrorCantidad("Seleccioná un producto y una materia prima.");
@@ -70,14 +70,18 @@ function Recetas() {
                                 : ingrediente
                     );
 
-                editarReceta(
+                const guardada = await editarReceta(
                     recetaExistente.id,
                     ingredientesActualizados
                 );
+                if (!guardada) {
+                    mostrarToast("No se pudo guardar la receta en Supabase.");
+                    return;
+                }
 
             } else {
 
-                editarReceta(
+                const guardada = await editarReceta(
                     recetaExistente.id,
                     [
                         ...recetaExistente.ingredientes,
@@ -89,11 +93,15 @@ function Recetas() {
                         }
                     ]
                 );
+                if (!guardada) {
+                    mostrarToast("No se pudo guardar la receta en Supabase.");
+                    return;
+                }
             }
 
         } else {
 
-            agregarReceta(
+            const guardada = await agregarReceta(
                 productoSeleccionado,
                 [
                     {
@@ -104,6 +112,10 @@ function Recetas() {
                     }
                 ]
             );
+            if (!guardada) {
+                mostrarToast("No se pudo guardar la receta en Supabase.");
+                return;
+            }
         }
 
         mostrarToast("Ingrediente de receta guardado.");
@@ -112,7 +124,7 @@ function Recetas() {
         setErrorCantidad("");
     };
 
-    const eliminarIngrediente = (
+    const eliminarIngrediente = async (
         materiaPrimaId: number
     ) => {
 
@@ -140,10 +152,14 @@ function Recetas() {
                     materiaPrimaId
             );
 
-        editarReceta(
+        const guardada = await editarReceta(
             receta.id,
             ingredientesActualizados
         );
+        if (!guardada) {
+            mostrarToast("No se pudo actualizar la receta en Supabase.");
+            return;
+        }
         mostrarToast("Ingrediente eliminado de la receta.");
     };
 

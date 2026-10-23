@@ -95,7 +95,7 @@ function MapaEditor() {
             y + alto > elemento.y;
     });
 
-    const crearElemento = (
+    const crearElemento = async (
         herramienta: TipoHerramienta,
         x: number,
         y: number
@@ -147,15 +147,19 @@ function MapaEditor() {
                 capacidad: mesaDisponible.capacidad
             };
 
-            agregarElementoMapa(
+            const guardado = await agregarElementoMapa(
                 nuevoElemento
             );
+            if (!guardado.success) {
+                mostrarToast(`No se pudo guardar la mesa en Supabase: ${guardado.error ?? "error desconocido"}`);
+                return;
+            }
             mostrarToast(`Mesa ${mesaDisponible.numero} agregada al mapa.`);
 
             return;
         }
 
-        agregarElementoMapa({
+        const guardado = await agregarElementoMapa({
             id: crearIdElementoMapa(),
             tipo: "linea",
             x,
@@ -165,6 +169,10 @@ function MapaEditor() {
             rotacion: orientacionLinea === "vertical" ? 90 : 0,
             grosor: grosorLinea
         });
+        if (!guardado.success) {
+            mostrarToast(`No se pudo guardar la línea en Supabase: ${guardado.error ?? "error desconocido"}`);
+            return;
+        }
         mostrarToast("Línea agregada al mapa.");
     };
 
@@ -291,7 +299,7 @@ function MapaEditor() {
         });
     };
 
-    const terminarArrastre = (
+    const terminarArrastre = async (
         e: ReactPointerEvent<HTMLDivElement>
     ) => {
         if (!arrastre || arrastre.pointerId !== e.pointerId) return;
@@ -321,12 +329,14 @@ function MapaEditor() {
                 return;
             }
 
-            editarElementoMapa({
+            const guardado = await editarElementoMapa({
                 ...elemento,
                 x,
                 y
             });
-            mostrarToast("Elemento reubicado.");
+            mostrarToast(guardado.success
+                ? "Elemento reubicado."
+                : `No se pudo guardar la nueva posición en Supabase: ${guardado.error ?? "error desconocido"}`);
         }
 
         setArrastre(null);
@@ -359,7 +369,7 @@ function MapaEditor() {
             dimensiones.alto
         );
 
-        crearElemento(
+        void crearElemento(
             herramienta,
             posicion.x,
             posicion.y
@@ -410,7 +420,7 @@ function MapaEditor() {
             dimensiones.alto
         );
 
-        crearElemento(
+        void crearElemento(
             herramientaSeleccionada,
             posicion.x,
             posicion.y
@@ -714,13 +724,15 @@ function MapaEditor() {
                                     className="mapa-eliminar"
                                     aria-label="Eliminar elemento"
                                     onPointerDown={(e) => e.stopPropagation()}
-                                    onClick={(e) => {
+                                    onClick={async (e) => {
                                         e.stopPropagation();
 
-                                        eliminarElementoMapa(
+                                        const eliminado = await eliminarElementoMapa(
                                             elemento.id
                                         );
-                                        mostrarToast("Elemento eliminado del mapa.");
+                                        mostrarToast(eliminado.success
+                                            ? "Elemento eliminado del mapa."
+                                            : `No se pudo eliminar el elemento de Supabase: ${eliminado.error ?? "error desconocido"}`);
                                     }}
                                 >
                                     ×

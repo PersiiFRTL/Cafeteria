@@ -7,6 +7,7 @@ export function useComandas() {
         mesas: cafeteria.mesas,
         elementosMapa: cafeteria.elementosMapa,
         comandas: cafeteria.comandas,
+        errorDatos: cafeteria.errorDatos,
         productos: cafeteria.productos,
         crearComanda: cafeteria.crearComanda,
         finalizarComanda: cafeteria.finalizarComanda,

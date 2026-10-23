@@ -99,7 +99,7 @@ function Stock() {
     // REGISTRAR MOVIMIENTO
     // =========================================================
 
-    const registrarMovimiento = (
+    const registrarMovimiento = async (
         tipo: "entrada" | "salida"
     ) => {
 
@@ -139,11 +139,14 @@ function Stock() {
         // =====================================================
 
         if (tipo === "entrada") {
-
-            registrarEntradaMateriaPrima(
+            const entradaRegistrada = await registrarEntradaMateriaPrima(
                 materiaPrimaSeleccionada,
                 cantidadNumero
             );
+            if (!entradaRegistrada) {
+                setMensajeErrorStock("No se pudo registrar la entrada en Supabase.");
+                return;
+            }
 
             mostrarToast("Entrada de stock registrada.");
             setMensajeErrorStock("");
@@ -172,7 +175,7 @@ function Stock() {
         }
 
 
-        const salidaRegistrada = registrarSalidaMateriaPrima(
+        const salidaRegistrada = await registrarSalidaMateriaPrima(
             materiaPrimaSeleccionada,
             cantidadNumero
         );
@@ -195,7 +198,7 @@ function Stock() {
     // AGREGAR MATERIA PRIMA
     // =========================================================
 
-    const guardarMateriaPrima = () => {
+    const guardarMateriaPrima = async () => {
 
         if (!nombreMateriaPrima.trim() || !categoriaMateriaPrima.trim()) {
             setMensajeErrorMateriaPrima("Completá el nombre y la categoría.");
@@ -231,15 +234,19 @@ function Stock() {
 
 
         if (materiaPrimaEditando !== null) {
-            editarMateriaPrima(
+            const guardada = await editarMateriaPrima(
                 materiaPrimaEditando,
                 nombreMateriaPrima,
                 categoriaMateriaPrima,
                 unidadMateriaPrima,
                 stockMinimo
             );
+            if (!guardada) {
+                setMensajeErrorMateriaPrima("No se pudo actualizar en Supabase. Revisá tus permisos y la conexión.");
+                return;
+            }
         } else {
-            const materiaPrimaAgregada = agregarMateriaPrima(
+            const materiaPrimaAgregada = await agregarMateriaPrima(
                 nombreMateriaPrima,
                 categoriaMateriaPrima,
                 unidadMateriaPrima,
@@ -310,7 +317,7 @@ function Stock() {
         (producto) => producto.tipoElaboracion === "reventa" && producto.activo
     );
 
-    const registrarEntradaReventa = () => {
+    const registrarEntradaReventa = async () => {
         if (productoReventaSeleccionado === null) {
             setErrorEntradaProducto("Seleccioná un producto de reventa.");
             return;
@@ -320,7 +327,7 @@ function Stock() {
             return;
         }
 
-        const registrada = registrarEntradaProducto(
+        const registrada = await registrarEntradaProducto(
             productoReventaSeleccionado,
             Number(cantidadEntradaProducto)
         );
@@ -752,10 +759,14 @@ function Stock() {
 
                                         <button
                                             className="stock-button"
-                                            onClick={() =>
+                                            onClick={async () =>
                                                 {
                                                     const activo = !materia.activo;
-                                                    cambiarEstadoMateriaPrima(materia.id, activo);
+                                                    const actualizado = await cambiarEstadoMateriaPrima(materia.id, activo);
+                                                    if (!actualizado) {
+                                                        mostrarToast("No se pudo cambiar el estado en Supabase.");
+                                                        return;
+                                                    }
                                                     mostrarToast(activo
                                                         ? "Materia prima activada."
                                                         : "Materia prima desactivada.");

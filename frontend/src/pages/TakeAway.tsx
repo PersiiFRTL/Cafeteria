@@ -43,17 +43,24 @@ function TakeAway() {
         [comandas]
     );
 
-    const ejecutarConfirmacion = () => {
+    const ejecutarConfirmacion = async () => {
         if (!confirmacion) return;
         const { id, accion } = confirmacion;
-        setConfirmacion(null);
         if (accion === "retirar") {
-            finalizarComanda(id);
-            mostrarToast("Pedido marcado como retirado.");
+            if (await finalizarComanda(id)) {
+                mostrarToast("Pedido marcado como retirado.");
+                setConfirmacion(null);
+            } else {
+                mostrarToast("No se pudo finalizar el pedido. Revisá el estado de la comanda e intentá nuevamente.");
+            }
         } else {
-            cancelarComanda(id);
-            mostrarToast("Pedido take away cancelado.");
-            navigate("/mesas");
+            if (await cancelarComanda(id)) {
+                mostrarToast("Pedido take away cancelado.");
+                setConfirmacion(null);
+                navigate("/mesas");
+            } else {
+                mostrarToast("No se pudo cancelar el pedido. Intentá nuevamente.");
+            }
         }
     };
 

@@ -19,8 +19,7 @@ const filtrosComandas: { valor: FiltroComanda; etiqueta: string }[] = [
     { valor: "pendiente", etiqueta: "Pendientes" },
     { valor: "preparando", etiqueta: "En preparación" },
     { valor: "lista", etiqueta: "Listas" },
-    { valor: "finalizada", etiqueta: "Finalizadas" },
-    { valor: "cancelada", etiqueta: "Canceladas" }
+    { valor: "finalizada", etiqueta: "Finalizadas" }
 ];
 
 const etiquetasEstado: Record<FiltroComanda | "listo", string> = {
@@ -58,26 +57,27 @@ function Preparacion() {
     const bloqueoAccion = useRef(false);
     const [accionBloqueada, setAccionBloqueada] = useState(false);
 
-    const ejecutarAccionConBloqueo = (accion: () => void) => {
+    const ejecutarAccionConBloqueo = async (accion: () => void | Promise<void>) => {
         if (bloqueoAccion.current) {
             return;
         }
 
         bloqueoAccion.current = true;
         setAccionBloqueada(true);
-        accion();
-
-        window.setTimeout(() => {
+        try {
+            await accion();
+        } finally {
             bloqueoAccion.current = false;
             setAccionBloqueada(false);
-        }, 1000);
+        }
     };
 
     const {
         comandas,
         productos,
         cambiarEstadoProducto,
-        mesas
+        mesas,
+        errorDatos
     } = useComandas();
 
     const [sectorSeleccionado, setSectorSeleccionado] =
@@ -119,15 +119,17 @@ function Preparacion() {
         setSectorSeleccionado(null);
     };
 
-    const actualizarEstadoPedido = (
+    const actualizarEstadoPedido = async (
         comandaId: number,
         productoId: number,
         estado: "preparando" | "listo"
     ) => {
-        cambiarEstadoProducto(comandaId, productoId, estado);
-        mostrarToast(estado === "listo"
-            ? "Producto marcado como listo."
-            : "Preparación iniciada.");
+        const actualizado = await cambiarEstadoProducto(comandaId, productoId, estado);
+        if (!actualizado) {
+            mostrarToast(errorDatos || "No se pudo actualizar el estado del producto.");
+            return;
+        }
+        mostrarToast(estado === "listo" ? "Producto marcado como listo." : "Preparación iniciada.");
     };
 
     /*
@@ -193,11 +195,12 @@ function Preparacion() {
             comanda.productos
                 .filter((item) => obtenerProducto(item.productoId)?.sector === sectorSeleccionado)
                 .filter((item) => {
+                    if (comanda.estado === "cancelada") return false;
                     if (filtroComanda === "todas") return true;
-                    if (filtroComanda === "finalizada" || filtroComanda === "cancelada") {
+                    if (filtroComanda === "finalizada") {
                         return comanda.estado === filtroComanda;
                     }
-                    if (comanda.estado === "finalizada" || comanda.estado === "cancelada") {
+                    if (comanda.estado === "finalizada") {
                         return false;
                     }
                     return (filtroComanda === "lista"

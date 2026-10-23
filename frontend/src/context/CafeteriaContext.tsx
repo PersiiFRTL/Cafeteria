@@ -10,14 +10,9 @@ import type {
     ElementoMapa
 } from "../types/mapa";
 
-import { repositorioDemo } from "../services/demoCafeteriaRepository";
+import { repositorioSupabaseCatalogo } from "../services/supabaseCatalogoRepository";
+import { useAuth } from "./AuthContext";
 import {
-    agregarProductosPendientesAComanda,
-    calcularEstadoComanda,
-    calcularConsumoStockComanda,
-    crearComandaEnMemoria,
-    descontarStockMateriaPrima,
-    finalizarComandaYLiberarMesa,
     obtenerComandaActivaDeMesa
 } from "../domain/operacionesCafeteria";
 
@@ -177,35 +172,6 @@ const cargarMapa = (): ElementoMapa[] => {
     }
 };
 
-const renumerarMesasSegunMapa = (
-    mesas: Mesa[],
-    elementos: ElementoMapa[]
-): Mesa[] => {
-    const idsEnMapa = new Set<number>();
-    const mesasEnMapa: Mesa[] = [];
-
-    elementos.forEach((elemento) => {
-        if (elemento.tipo !== "mesa" || elemento.mesaId === undefined || idsEnMapa.has(elemento.mesaId)) {
-            return;
-        }
-
-        const mesa = mesas.find((mesaActual) => mesaActual.id === elemento.mesaId);
-        if (mesa) {
-            mesasEnMapa.push(mesa);
-            idsEnMapa.add(mesa.id);
-        }
-    });
-
-    const mesasSinUbicar = mesas
-        .filter((mesa) => !idsEnMapa.has(mesa.id))
-        .sort((mesaA, mesaB) => mesaA.numero - mesaB.numero);
-
-    return [...mesasEnMapa, ...mesasSinUbicar].map((mesa, indice) => ({
-        ...mesa,
-        numero: indice + 1
-    }));
-};
-
 const sincronizarMesasConMapa = (
     mesasIniciales: Mesa[],
     elementosIniciales: ElementoMapa[]
@@ -298,25 +264,25 @@ interface CafeteriaContextType {
         mesaId: number | undefined,
         productos: ProductoComanda[],
         datosTakeAway?: { nombre: string; telefono: string; horaRetiro: string }
-    ) => boolean;
+    ) => Promise<boolean>;
 
     finalizarComanda: (
         comandaId: number
-    ) => void;
+    ) => Promise<boolean>;
 
     cancelarComanda: (
         comandaId: number
-    ) => void;
+    ) => Promise<boolean>;
 
     agregarProductosAComanda: (
         comandaId: number,
         productos: ProductoComanda[]
-    ) => void;
+    ) => Promise<boolean>;
 
     editarComanda: (
     comandaId: number,
     productos: ProductoComanda[]
-    ) => boolean;
+    ) => Promise<boolean>;
 
     obtenerComandaDeMesa: (
         mesaId: number
@@ -325,11 +291,8 @@ interface CafeteriaContextType {
     cambiarEstadoProducto: (
         comandaId: number,
         productoId: number,
-        estado:
-            | "pendiente"
-            | "preparando"
-            | "listo"
-    ) => void;
+        estado: "preparando" | "listo"
+    ) => Promise<boolean>;
 
     productos: Producto[];
 
@@ -342,7 +305,7 @@ interface CafeteriaContextType {
             | "bajo_pedido"
             | "preelaborado"
             | "reventa"
-    ) => void;
+    ) => Promise<boolean>;
 
     editarProducto: (
         id: number,
@@ -354,14 +317,14 @@ interface CafeteriaContextType {
             | "bajo_pedido"
             | "preelaborado"
             | "reventa"
-    ) => void;
+    ) => Promise<boolean>;
 
-    eliminarProductoCatalogo: (id: number) => boolean;
+    eliminarProductoCatalogo: (id: number) => Promise<boolean>;
 
     cambiarEstadoProductoCatalogo: (
         id: number,
         activo: boolean
-    ) => void;
+    ) => Promise<boolean>;
 
     materiasPrimas: MateriaPrima[];
 
@@ -371,7 +334,7 @@ interface CafeteriaContextType {
         unidad: MateriaPrima["unidad"],
         stockMinimo: number,
         stockInicial: number
-    ) => boolean;
+    ) => Promise<boolean>;
 
     editarMateriaPrima: (
         id: number,
@@ -379,50 +342,50 @@ interface CafeteriaContextType {
         categoria: string,
         unidad: MateriaPrima["unidad"],
         stockMinimo: number
-    ) => void;
+    ) => Promise<boolean>;
 
     cambiarEstadoMateriaPrima: (
         id: number,
         activo: boolean
-    ) => void;
+    ) => Promise<boolean>;
 
     registrarEntradaMateriaPrima: (
         materiaPrimaId: number,
         cantidad: number
-    ) => void;
+    ) => Promise<boolean>;
 
     registrarEntradaProducto: (
         productoId: number,
         cantidad: number
-    ) => boolean;
+    ) => Promise<boolean>;
 
     registrarSalidaMateriaPrima: (
         materiaPrimaId: number,
         cantidad: number
-    ) => boolean;
+    ) => Promise<boolean>;
 
     recetas: Receta[];
 
     agregarReceta: (
         productoId: number,
         ingredientes: IngredienteReceta[]
-    ) => void;
+    ) => Promise<boolean>;
 
     editarReceta: (
         recetaId: number,
         ingredientes: IngredienteReceta[]
-    ) => void;
+    ) => Promise<boolean>;
 
     producciones: Produccion[];
 
     registrarProduccion: (
         productoId: number,
         cantidad: number
-    ) => boolean;
+    ) => Promise<boolean>;
 
     procesarStockComanda: (
     comandaId: number
-    ) => boolean;
+    ) => Promise<boolean>;
 
     movimientosStock: MovimientoStock[];
 
@@ -432,15 +395,15 @@ interface CafeteriaContextType {
 
     agregarElementoMapa: (
         elemento: ElementoMapa
-    ) => void;
+    ) => Promise<{ success: boolean; error?: string }>;
 
     editarElementoMapa: (
         elemento: ElementoMapa
-    ) => void;
+    ) => Promise<{ success: boolean; error?: string }>;
 
     eliminarElementoMapa: (
         id: string
-    ) => void;
+    ) => Promise<{ success: boolean; error?: string }>;
 
     empleados: Empleado[];
 
@@ -475,6 +438,7 @@ export function CafeteriaProvider({
 }: {
     children: ReactNode;
 }) {
+    const { usuario, estadoSesion } = useAuth();
     const [estadoDatos, setEstadoDatos] = useState<"cargando" | "listo" | "error">("cargando");
     const [errorDatos, setErrorDatos] = useState<string | null>(null);
 
@@ -511,272 +475,143 @@ export function CafeteriaProvider({
     const [operacionesStock, setOperacionesStock] =
         useState<OperacionStock[]>([]);
 
+    const cargarEstadoRemoto = useCallback(async (cargarDatosDeDemostracion = false) => {
+        const datos = await repositorioSupabaseCatalogo.cargarDatosIniciales();
+        const mapaGuardado = cargarMapa();
+        const mapaRemoto = datos.elementosMapa;
+        const mapaFuente = mapaRemoto.length > 0 ? mapaRemoto : mapaGuardado;
+        const mapaSincronizado = sincronizarMesasConMapa(datos.mesas as Mesa[], mapaFuente);
+        setMesas(mapaSincronizado.mesas);
+        setElementosMapa(mapaSincronizado.elementos);
+        if (JSON.stringify(mapaSincronizado.elementos) !== JSON.stringify(mapaGuardado)) {
+            localStorage.setItem(MAPA_STORAGE_KEY, JSON.stringify(mapaSincronizado.elementos));
+        }
+        setProductos(datos.productos as Producto[]);
+        setMateriasPrimas(datos.materiasPrimas as MateriaPrima[]);
+        setRecetas(datos.recetas);
+        setComandas(datos.comandas as unknown as Comanda[]);
+        setMovimientosStock(datos.movimientosStock as unknown as MovimientoStock[]);
+        setOperacionesStock(datos.operacionesStock as unknown as OperacionStock[]);
+        setProducciones(datos.producciones);
+        if (cargarDatosDeDemostracion) {
+            setEmpleados(datos.empleados as Empleado[]);
+        }
+    }, []);
+
     const recargarDatos = useCallback(async () => {
         setEstadoDatos("cargando");
         setErrorDatos(null);
         try {
-            const datos = await repositorioDemo.cargarDatosIniciales();
-            const mapaGuardado = cargarMapa();
-            const mapaSincronizado = sincronizarMesasConMapa(
-                datos.mesas as Mesa[],
-                mapaGuardado
-            );
-            setMesas(mapaSincronizado.mesas);
-            setElementosMapa(mapaSincronizado.elementos);
-            if (JSON.stringify(mapaSincronizado.elementos) !== JSON.stringify(mapaGuardado)) {
-                localStorage.setItem(MAPA_STORAGE_KEY, JSON.stringify(mapaSincronizado.elementos));
-            }
-            setProductos(datos.productos as Producto[]);
-            setMateriasPrimas(datos.materiasPrimas as MateriaPrima[]);
-            setRecetas(datos.recetas);
-            setEmpleados(datos.empleados as Empleado[]);
-            setProducciones(datos.producciones);
+            await cargarEstadoRemoto(true);
             setEstadoDatos("listo");
-        } catch {
-            setErrorDatos("No se pudieron cargar los datos. Revisá la conexión e intentá nuevamente.");
+        } catch (error) {
+            const detalle = error instanceof Error ? ` Detalle: ${error.message}` : "";
+            setErrorDatos(`No se pudieron cargar los datos. Revisá la conexión e intentá nuevamente.${detalle}`);
             setEstadoDatos("error");
         }
-    }, []);
+    }, [cargarEstadoRemoto]);
 
+    const refrescarTrasOperacion = async () => {
+        try {
+            await cargarEstadoRemoto();
+        } catch (error) {
+            setErrorDatos(error instanceof Error
+                ? `La operación se guardó, pero no se pudo actualizar la vista: ${error.message}`
+                : "La operación se guardó, pero no se pudo actualizar la vista.");
+        }
+    };
+
+    const usuarioId = usuario?.id;
     useEffect(() => {
+        if (estadoSesion !== "lista" || !usuarioId) return;
+
         const temporizador = window.setTimeout(() => {
             void recargarDatos();
         }, 0);
 
         return () => window.clearTimeout(temporizador);
-    }, [recargarDatos]);
+    }, [recargarDatos, estadoSesion, usuarioId]);
 
     // ==========================
     // COMANDAS
     // ==========================
 
-    const crearComanda = (
+    const crearComanda = async (
         mesaId: number | undefined,
         productosNuevos: ProductoComanda[],
         datosTakeAway?: { nombre: string; telefono: string; horaRetiro: string }
-    ): boolean => {
-
-        const resultado = crearComandaEnMemoria(
-            comandas,
-            mesas,
-            mesaId,
-            productosNuevos,
-            new Date().toISOString(),
-            datosTakeAway
-        );
-
-        if (!resultado) return false;
-
-        setComandas((comandasActuales) => [...comandasActuales, resultado.comanda]);
-        if (mesaId !== undefined) setMesas(resultado.mesas);
-        return true;
-    };
-
-    const finalizarComanda = (
-        comandaId: number
-    ) => {
-
-        const resultado = finalizarComandaYLiberarMesa(comandas, mesas, comandaId);
-        if (!resultado) return;
-        setComandas(resultado.comandas);
-        setMesas(resultado.mesas);
-    };
-
-    const cancelarComanda = (
-        comandaId: number
-    ) => {
-        const comanda = comandas.find(
-            (item) => item.id === comandaId
-        );
-
-        if (!comanda || comanda.estado === "finalizada") {
-            return;
+    ): Promise<boolean> => {
+        if (!productosNuevos.length || productosNuevos.some((item) => !Number.isFinite(item.cantidad) || item.cantidad <= 0)) {
+            return false;
         }
-
-        const devolucionesProductos = new Map<number, number>();
-        const devolucionesMateriasPrimas = new Map<number, number>();
-
-        comanda.productos.forEach((item) => {
-            const cantidadProcesada =
-                item.cantidadStockProcesada ?? 0;
-
-            if (cantidadProcesada <= 0) {
-                return;
-            }
-
-            const producto = productos.find(
-                (itemProducto) =>
-                    itemProducto.id === item.productoId
-            );
-
-            if (!producto) {
-                return;
-            }
-
-            if (producto.tipoElaboracion !== "bajo_pedido") {
-                devolucionesProductos.set(
-                    producto.id,
-                    (devolucionesProductos.get(producto.id) ?? 0) +
-                        cantidadProcesada
-                );
-                return;
-            }
-
-            const receta = recetas.find(
-                (itemReceta) =>
-                    itemReceta.productoId === producto.id
-            );
-
-            receta?.ingredientes.forEach((ingrediente) => {
-                const cantidadDevuelta =
-                    ingrediente.cantidad * cantidadProcesada;
-
-                devolucionesMateriasPrimas.set(
-                    ingrediente.materiaPrimaId,
-                    (devolucionesMateriasPrimas.get(
-                        ingrediente.materiaPrimaId
-                    ) ?? 0) + cantidadDevuelta
-                );
-            });
-        });
-
-        setProductos((productosActuales) =>
-            productosActuales.map((producto) => {
-                const cantidadDevuelta =
-                    devolucionesProductos.get(producto.id);
-
-                return cantidadDevuelta === undefined
-                    ? producto
-                    : {
-                        ...producto,
-                        stockActual:
-                            producto.stockActual + cantidadDevuelta
-                    };
-            })
-        );
-
-        setMateriasPrimas((materiasActuales) =>
-            materiasActuales.map((materia) => {
-                const cantidadDevuelta =
-                    devolucionesMateriasPrimas.get(materia.id);
-
-                return cantidadDevuelta === undefined
-                    ? materia
-                    : {
-                        ...materia,
-                        stockActual:
-                            materia.stockActual + cantidadDevuelta
-                    };
-            })
-        );
-
-        const movimientosDevolucion: MovimientoStock[] = [];
-
-        devolucionesProductos.forEach((cantidad, productoId) => {
-            movimientosDevolucion.push({
-                id: Date.now() + movimientosDevolucion.length,
-                tipo: "ajuste",
-                categoria: "producto",
-                referenciaId: productoId,
-                cantidad,
-                fecha: new Date().toISOString(),
-                descripcion: `Devolución por cancelación de comanda #${comandaId}`
-            });
-        });
-
-        devolucionesMateriasPrimas.forEach((cantidad, materiaPrimaId) => {
-            movimientosDevolucion.push({
-                id: Date.now() + movimientosDevolucion.length,
-                tipo: "ajuste",
-                categoria: "materiaPrima",
-                referenciaId: materiaPrimaId,
-                cantidad,
-                fecha: new Date().toISOString(),
-                descripcion: `Devolución por cancelación de comanda #${comandaId}`
-            });
-        });
-
-        if (movimientosDevolucion.length > 0) {
-            setMovimientosStock((movimientosActuales) => [
-                ...movimientosActuales,
-                ...movimientosDevolucion
-            ]);
+        try {
+            setErrorDatos(null);
+            await repositorioSupabaseCatalogo.crearComanda(mesaId, productosNuevos, datosTakeAway);
+            await refrescarTrasOperacion();
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo crear la comanda.");
+            return false;
         }
-
-        setComandas((comandasActuales) =>
-            comandasActuales.map((comandaActual) =>
-                comandaActual.id === comandaId
-                    ? {
-                        ...comandaActual,
-                        estado: "cancelada"
-                    }
-                    : comandaActual
-            )
-        );
-
-        setMesas((mesasActuales) =>
-            mesasActuales.map((mesa) =>
-                mesa.id === comanda.mesaId
-                    ? {
-                        ...mesa,
-                        estado: "libre"
-                    }
-                    : mesa
-            )
-        );
     };
 
-    const agregarProductosAComanda = (
+    const finalizarComanda = async (
+        comandaId: number
+    ): Promise<boolean> => {
+        try {
+            setErrorDatos(null);
+            await repositorioSupabaseCatalogo.finalizarComanda(comandaId);
+            await refrescarTrasOperacion();
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo finalizar la comanda.");
+            return false;
+        }
+    };
+
+    const cancelarComanda = async (
+        comandaId: number
+    ): Promise<boolean> => {
+        try {
+            setErrorDatos(null);
+            await repositorioSupabaseCatalogo.cancelarComanda(comandaId);
+            await refrescarTrasOperacion();
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo cancelar la comanda.");
+            return false;
+        }
+    };
+
+    const agregarProductosAComanda = async (
         comandaId: number,
         productosNuevos: ProductoComanda[]
-    ) => {
-
-        setComandas((comandasActuales) =>
-            agregarProductosPendientesAComanda(comandasActuales, comandaId, productosNuevos)
-        );
+    ): Promise<boolean> => {
+        try {
+            setErrorDatos(null);
+            await repositorioSupabaseCatalogo.agregarProductosAComanda(comandaId, productosNuevos);
+            await refrescarTrasOperacion();
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudieron agregar productos a la comanda.");
+            return false;
+        }
     };
-    const editarComanda = (
+
+    const editarComanda = async (
     comandaId: number,
     productosNuevos: ProductoComanda[]
-): boolean => {
-
-    const comanda = comandas.find(
-        (comanda) => comanda.id === comandaId
-    );
-
-    if (!comanda) {
-        return false;
-    }
-
-    // Solo se pueden editar comandas pendientes
-    if (comanda.estado !== "pendiente") {
-        return false;
-    }
-
-    // No permitimos guardar una comanda sin productos
-    if (productosNuevos.length === 0) {
-        return false;
-    }
-
-    const productosActualizados =
-        productosNuevos.map((producto) => ({
-            ...producto,
-            estado: "pendiente" as const
-        }));
-
-    setComandas((comandasActuales) =>
-        comandasActuales.map((comandaActual) =>
-            comandaActual.id === comandaId
-                ? {
-                    ...comandaActual,
-                    productos: productosActualizados,
-                    estado: "pendiente"
-                }
-                : comandaActual
-        )
-    );
-
-    return true;
+): Promise<boolean> => {
+        if (!productosNuevos.length) return false;
+        try {
+            setErrorDatos(null);
+            await repositorioSupabaseCatalogo.editarComanda(comandaId, productosNuevos);
+            await refrescarTrasOperacion();
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo editar la comanda.");
+            return false;
+        }
     };
 
     const obtenerComandaDeMesa = (
@@ -786,97 +621,83 @@ export function CafeteriaProvider({
         return obtenerComandaActivaDeMesa(comandas, mesaId);
     };
 
-    const cambiarEstadoProducto = (
+    const cambiarEstadoProducto = async (
         comandaId: number,
         productoId: number,
-        estado:
-            | "pendiente"
-            | "preparando"
-            | "listo"
-    ) => {
-
-        setComandas(
-            (comandasActuales) =>
-                comandasActuales.map(
-                    (comanda) => {
-
-                        if (
-                            comanda.id !==
-                            comandaId
-                        ) {
-                            return comanda;
-                        }
-
-                        const productosActualizados =
-                            comanda.productos.map(
-                                (producto) =>
-                                    producto.productoId ===
-                                    productoId
-                                        ? {
-                                            ...producto,
-                                            estado:
-                                                estado
-                                        }
-                                        : producto
-                            );
-
-                        return {
-                            ...comanda,
-                            productos:
-                                productosActualizados,
-                            estado:
-                                calcularEstadoComanda(
-                                    productosActualizados
-                                )
-                        };
-                    }
-                )
-        );
+        estado: "preparando" | "listo"
+    ): Promise<boolean> => {
+        try {
+            setErrorDatos(null);
+            await repositorioSupabaseCatalogo.cambiarEstadoItemComanda(comandaId, productoId, estado);
+            await refrescarTrasOperacion();
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo cambiar el estado del producto.");
+            return false;
+        }
     };
 
-    const crearMesaMapa = (capacidad: number): Mesa => {
-        const nuevaMesa: Mesa = {
+    const crearMesaMapa = (capacidad: number): Mesa => ({
             id: Math.max(0, ...mesas.map((mesa) => mesa.id)) + 1,
             numero: Math.max(0, ...mesas.map((mesa) => mesa.numero)) + 1,
             capacidad,
             estado: "libre"
-        };
+        });
 
-        setMesas((mesasActuales) => [...mesasActuales, nuevaMesa]);
-        return nuevaMesa;
-    };
-
-    // Mapa de mesas
-    const guardarElementosMapa = (elementos: ElementoMapa[]) => {
-        setElementosMapa(elementos);
-        localStorage.setItem(MAPA_STORAGE_KEY, JSON.stringify(elementos));
-    };
-
-    const agregarElementoMapa = (elemento: ElementoMapa) => {
-        const nuevos = [...elementosMapa, elemento];
-        guardarElementosMapa(nuevos);
-        if (elemento.tipo === "mesa") {
-            setMesas((mesasActuales) => renumerarMesasSegunMapa(mesasActuales, nuevos));
+    // Persiste el plano y sincroniza la numeración; el estado libre/ocupada no se altera.
+    const guardarElementosMapa = async (
+        mesasCandidatas: Mesa[],
+        elementos: ElementoMapa[],
+        idsEliminar: string[] = []
+    ): Promise<{ success: boolean; error?: string }> => {
+        const sincronizados = sincronizarMesasConMapa(mesasCandidatas, elementos);
+        try {
+            await repositorioSupabaseCatalogo.guardarMapa(
+                sincronizados.mesas,
+                sincronizados.elementos,
+                idsEliminar
+            );
+        } catch (error) {
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : "Error desconocido al guardar en Supabase."
+            };
         }
+        setMesas(sincronizados.mesas);
+        setElementosMapa(sincronizados.elementos);
+        localStorage.setItem(MAPA_STORAGE_KEY, JSON.stringify(sincronizados.elementos));
+        return { success: true };
     };
 
-    const eliminarElementoMapa = (id: string) => {
+    const agregarElementoMapa = async (elemento: ElementoMapa): Promise<{ success: boolean; error?: string }> => {
+        const nuevos = [...elementosMapa, elemento];
+        let mesasCandidatas = mesas;
+        if (elemento.tipo === "mesa" && elemento.mesaId !== undefined && !mesas.some((mesa) => mesa.id === elemento.mesaId)) {
+            mesasCandidatas = [...mesas, {
+                id: elemento.mesaId,
+                numero: Math.max(0, ...mesas.map((mesa) => mesa.numero)) + 1,
+                capacidad: elemento.capacidad ?? 4,
+                estado: "libre"
+            }];
+        }
+        return guardarElementosMapa(mesasCandidatas, nuevos);
+    };
+
+    const eliminarElementoMapa = async (id: string): Promise<{ success: boolean; error?: string }> => {
         const elementoEliminado = elementosMapa.find((elemento) => elemento.id === id);
         const nuevos = elementosMapa.filter((elemento) => elemento.id !== id);
-        guardarElementosMapa(nuevos);
-        if (elementoEliminado?.tipo === "mesa") {
-            setMesas((mesasActuales) => renumerarMesasSegunMapa(mesasActuales, nuevos));
-        }
+        if (!elementoEliminado) return { success: false, error: "No se encontró el elemento seleccionado." };
+        return guardarElementosMapa(mesas, nuevos, [id]);
     };
 
-    const editarElementoMapa = (elementoActualizado: ElementoMapa) => {
+    const editarElementoMapa = async (elementoActualizado: ElementoMapa): Promise<{ success: boolean; error?: string }> => {
         const nuevos = elementosMapa.map((elemento) =>
             elemento.id === elementoActualizado.id ? elementoActualizado : elemento
         );
-        guardarElementosMapa(nuevos);
-        if (elementoActualizado.tipo === "mesa") {
-            setMesas((mesasActuales) => renumerarMesasSegunMapa(mesasActuales, nuevos));
+        if (!elementosMapa.some((elemento) => elemento.id === elementoActualizado.id)) {
+            return { success: false, error: "No se encontró el elemento seleccionado." };
         }
+        return guardarElementosMapa(mesas, nuevos);
     };
 
     // Empleados 
@@ -985,509 +806,50 @@ export function CafeteriaProvider({
     // REGISTRAR PRODUCCIÓN
     // ==========================
 
-    function registrarProduccion(
-    productoId: number,
-    cantidad: number
-): boolean {
-
-    if (cantidad <= 0) {
-        return false;
-    }
-
-    const producto = productos.find(
-        (p) => p.id === productoId
-    );
-
-    if (!producto) {
-        return false;
-    }
-
-    if (producto.tipoElaboracion !== "preelaborado") {
-        return false;
-    }
-
-    const receta = recetas.find(
-        (r) => r.productoId === productoId
-    );
-
-    if (!receta) {
-        return false;
-    }
-
-    // ==========================
-    // CALCULAR CONSUMO
-    // ==========================
-
-    for (const ingrediente of receta.ingredientes) {
-
-        const materiaPrima =
-            materiasPrimas.find(
-                (mp) =>
-                    mp.id ===
-                    ingrediente.materiaPrimaId
-            );
-
-        if (!materiaPrima) {
+    const registrarProduccion = async (
+        productoId: number,
+        cantidad: number
+    ): Promise<boolean> => {
+        const producto = productos.find((actual) => actual.id === productoId);
+        const receta = recetas.find((actual) => actual.productoId === productoId);
+        if (!Number.isFinite(cantidad) || cantidad <= 0 || producto?.tipoElaboracion !== 'preelaborado' || !receta) {
             return false;
         }
-
-        const cantidadNecesaria =
-            ingrediente.cantidad * cantidad;
-
-        if (
-            materiaPrima.stockActual <
-            cantidadNecesaria
-        ) {
+        try {
+            setErrorDatos(null);
+            await repositorioSupabaseCatalogo.registrarProduccion(productoId, cantidad);
+            await refrescarTrasOperacion();
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : 'No se pudo registrar la producción.');
             return false;
         }
-    }
-
-    // ==========================
-    // DESCONTAR MATERIAS PRIMAS
-    // ==========================
-
-    setMateriasPrimas((actuales) =>
-        actuales.map((materiaPrima) => {
-
-            const ingrediente =
-                receta.ingredientes.find(
-                    (i) =>
-                        i.materiaPrimaId ===
-                        materiaPrima.id
-                );
-
-            if (!ingrediente) {
-                return materiaPrima;
-            }
-
-            const cantidadConsumida =
-                ingrediente.cantidad * cantidad;
-
-            return {
-                ...materiaPrima,
-                stockActual:
-                    materiaPrima.stockActual -
-                    cantidadConsumida
-            };
-        })
-    );
-
-    // ==========================
-    // AUMENTAR PRODUCTO TERMINADO
-    // ==========================
-
-    setProductos((actuales) =>
-        actuales.map((p) => {
-
-            if (p.id !== productoId) {
-                return p;
-            }
-
-            return {
-                ...p,
-                stockActual:
-                    p.stockActual + cantidad
-            };
-        })
-    );
-
-    // ==========================
-    // REGISTRAR PRODUCCIÓN
-    // ==========================
-
-    const nuevaProduccion: Produccion = {
-        id:
-            producciones.length > 0
-                ? Math.max(
-                      ...producciones.map(
-                          (p) => p.id
-                      )
-                  ) + 1
-                : 1,
-
-        productoId,
-        cantidad,
-        fecha:
-            new Date().toISOString(),
-        ingredientes: receta.ingredientes.map((ingrediente) => ({
-            materiaPrimaId: ingrediente.materiaPrimaId,
-            cantidad: ingrediente.cantidad * cantidad
-        }))
     };
-
-    setProducciones((actuales) => [
-        ...actuales,
-        nuevaProduccion
-    ]);
-
-    // ==========================
-    // REGISTRAR MOVIMIENTOS
-    // ==========================
-
-    const nuevosMovimientos: MovimientoStock[] =
-        receta.ingredientes.map(
-            (ingrediente) => {
-
-                const cantidadConsumida =
-                    ingrediente.cantidad *
-                    cantidad;
-
-                return {
-                    id: Date.now() + ingrediente.materiaPrimaId,
-
-                    tipo: "consumo",
-
-                    categoria: "materiaPrima",
-
-                    referenciaId:
-                        ingrediente.materiaPrimaId,
-
-                    cantidad:
-                        cantidadConsumida,
-
-                    fecha:
-                        new Date().toISOString(),
-
-                    descripcion:
-                        `Consumo por producción de ${cantidad} ${producto.nombre}`
-                };
-            }
-        );
-
-    nuevosMovimientos.push({
-        id: Date.now() + 1000,
-
-        tipo: "produccion",
-
-        categoria: "producto",
-
-        referenciaId: productoId,
-
-        cantidad,
-
-        fecha:
-            new Date().toISOString(),
-
-        descripcion:
-            `Producción de ${cantidad} ${producto.nombre}`
-    });
-
-        setMovimientosStock((actuales) => [
-            ...actuales,
-            ...nuevosMovimientos
-        ]);
-
-        const nuevaOperacion: OperacionStock = {
-        id: Date.now(),
-
-        tipo: "produccion",
-
-        referenciaId: productoId,
-
-        fecha:
-            new Date().toISOString(),
-
-        descripcion:
-            `Producción de ${cantidad} ${producto.nombre}`,
-
-        movimientos:
-            nuevosMovimientos
-    };
-
-    setOperacionesStock((actuales) => [
-        ...actuales,
-        nuevaOperacion
-]);
-
-    return true;
-}
 
 // ==========================
 // PROCESAR STOCK COMANDA
 // ==========================
 
-function procesarStockComanda(
+const procesarStockComanda = async (
     comandaId: number
-): boolean {
-
-    // ==========================
-    // BUSCAR COMANDA
-    // ==========================
-
-    const comanda = comandas.find(
-        (c) => c.id === comandaId
-    );
-
-    if (!comanda) {
+): Promise<boolean> => {
+    try {
+        setErrorDatos(null);
+        const procesada = await repositorioSupabaseCatalogo.procesarStockComanda(comandaId);
+        if (!procesada) return false;
+        await refrescarTrasOperacion();
+        return true;
+    } catch (error) {
+        setErrorDatos(error instanceof Error ? error.message : "No se pudo procesar el stock de la comanda.");
         return false;
     }
-
-
-    // Calcula y valida todos los consumos antes de cambiar estados o inventario.
-    const planConsumo = calcularConsumoStockComanda(
-        comanda.productos,
-        productos,
-        recetas,
-        materiasPrimas
-    );
-    if (!planConsumo) return false;
-
-    const consumosProducto = planConsumo.productos;
-    const consumosAgrupados = new Map(
-        planConsumo.materiasPrimas.map(({ materiaPrimaId, cantidad }) => [materiaPrimaId, cantidad])
-    );
-
-
-    // ==========================
-    // A PARTIR DE ACÁ
-    // TODO ESTÁ VALIDADO
-    // ==========================
-
-
-    // ==========================
-    // DESCONTAR PRODUCTOS
-    // ==========================
-
-    setProductos((actuales) =>
-        actuales.map((producto) => {
-
-            const consumo =
-                consumosProducto.find(
-                    (c) =>
-                        c.productoId ===
-                        producto.id
-                );
-
-
-            if (!consumo) {
-                return producto;
-            }
-
-
-            return {
-                ...producto,
-
-                stockActual:
-                    producto.stockActual -
-                    consumo.cantidad
-            };
-        })
-    );
-
-
-    // ==========================
-    // DESCONTAR MATERIAS PRIMAS
-    // ==========================
-
-    setMateriasPrimas((actuales) =>
-        actuales.map((materiaPrima) => {
-
-            const cantidadConsumida =
-                consumosAgrupados.get(
-                    materiaPrima.id
-                );
-
-
-            if (
-                cantidadConsumida ===
-                undefined
-            ) {
-                return materiaPrima;
-            }
-
-
-            return {
-                ...materiaPrima,
-
-                stockActual:
-                    materiaPrima.stockActual -
-                    cantidadConsumida
-            };
-        })
-    );
-
-
-    // ==========================
-    // ACTUALIZAR CANTIDAD PROCESADA
-    // ==========================
-
-    setComandas((actuales) =>
-        actuales.map((comandaActual) => {
-
-            if (
-                comandaActual.id !==
-                comandaId
-            ) {
-                return comandaActual;
-            }
-
-
-            return {
-                ...comandaActual,
-
-                    estado:
-                        comandaActual.estado === "pendiente" ? "preparando" : comandaActual.estado,
-
-                productos:
-                    comandaActual.productos.map(
-                        (item) => {
-
-                            return {
-                                ...item,
-
-                                cantidadStockProcesada:
-                                    item.cantidad
-                            };
-                        }
-                    )
-            };
-        })
-    );
-
-
-    // ==========================
-    // MOVIMIENTOS DE STOCK
-    // ==========================
-
-    const nuevosMovimientos:
-        MovimientoStock[] = [];
-
-
-    // --------------------------------
-    // MOVIMIENTOS DE PRODUCTOS
-    // --------------------------------
-
-    for (
-        const consumo
-        of consumosProducto
-    ) {
-
-        const producto =
-            productos.find(
-                (p) =>
-                    p.id ===
-                    consumo.productoId
-            );
-
-
-        if (!producto) {
-            continue;
-        }
-
-
-        nuevosMovimientos.push({
-            id:
-                Date.now() +
-                nuevosMovimientos.length,
-
-            tipo: "venta",
-
-            categoria: "producto",
-
-            referenciaId:
-                producto.id,
-
-            cantidad:
-                consumo.cantidad,
-
-            fecha:
-                new Date().toISOString(),
-
-            descripcion:
-                `Consumo por comanda #${comandaId}`
-        });
-    }
-
-
-    // --------------------------------
-    // MOVIMIENTOS DE MATERIAS PRIMAS
-    // --------------------------------
-
-    for (
-        const [
-            materiaPrimaId,
-            cantidad
-        ]
-        of consumosAgrupados
-    ) {
-
-        nuevosMovimientos.push({
-            id:
-                Date.now() +
-                nuevosMovimientos.length,
-
-            tipo: "consumo",
-
-            categoria: "materiaPrima",
-
-            referenciaId:
-                materiaPrimaId,
-
-            cantidad,
-
-            fecha:
-                new Date().toISOString(),
-
-            descripcion:
-                `Consumo por comanda #${comandaId}`
-        });
-    }
-
-
-    // --------------------------------
-    // GUARDAR MOVIMIENTOS
-    // --------------------------------
-
-    if (
-        nuevosMovimientos.length > 0
-    ) {
-
-        setMovimientosStock(
-            (actuales) => [
-                ...actuales,
-                ...nuevosMovimientos
-            ]
-        );
-    }
-
-    if (nuevosMovimientos.length > 0) {
-
-    const nuevaOperacion: OperacionStock = {
-
-        id: Date.now(),
-
-        tipo: "comanda",
-
-        referenciaId: comandaId,
-
-        fecha:
-            new Date().toISOString(),
-
-        descripcion:
-            `Consumo por comanda #${comandaId}`,
-
-        movimientos:
-            nuevosMovimientos
-    };
-
-    setOperacionesStock(
-        (actuales) => [
-            ...actuales,
-            nuevaOperacion
-        ]
-    );
-}
-
-    return true;
-}
-
-
+};
 
     // ==========================
     // PRODUCTOS
     // ==========================
 
-    const agregarProducto = (
+    const agregarProducto = async (
         nombre: string,
         precio: number,
         categoria: string,
@@ -1496,45 +858,20 @@ function procesarStockComanda(
             | "bajo_pedido"
             | "preelaborado"
             | "reventa"
-    ) => {
-
-        const nuevoProducto: Producto = {
-
-            id: productos.length > 0
-                ? Math.max(...productos.map((producto) => producto.id)) + 1
-                : 1,
-
-            nombre: nombre.trim(),
-
-            precio,
-
-            categoria: categoria.trim(),
-
-            sector: sector.trim(),
-
-            tipoElaboracion:
-                tipoElaboracion,
-
-            unidadVenta: "unidad",
-
-            stockActual: 0,
-
-            stockMinimo: 0,
-
-            activo: true,
-
-            disponible: true
-        };
-
-        setProductos(
-            (productosActuales) => [
-                ...productosActuales,
-                nuevoProducto
-            ]
-        );
+    ): Promise<boolean> => {
+        try {
+            const nuevoProducto = await repositorioSupabaseCatalogo.crearProducto({
+                nombre, precio, categoria, sector, tipoElaboracion
+            }) as Producto;
+            setProductos((actuales) => [...actuales, nuevoProducto]);
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo crear el producto.");
+            return false;
+        }
     };
 
-    const editarProducto = (
+    const editarProducto = async (
         id: number,
         nombre: string,
         precio: number,
@@ -1544,29 +881,20 @@ function procesarStockComanda(
             | "bajo_pedido"
             | "preelaborado"
             | "reventa"
-    ) => {
-
-        setProductos(
-            (productosActuales) =>
-                productosActuales.map(
-                    (producto) =>
-                        producto.id === id
-                            ? {
-                                ...producto,
-                                nombre: nombre,
-                                precio: precio,
-                                categoria:
-                                    categoria,
-                                sector: sector,
-                                tipoElaboracion:
-                                    tipoElaboracion
-                            }
-                            : producto
-                )
-        );
+    ): Promise<boolean> => {
+        try {
+            const actualizado = await repositorioSupabaseCatalogo.editarProducto(id, {
+                nombre, precio, categoria, sector, tipoElaboracion
+            }) as Producto;
+            setProductos((actuales) => actuales.map((producto) => producto.id === id ? actualizado : producto));
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo actualizar el producto.");
+            return false;
+        }
     };
 
-    const eliminarProductoCatalogo = (id: number): boolean => {
+    const eliminarProductoCatalogo = async (id: number): Promise<boolean> => {
         const tieneProducciones = producciones.some(
             (produccion) => produccion.productoId === id
         );
@@ -1581,6 +909,12 @@ function procesarStockComanda(
             return false;
         }
 
+        try {
+            await repositorioSupabaseCatalogo.eliminarProducto(id);
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo eliminar el producto.");
+            return false;
+        }
         setProductos((productosActuales) =>
             productosActuales.filter((producto) => producto.id !== id)
         );
@@ -1591,11 +925,16 @@ function procesarStockComanda(
         return true;
     };
 
-    const cambiarEstadoProductoCatalogo = (
+    const cambiarEstadoProductoCatalogo = async (
         id: number,
         activo: boolean
-    ) => {
-
+    ): Promise<boolean> => {
+        try {
+            await repositorioSupabaseCatalogo.cambiarEstadoProducto(id, activo);
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo actualizar el producto.");
+            return false;
+        }
         setProductos(
             (productosActuales) =>
                 productosActuales.map(
@@ -1608,17 +947,23 @@ function procesarStockComanda(
                             : producto
                 )
         );
+        return true;
     };
 
     // ==========================
     // MATERIAS PRIMAS
     // ==========================
 
-    const cambiarEstadoMateriaPrima = (
+    const cambiarEstadoMateriaPrima = async (
         id: number,
         activo: boolean
-    ) => {
-
+    ): Promise<boolean> => {
+        try {
+            await repositorioSupabaseCatalogo.cambiarEstadoMateriaPrima(id, activo);
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo actualizar la materia prima.");
+            return false;
+        }
         setMateriasPrimas(
             (materiasActuales) =>
                 materiasActuales.map(
@@ -1631,191 +976,89 @@ function procesarStockComanda(
                             : materia
                 )
         );
+        return true;
     };
 
-    const editarMateriaPrima = (
+    const editarMateriaPrima = async (
         id: number,
         nombre: string,
         categoria: string,
         unidad: MateriaPrima["unidad"],
         stockMinimo: number
-    ) => {
+    ): Promise<boolean> => {
+        let actualizada: MateriaPrima;
+        try {
+            actualizada = await repositorioSupabaseCatalogo.editarMateriaPrima(id, {
+                nombre, categoria, unidad, stockMinimo
+            }) as MateriaPrima;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo actualizar la materia prima.");
+            return false;
+        }
         setMateriasPrimas((materiasActuales) =>
             materiasActuales.map((materia) =>
                 materia.id === id
-                    ? {
-                          ...materia,
-                          nombre: nombre.trim(),
-                          categoria: categoria.trim(),
-                          unidad,
-                          stockMinimo
-                      }
+                    ? actualizada as MateriaPrima
                     : materia
             )
         );
-    };
-
-    const registrarEntradaProducto = (
-        productoId: number,
-        cantidad: number
-    ): boolean => {
-        if (!Number.isInteger(cantidad) || cantidad <= 0) {
-            return false;
-        }
-
-        const producto = productos.find((item) => item.id === productoId);
-        if (!producto || producto.tipoElaboracion !== "reventa") {
-            return false;
-        }
-
-        const fecha = new Date().toISOString();
-        const nuevoMovimiento: MovimientoStock = {
-            id: Date.now(),
-            tipo: "entrada",
-            categoria: "producto",
-            referenciaId: productoId,
-            cantidad,
-            fecha,
-            descripcion: `Ingreso de ${cantidad} ${producto.unidadVenta} de ${producto.nombre} para reventa`
-        };
-        const nuevaOperacion: OperacionStock = {
-            id: Date.now() + 1,
-            tipo: "entrada",
-            referenciaId: productoId,
-            fecha,
-            descripcion: nuevoMovimiento.descripcion,
-            movimientos: [nuevoMovimiento]
-        };
-
-        setProductos((actuales) => actuales.map((item) =>
-            item.id === productoId
-                ? { ...item, stockActual: item.stockActual + cantidad }
-                : item
-        ));
-        setMovimientosStock((actuales) => [...actuales, nuevoMovimiento]);
-        setOperacionesStock((actuales) => [...actuales, nuevaOperacion]);
-
         return true;
     };
-    const registrarEntradaMateriaPrima = (
-    materiaPrimaId: number,
-    cantidad: number
-) => {
 
-    if (cantidad <= 0) {
-        return;
-    }
-
-    const materia =
-        materiasPrimas.find(
-            (item) =>
-                item.id === materiaPrimaId
-        );
-
-    if (!materia) {
-        return;
-    }
-
-
-    // ==========================
-    // AUMENTAR STOCK
-    // ==========================
-
-    setMateriasPrimas(
-        (materiasActuales) =>
-            materiasActuales.map(
-                (materiaActual) =>
-                    materiaActual.id ===
-                    materiaPrimaId
-                        ? {
-                            ...materiaActual,
-
-                            stockActual:
-                                materiaActual.stockActual +
-                                cantidad
-                        }
-                        : materiaActual
-            )
-    );
-
-
-    // ==========================
-    // CREAR MOVIMIENTO
-    // ==========================
-
-    const nuevoMovimiento: MovimientoStock = {
-
-        id:
-            Date.now(),
-
-        tipo: "entrada",
-
-        categoria:
-            "materiaPrima",
-
-        referenciaId:
-            materiaPrimaId,
-
-        cantidad:
-            cantidad,
-
-        fecha:
-            new Date().toISOString(),
-
-        descripcion:
-            `Entrada de ${materia.nombre}`
+    const registrarEntradaProducto = async (
+        productoId: number,
+        cantidad: number
+    ): Promise<boolean> => {
+        const producto = productos.find((actual) => actual.id === productoId);
+        if (!Number.isInteger(cantidad) || cantidad <= 0 || producto?.tipoElaboracion !== 'reventa') {
+            return false;
+        }
+        try {
+            setErrorDatos(null);
+            await repositorioSupabaseCatalogo.registrarMovimientoStock(
+                productoId,
+                'producto',
+                'entrada',
+                cantidad,
+                `Ingreso de ${cantidad} ${producto.unidadVenta} de ${producto.nombre} para reventa`
+            );
+            await refrescarTrasOperacion();
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : 'No se pudo registrar la entrada de producto.');
+            return false;
+        }
     };
 
-
-    setMovimientosStock(
-        (movimientosActuales) => [
-            ...movimientosActuales,
-            nuevoMovimiento
-        ]
-    );
-
-
-    // ==========================
-    // CREAR OPERACIÓN
-    // ==========================
-
-    const nuevaOperacion: OperacionStock = {
-
-        id:
-            Date.now() + 1,
-
-        tipo: "entrada",
-
-        referenciaId:
-            materiaPrimaId,
-
-        fecha:
-            new Date().toISOString(),
-
-        descripcion:
-            `Entrada de ${cantidad} ${materia.unidad} de ${materia.nombre}`,
-
-        movimientos: [
-            nuevoMovimiento
-        ]
+    const registrarEntradaMateriaPrima = async (
+        materiaPrimaId: number,
+        cantidad: number
+    ): Promise<boolean> => {
+        const materia = materiasPrimas.find((actual) => actual.id === materiaPrimaId);
+        if (!materia || !Number.isFinite(cantidad) || cantidad <= 0) return false;
+        try {
+            setErrorDatos(null);
+            await repositorioSupabaseCatalogo.registrarMovimientoStock(
+                materiaPrimaId,
+                'materiaPrima',
+                'entrada',
+                cantidad,
+                `Entrada de ${cantidad} ${materia.unidad} de ${materia.nombre}`
+            );
+            await refrescarTrasOperacion();
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : 'No se pudo registrar la entrada de stock.');
+            return false;
+        }
     };
-
-
-    setOperacionesStock(
-        (operacionesActuales) => [
-            ...operacionesActuales,
-            nuevaOperacion
-        ]
-    );
-};
-
-    const agregarMateriaPrima = (
+    const agregarMateriaPrima = async (
         nombre: string,
         categoria: string,
         unidad: MateriaPrima["unidad"],
         stockMinimo: number,
         stockInicial: number
-    ): boolean => {
+    ): Promise<boolean> => {
         const nombreNormalizado = nombre.trim().toLowerCase();
 
         if (
@@ -1833,130 +1076,48 @@ function procesarStockComanda(
             return false;
         }
 
-        const nuevoId = materiasPrimas.length > 0
-            ? Math.max(
-                ...materiasPrimas.map((materia) => materia.id)
-            ) + 1
-            : 1;
-
-        setMateriasPrimas((materiasActuales) => [
-            ...materiasActuales,
-            {
-                id: nuevoId,
-                nombre: nombre.trim(),
-                categoria: categoria.trim(),
-                unidad,
-                stockActual: stockInicial,
-                stockMinimo,
-                activo: true
-            }
-        ]);
-
-        return true;
+        try {
+            const nuevaMateria = await repositorioSupabaseCatalogo.crearMateriaPrima({
+                nombre, categoria, unidad, stockMinimo
+            }, stockInicial) as MateriaPrima;
+            setMateriasPrimas((actuales) => [...actuales, nuevaMateria]);
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo crear la materia prima.");
+            return false;
+        }
     };
 
-    const registrarSalidaMateriaPrima = (
-    materiaPrimaId: number,
-    cantidad: number
-): boolean => {
-
-    const materia =
-        materiasPrimas.find(
-            (item) =>
-                item.id === materiaPrimaId
-        );
-
-    const materiasActualizadas = descontarStockMateriaPrima(
-        materiasPrimas,
-        materiaPrimaId,
-        cantidad
-    );
-    if (!materia || !materiasActualizadas) return false;
-
-    setMateriasPrimas(materiasActualizadas);
-
-
-    // ==========================
-    // CREAR MOVIMIENTO
-    // ==========================
-
-    const nuevoMovimiento: MovimientoStock = {
-
-        id:
-            Date.now(),
-
-        tipo: "salida",
-
-        categoria:
-            "materiaPrima",
-
-        referenciaId:
-            materiaPrimaId,
-
-        cantidad:
-
-            cantidad,
-
-        fecha:
-            new Date().toISOString(),
-
-        descripcion:
-            `Salida de ${materia.nombre}`
+    const registrarSalidaMateriaPrima = async (
+        materiaPrimaId: number,
+        cantidad: number
+    ): Promise<boolean> => {
+        const materia = materiasPrimas.find((actual) => actual.id === materiaPrimaId);
+        if (!materia || !Number.isFinite(cantidad) || cantidad <= 0) return false;
+        try {
+            setErrorDatos(null);
+            await repositorioSupabaseCatalogo.registrarMovimientoStock(
+                materiaPrimaId,
+                'materiaPrima',
+                'salida',
+                cantidad,
+                `Salida de ${cantidad} ${materia.unidad} de ${materia.nombre}`
+            );
+            await refrescarTrasOperacion();
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : 'No se pudo registrar la salida de stock.');
+            return false;
+        }
     };
-
-
-    setMovimientosStock(
-        (movimientosActuales) => [
-            ...movimientosActuales,
-            nuevoMovimiento
-        ]
-    );
-
-
-    // ==========================
-    // CREAR OPERACIÓN
-    // ==========================
-
-    const nuevaOperacion: OperacionStock = {
-
-        id:
-            Date.now() + 1,
-
-        tipo: "salida",
-
-        referenciaId:
-            materiaPrimaId,
-
-        fecha:
-            new Date().toISOString(),
-
-        descripcion:
-            `Salida de ${cantidad} ${materia.unidad} de ${materia.nombre}`,
-
-        movimientos: [
-            nuevoMovimiento
-        ]
-    };
-
-
-    setOperacionesStock(
-        (operacionesActuales) => [
-            ...operacionesActuales,
-            nuevaOperacion
-        ]
-    );
-
-    return true;
-};
-
     // ==========================
     // RECETAS
     // ==========================
 
-    const agregarReceta = (
+    const agregarReceta = async (
         productoId: number,
         ingredientes: IngredienteReceta[]
-    ) => {
+    ): Promise<boolean> => {
 
         const recetaExistente =
             recetas.find(
@@ -1966,47 +1127,35 @@ function procesarStockComanda(
             );
 
         if (recetaExistente) {
-            return;
+            return false;
         }
 
-        const nuevaReceta: Receta = {
-
-            id:
-                recetas.length + 1,
-
-            productoId:
-                productoId,
-
-            ingredientes:
-                ingredientes
-        };
-
-        setRecetas(
-            (recetasActuales) => [
-                ...recetasActuales,
-                nuevaReceta
-            ]
-        );
+        try {
+            const id = await repositorioSupabaseCatalogo.guardarReceta(productoId, ingredientes);
+            setRecetas((actuales) => [...actuales, { id, productoId, ingredientes }]);
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo guardar la receta.");
+            return false;
+        }
     };
 
-    const editarReceta = (
+    const editarReceta = async (
         recetaId: number,
         ingredientes: IngredienteReceta[]
-    ) => {
-
-        setRecetas(
-            (recetasActuales) =>
-                recetasActuales.map(
-                    (receta) =>
-                        receta.id === recetaId
-                            ? {
-                                ...receta,
-                                ingredientes:
-                                    ingredientes
-                            }
-                            : receta
-                )
-        );
+    ): Promise<boolean> => {
+        const receta = recetas.find((actual) => actual.id === recetaId);
+        if (!receta) return false;
+        try {
+            const idPersistido = await repositorioSupabaseCatalogo.guardarReceta(receta.productoId, ingredientes);
+            setRecetas((actuales) => actuales.map((item) => item.id === recetaId
+                ? { ...item, id: idPersistido, ingredientes }
+                : item));
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo guardar la receta.");
+            return false;
+        }
     };
 
     return (
