@@ -31,7 +31,7 @@ const filtrosComandas: { valor: FiltroComanda; etiqueta: string }[] = [
     { valor: "pendiente", etiqueta: "Pendientes" },
     { valor: "preparando", etiqueta: "En preparación" },
     { valor: "lista", etiqueta: "Listas" },
-    { valor: "finalizada", etiqueta: "Finalizadas" },
+    { valor: "finalizada", etiqueta: "Entregadas" },
     { valor: "cancelada", etiqueta: "Canceladas" }
 ];
 
@@ -324,6 +324,9 @@ function Comandas() {
                                                     ? `Take away · ${comanda.clienteTakeAway?.nombre ?? "Cliente"}`
                                                     : `Mesa ${mesa?.numero ?? "-"}`}
                                             </p>
+                                            {comanda.responsableNombre && (
+                                                <small>Tomó el pedido: {comanda.responsableNombre}</small>
+                                            )}
 
                                         </div>
 
@@ -346,7 +349,7 @@ function Comandas() {
 
                                             {comanda.estado ===
                                                 "finalizada" &&
-                                                "Finalizada"}
+                                                "Entregada"}
 
                                             {comanda.estado ===
                                                 "cancelada" &&
@@ -491,15 +494,15 @@ function Comandas() {
                                                             const finalizada = await finalizarComanda(comanda.id);
                                                             if (finalizada) {
                                                                 mostrarToast(comanda.tipoAtencion === "take-away"
-                                                                    ? "Pedido marcado como retirado."
+                                                                    ? "Pedido marcado como entregado."
                                                                     : `Mesa ${mesa?.numero ?? ""} disponible.`);
                                                             } else {
-                                                                setMensajeError(errorDatos || "No se pudo finalizar la comanda.");
+                                                                setMensajeError(errorDatos || "No se pudo marcar la comanda como entregada.");
                                                             }
                                                         }
                                                     })}
                                                 >
-                                                    {comanda.tipoAtencion === "take-away" ? "✓ Marcar retirado" : "✓ Dejar mesa disponible"}
+                                                    {comanda.tipoAtencion === "take-away" ? "✓ Marcar entregado" : "✓ Dejar mesa disponible"}
                                                 </button>
 
                                             </div>

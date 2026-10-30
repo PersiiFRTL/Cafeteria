@@ -1144,6 +1144,9 @@ function Stock() {
                                                 <p>
                                                     {operacion.descripcion}
                                                 </p>
+                                                {operacion.responsableNombre && (
+                                                    <small>Registró: {operacion.responsableNombre}</small>
+                                                )}
 
                                             </div>
 
@@ -1184,6 +1187,7 @@ function Stock() {
                                                         materiaPrima?.nombre ?? producto?.nombre;
                                                     const unidad =
                                                         materiaPrima?.unidad ?? producto?.unidadVenta;
+                                                    const sumaStock = ["entrada", "produccion", "ajuste"].includes(movimiento.tipo);
 
 
                                                     return (
@@ -1201,8 +1205,8 @@ function Stock() {
                                                             </span>
 
 
-                                                            <strong>
-                                                                - {formatearCantidad(movimiento.cantidad)}
+                                                            <strong className={sumaStock ? "stock-movimiento-positivo" : "stock-movimiento-negativo"}>
+                                                                {sumaStock ? "+" : "-"} {formatearCantidad(movimiento.cantidad)}
                                                                 {unidad ? ` ${unidad}` : ""}
                                                             </strong>
 

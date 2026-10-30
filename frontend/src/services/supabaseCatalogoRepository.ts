@@ -1,6 +1,7 @@
 import type { DatosInicialesCafeteria } from "./demoCafeteriaRepository";
 import { repositorioDemo } from "./demoCafeteriaRepository";
 import { supabase } from "./supabase";
+import { solicitarApiAutenticada } from "./apiAutenticada";
 import type { ElementoMapa } from "../types/mapa";
 
 type Producto = DatosInicialesCafeteria["productos"][number];
@@ -20,8 +21,19 @@ export interface DatosCafeteriaConMapa extends Omit<DatosInicialesCafeteria, "pr
         productoId: number;
         cantidad: number;
         fecha: string;
+        responsableNombre?: string;
         ingredientes: Array<{ materiaPrimaId: number; cantidad: number }>;
     }>;
+    actividad: Array<{
+        id: number;
+        usuarioNombre: string;
+        entidad: string;
+        entidadId: string;
+        accion: string;
+        detalle: string;
+        fecha: string;
+    }>;
+    auditoriaDisponible: boolean;
 }
 
 interface MesaRemota {
@@ -33,6 +45,11 @@ interface MesaRemota {
 
 function mensajeError(error: { message: string }): Error {
     return new Error(error.message || "No se pudo guardar el cambio en Supabase.");
+}
+
+function esTablaAuditoriaNoDisponible(error: { code?: string; message?: string; status?: number }): boolean {
+    return error.code === "PGRST205" || error.code === "42P01" || error.status === 404 ||
+        /auditoria_eventos.*(not found|schema cache)/i.test(error.message ?? "");
 }
 
 function mapearProducto(row: Record<string, unknown>): Producto {
@@ -100,7 +117,7 @@ function mapearElementoMapa(row: Record<string, unknown>): ElementoMapa {
     };
 }
 
-function mapearComanda(row: Record<string, unknown>): Record<string, unknown> {
+function mapearComanda(row: Record<string, unknown>, nombresPorId: Map<string, string>): Record<string, unknown> {
     const clienteNombre = row.cliente_nombre;
     const clienteTelefono = row.cliente_telefono;
     const horaRetiro = row.hora_retiro;
@@ -124,12 +141,15 @@ function mapearComanda(row: Record<string, unknown>): Record<string, unknown> {
             nombreProducto: String(item.nombre_producto),
             precioUnitario: Number(item.precio_unitario)
         })),
+        ...(typeof row.creada_por === "string" && nombresPorId.has(row.creada_por)
+            ? { responsableNombre: nombresPorId.get(row.creada_por) }
+            : {}),
         estado: row.estado as "pendiente" | "preparando" | "lista" | "finalizada" | "cancelada",
         fechaCreacion: String(row.fecha_creacion)
     };
 }
 
-function mapearOperacionStock(row: Record<string, unknown>): Record<string, unknown> {
+function mapearOperacionStock(row: Record<string, unknown>, nombresPorId: Map<string, string>): Record<string, unknown> {
     const movimientos = (row.movimientos ?? []) as Array<Record<string, unknown>>;
     return {
         id: Number(row.id),
@@ -137,6 +157,9 @@ function mapearOperacionStock(row: Record<string, unknown>): Record<string, unkn
         referenciaId: Number(row.comanda_id ?? row.produccion_id ?? row.id),
         fecha: String(row.fecha),
         descripcion: String(row.descripcion ?? ""),
+        ...(typeof row.creada_por === "string" && nombresPorId.has(row.creada_por)
+            ? { responsableNombre: nombresPorId.get(row.creada_por) }
+            : {}),
         movimientos: movimientos.map(mapearMovimientoStock)
     };
 }
@@ -154,11 +177,11 @@ function mapearMovimientoStock(row: Record<string, unknown>): Record<string, unk
     };
 }
 
-/** Lee el catálogo de Supabase y conserva temporalmente el resto de datos de demostración. */
+/** Lee los datos operativos persistidos en Supabase. */
 export const repositorioSupabaseCatalogo = {
     async cargarDatosIniciales(): Promise<DatosCafeteriaConMapa> {
         const datosDemo = await repositorioDemo.cargarDatosIniciales();
-        const [productos, materiasPrimas, recetas, mesas, elementosMapa, comandas, operacionesStock, producciones] = await Promise.all([
+        const [productos, materiasPrimas, recetas, mesas, elementosMapa, comandas, operacionesStock, producciones, respuestaPerfiles, eventosAuditoria] = await Promise.all([
             supabase.from("productos").select("*").order("id"),
             supabase.from("materias_primas").select("*").order("id"),
             supabase
@@ -178,7 +201,14 @@ export const repositorioSupabaseCatalogo = {
                 .from("operaciones_stock")
                 .select("*, movimientos:movimientos_stock(*)")
                 .order("fecha", { ascending: false }),
-            supabase.from("producciones").select("*").order("fecha", { ascending: false })
+            supabase.from("producciones").select("*").order("fecha", { ascending: false }),
+            solicitarApiAutenticada<{ perfiles: Array<{ id: string; nombre: string }> }>("/api/perfiles/nombres")
+                .catch(() => ({ perfiles: [] })),
+            supabase
+                .from("auditoria_eventos")
+                .select("id, usuario_nombre, entidad, entidad_id, accion, detalle, fecha")
+                .order("fecha", { ascending: false })
+                .limit(100)
         ]);
 
         if (productos.error) throw mensajeError(productos.error);
@@ -189,12 +219,15 @@ export const repositorioSupabaseCatalogo = {
         if (comandas.error) throw mensajeError(comandas.error);
         if (operacionesStock.error) throw mensajeError(operacionesStock.error);
         if (producciones.error) throw mensajeError(producciones.error);
+        const auditoriaDisponible = !eventosAuditoria.error || !esTablaAuditoriaNoDisponible(eventosAuditoria.error);
+        if (eventosAuditoria.error && auditoriaDisponible) throw mensajeError(eventosAuditoria.error);
 
+        const nombresPorId = new Map(respuestaPerfiles.perfiles.map((perfil) => [perfil.id, perfil.nombre]));
         const comandasMapeadas = (comandas.data ?? []).map((row) =>
-            mapearComanda(row as Record<string, unknown>)
+            mapearComanda(row as Record<string, unknown>, nombresPorId)
         );
         const operacionesMapeadas = (operacionesStock.data ?? []).map((row) =>
-            mapearOperacionStock(row as Record<string, unknown>)
+            mapearOperacionStock(row as Record<string, unknown>, nombresPorId)
         );
         const movimientosMapeados = operacionesMapeadas.flatMap((operacion) =>
             operacion.movimientos as Array<Record<string, unknown>>
@@ -211,10 +244,25 @@ export const repositorioSupabaseCatalogo = {
                 productoId: Number(produccion.producto_id),
                 cantidad: Number(produccion.cantidad),
                 fecha: String(produccion.fecha),
+                ...(typeof produccion.creada_por === "string" && nombresPorId.has(produccion.creada_por)
+                    ? { responsableNombre: nombresPorId.get(produccion.creada_por) }
+                    : {}),
                 ingredientes: movimientos.map((item) => ({
                     materiaPrimaId: Number(item.materia_prima_id),
                     cantidad: Number(item.cantidad)
                 }))
+            };
+        });
+        const actividadMapeada = (eventosAuditoria.data ?? []).map((row) => {
+            const evento = row as Record<string, unknown>;
+            return {
+                id: Number(evento.id),
+                usuarioNombre: String(evento.usuario_nombre ?? "Usuario"),
+                entidad: String(evento.entidad),
+                entidadId: String(evento.entidad_id),
+                accion: String(evento.accion),
+                detalle: String(evento.detalle),
+                fecha: String(evento.fecha)
             };
         });
 
@@ -228,7 +276,9 @@ export const repositorioSupabaseCatalogo = {
             comandas: comandasMapeadas,
             operacionesStock: operacionesMapeadas,
             movimientosStock: movimientosMapeados,
-            producciones: produccionesMapeadas
+            producciones: produccionesMapeadas,
+            actividad: actividadMapeada,
+            auditoriaDisponible
         };
     },
 
@@ -237,39 +287,38 @@ export const repositorioSupabaseCatalogo = {
         productos: Array<{ productoId: number; cantidad: number }>,
         datosTakeAway?: { nombre: string; telefono: string; horaRetiro: string }
     ): Promise<number> {
-        const { data, error } = await supabase.rpc("crear_comanda", {
-            p_mesa_id: mesaId ?? null,
-            p_productos: productos.map(({ productoId, cantidad }) => ({ productoId, cantidad })),
-            p_cliente_nombre: datosTakeAway?.nombre ?? null,
-            p_cliente_telefono: datosTakeAway?.telefono ?? null,
-            p_hora_retiro: datosTakeAway?.horaRetiro ?? null
+        const respuesta = await solicitarApiAutenticada<{ data: number }>("/api/comandas", {
+            method: "POST",
+            body: JSON.stringify({
+                mesaId: mesaId ?? null,
+                productos: productos.map(({ productoId, cantidad }) => ({ productoId, cantidad })),
+                clienteNombre: datosTakeAway?.nombre ?? null,
+                clienteTelefono: datosTakeAway?.telefono ?? null,
+                horaRetiro: datosTakeAway?.horaRetiro ?? null
+            })
         });
-        if (error) throw mensajeError(error);
-        return Number(data);
+        return Number(respuesta.data);
     },
 
     async editarComanda(comandaId: number, productos: Array<{ productoId: number; cantidad: number }>): Promise<void> {
-        const { error } = await supabase.rpc("editar_comanda", {
-            p_comanda_id: comandaId,
-            p_productos: productos.map(({ productoId, cantidad }) => ({ productoId, cantidad }))
+        await solicitarApiAutenticada<void>(`/api/comandas/${comandaId}`, {
+            method: "PATCH",
+            body: JSON.stringify({ productos })
         });
-        if (error) throw mensajeError(error);
     },
 
     async agregarProductosAComanda(comandaId: number, productos: Array<{ productoId: number; cantidad: number }>): Promise<void> {
-        const { error } = await supabase.rpc("agregar_productos_comanda", {
-            p_comanda_id: comandaId,
-            p_productos: productos.map(({ productoId, cantidad }) => ({ productoId, cantidad }))
+        await solicitarApiAutenticada<void>(`/api/comandas/${comandaId}/productos`, {
+            method: "POST",
+            body: JSON.stringify({ productos })
         });
-        if (error) throw mensajeError(error);
     },
 
     async procesarStockComanda(comandaId: number): Promise<boolean> {
-        const { data, error } = await supabase.rpc("procesar_stock_comanda", {
-            p_comanda_id: comandaId
+        const respuesta = await solicitarApiAutenticada<{ data: boolean }>(`/api/comandas/${comandaId}/procesar-stock`, {
+            method: "POST"
         });
-        if (error) throw mensajeError(error);
-        return Boolean(data);
+        return Boolean(respuesta.data);
     },
 
     async cambiarEstadoItemComanda(
@@ -277,22 +326,18 @@ export const repositorioSupabaseCatalogo = {
         productoId: number,
         estado: "preparando" | "listo"
     ): Promise<void> {
-        const { error } = await supabase.rpc("cambiar_estado_item_comanda", {
-            p_comanda_id: comandaId,
-            p_producto_id: productoId,
-            p_estado: estado
+        await solicitarApiAutenticada<void>(`/api/comandas/${comandaId}/items/${productoId}/estado`, {
+            method: "PATCH",
+            body: JSON.stringify({ estado })
         });
-        if (error) throw mensajeError(error);
     },
 
     async finalizarComanda(comandaId: number): Promise<void> {
-        const { error } = await supabase.rpc("finalizar_comanda", { p_comanda_id: comandaId });
-        if (error) throw mensajeError(error);
+        await solicitarApiAutenticada<void>(`/api/comandas/${comandaId}/finalizar`, { method: "POST" });
     },
 
     async cancelarComanda(comandaId: number): Promise<void> {
-        const { error } = await supabase.rpc("cancelar_comanda", { p_comanda_id: comandaId });
-        if (error) throw mensajeError(error);
+        await solicitarApiAutenticada<void>(`/api/comandas/${comandaId}/cancelar`, { method: "POST" });
     },
 
     async registrarMovimientoStock(
@@ -302,22 +347,23 @@ export const repositorioSupabaseCatalogo = {
         cantidad: number,
         descripcion: string
     ): Promise<void> {
-        const { error } = await supabase.rpc("registrar_movimiento_stock", {
-            p_materia_prima_id: categoria === "materiaPrima" ? referenciaId : null,
-            p_producto_id: categoria === "producto" ? referenciaId : null,
-            p_tipo: tipo,
-            p_cantidad: cantidad,
-            p_descripcion: descripcion
+        await solicitarApiAutenticada<void>("/api/stock/movimientos", {
+            method: "POST",
+            body: JSON.stringify({
+                materiaPrimaId: categoria === "materiaPrima" ? referenciaId : null,
+                productoId: categoria === "producto" ? referenciaId : null,
+                tipo,
+                cantidad,
+                descripcion
+            })
         });
-        if (error) throw mensajeError(error);
     },
 
     async registrarProduccion(productoId: number, cantidad: number): Promise<void> {
-        const { error } = await supabase.rpc("registrar_produccion", {
-            p_producto_id: productoId,
-            p_cantidad: cantidad
+        await solicitarApiAutenticada<void>("/api/producciones", {
+            method: "POST",
+            body: JSON.stringify({ productoId, cantidad })
         });
-        if (error) throw mensajeError(error);
     },
 
     async guardarMapa(
@@ -325,26 +371,28 @@ export const repositorioSupabaseCatalogo = {
         elementos: ElementoMapa[],
         idsEliminar: string[] = []
     ): Promise<void> {
-        const { error } = await supabase.rpc("guardar_mapa", {
-            p_mesas: mesas.map((mesa) => ({
-                id: mesa.id,
-                numero: mesa.numero,
-                capacidad: mesa.capacidad
-            })),
-            p_elementos: elementos.map((elemento) => ({
-                id: elemento.id,
-                tipo: elemento.tipo,
-                x: elemento.x,
-                y: elemento.y,
-                ancho: elemento.ancho,
-                alto: elemento.alto,
-                rotacion: elemento.rotacion,
-                mesaId: elemento.mesaId ?? null,
-                grosor: elemento.grosor ?? null
-            })),
-            p_ids_eliminar: idsEliminar
+        await solicitarApiAutenticada<void>("/api/mapa", {
+            method: "PUT",
+            body: JSON.stringify({
+                mesas: mesas.map((mesa) => ({
+                    id: mesa.id,
+                    numero: mesa.numero,
+                    capacidad: mesa.capacidad
+                })),
+                elementos: elementos.map((elemento) => ({
+                    id: elemento.id,
+                    tipo: elemento.tipo,
+                    x: elemento.x,
+                    y: elemento.y,
+                    ancho: elemento.ancho,
+                    alto: elemento.alto,
+                    rotacion: elemento.rotacion,
+                    mesaId: elemento.mesaId ?? null,
+                    grosor: elemento.grosor ?? null
+                })),
+                idsEliminar
+            })
         });
-        if (error) throw mensajeError(error);
     },
 
     async crearProducto(input: ProductoInput): Promise<Producto> {

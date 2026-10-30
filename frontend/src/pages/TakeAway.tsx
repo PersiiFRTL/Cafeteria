@@ -8,7 +8,7 @@ const etiquetaEstado = {
     pendiente: "Pendiente",
     preparando: "En preparación",
     lista: "Lista para retirar",
-    finalizada: "Retirada",
+    finalizada: "Entregada",
     cancelada: "Cancelada"
 } as const;
 

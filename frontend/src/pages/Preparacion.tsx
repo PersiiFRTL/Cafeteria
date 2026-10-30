@@ -19,7 +19,7 @@ const filtrosComandas: { valor: FiltroComanda; etiqueta: string }[] = [
     { valor: "pendiente", etiqueta: "Pendientes" },
     { valor: "preparando", etiqueta: "En preparación" },
     { valor: "lista", etiqueta: "Listas" },
-    { valor: "finalizada", etiqueta: "Finalizadas" }
+    { valor: "finalizada", etiqueta: "Entregadas" }
 ];
 
 const etiquetasEstado: Record<FiltroComanda | "listo", string> = {
@@ -28,7 +28,7 @@ const etiquetasEstado: Record<FiltroComanda | "listo", string> = {
     preparando: "En preparación",
     lista: "Lista",
     listo: "Listo",
-    finalizada: "Finalizada",
+    finalizada: "Entregada",
     cancelada: "Cancelada"
 };
 

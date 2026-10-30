@@ -8,6 +8,8 @@ export function useInformes() {
         comandas: cafeteria.comandas,
         productos: cafeteria.productos,
         materiasPrimas: cafeteria.materiasPrimas,
-        movimientosStock: cafeteria.movimientosStock
+        movimientosStock: cafeteria.movimientosStock,
+        actividad: cafeteria.actividad,
+        auditoriaDisponible: cafeteria.auditoriaDisponible
     };
 }

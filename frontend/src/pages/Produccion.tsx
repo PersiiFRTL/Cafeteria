@@ -401,6 +401,11 @@ function Produccion() {
                                                         minute: "2-digit"
                                                     }
                                                 )}
+                                                {produccion.responsableNombre && (
+                                                    <small className="registro-responsable">
+                                                        Registró: {produccion.responsableNombre}
+                                                    </small>
+                                                )}
                                             </span>
 
                                             <button

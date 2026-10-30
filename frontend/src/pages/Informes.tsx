@@ -37,7 +37,9 @@ function Informes() {
         comandas,
         productos,
         materiasPrimas,
-        movimientosStock
+        movimientosStock,
+        actividad,
+        auditoriaDisponible
     } = useInformes();
 
     const [periodo, setPeriodo] = useState<
@@ -104,6 +106,34 @@ const dentroDelPeriodo = (valor: string) => {
 };
 
 const comandasFiltradas = comandas.filter((comanda) => dentroDelPeriodo(comanda.fechaCreacion));
+const comandasNoCanceladas = comandasFiltradas.filter((comanda) => comanda.estado !== "cancelada");
+const comandasCanceladas = comandasFiltradas.filter((comanda) => comanda.estado === "cancelada").length;
+const unidadesSolicitadas = comandasNoCanceladas.reduce(
+    (total, comanda) => total + comanda.productos.reduce((subtotal, item) => subtotal + item.cantidad, 0),
+    0
+);
+const promedioUnidadesPorComanda = comandasNoCanceladas.length
+    ? unidadesSolicitadas / comandasNoCanceladas.length
+    : 0;
+const porcentajeCanceladas = comandasFiltradas.length
+    ? (comandasCanceladas / comandasFiltradas.length) * 100
+    : 0;
+const comandasMesa = comandasFiltradas.filter((comanda) => comanda.tipoAtencion === "mesa").length;
+const comandasTakeAway = comandasFiltradas.filter((comanda) => comanda.tipoAtencion === "take-away").length;
+const franjasHorarias = [
+    { nombre: "Mañana · 06 a 11", desde: 6, hasta: 11, cantidad: 0 },
+    { nombre: "Mediodía · 12 a 15", desde: 12, hasta: 15, cantidad: 0 },
+    { nombre: "Tarde · 16 a 19", desde: 16, hasta: 19, cantidad: 0 },
+    { nombre: "Noche · 20 a 05", desde: 20, hasta: 5, cantidad: 0 }
+];
+comandasNoCanceladas.forEach((comanda) => {
+    const hora = new Date(comanda.fechaCreacion).getHours();
+    const franja = franjasHorarias.find((item) => item.desde <= item.hasta
+        ? hora >= item.desde && hora <= item.hasta
+        : hora >= item.desde || hora <= item.hasta);
+    if (franja) franja.cantidad += 1;
+});
+const maxComandasPorFranja = Math.max(1, ...franjasHorarias.map((franja) => franja.cantidad));
 
 const aplicarRangoFechas = () => {
     const fechaHoy = fechaLocalISO(new Date());
@@ -157,12 +187,6 @@ const imprimirInforme = () => {
             comanda.estado === "finalizada"
     ).length;
 
-    const comandasCanceladas =
-        comandasFiltradas.filter(
-            (comanda) =>
-                comanda.estado === "cancelada"
-        ).length;
-
     const comandasPendientes =
         comandasFiltradas.filter(
             (comanda) =>
@@ -186,7 +210,7 @@ const imprimirInforme = () => {
         number
     >();
 
-    comandasFiltradas.forEach((comanda) => {
+    comandasNoCanceladas.forEach((comanda) => {
 
         comanda.productos.forEach((item) => {
 
@@ -409,7 +433,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                         <strong>
                             {comandasFinalizadas}
                         </strong>
-                        <p>Finalizadas</p>
+                        <p>Entregadas</p>
                     </div>
 
                     <div className="informe-card">
@@ -420,8 +444,50 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                         <p>Canceladas</p>
                     </div>
 
+                    <div className="informe-card">
+                        <span>📦</span>
+                        <strong>{unidadesSolicitadas}</strong>
+                        <p>Unidades solicitadas</p>
+                    </div>
+
+                    <div className="informe-card">
+                        <span>📈</span>
+                        <strong>{promedioUnidadesPorComanda.toLocaleString("es-AR", { maximumFractionDigits: 1 })}</strong>
+                        <p>Unidades por comanda</p>
+                    </div>
+
+                    <div className="informe-card">
+                        <span>↩️</span>
+                        <strong>{porcentajeCanceladas.toLocaleString("es-AR", { maximumFractionDigits: 1 })}%</strong>
+                        <p>Comandas canceladas</p>
+                    </div>
+
                 </div>
 
+            </section>
+
+            <section className="informes-seccion">
+                <h2>🍽️ Tipo de atención</h2>
+                <p className="informe-actividad-ayuda">Distribución de las comandas del período seleccionado.</p>
+                <div className="informe-lista">
+                    <div><span>En mesa</span><strong>{comandasMesa}</strong></div>
+                    <div><span>Take away</span><strong>{comandasTakeAway}</strong></div>
+                </div>
+            </section>
+
+            <section className="informes-seccion">
+                <h2>🕒 Comandas por franja horaria</h2>
+                <p className="informe-actividad-ayuda">Se excluyen las comandas canceladas.</p>
+                <div className="informe-franjas">
+                    {franjasHorarias.map((franja) => (
+                        <div className="informe-franja" key={franja.nombre}>
+                            <div className="informe-franja-etiqueta"><span>{franja.nombre}</span><strong>{franja.cantidad}</strong></div>
+                            <div className="informe-franja-fondo" aria-hidden="true">
+                                <div className="informe-franja-barra" style={{ width: `${(franja.cantidad / maxComandasPorFranja) * 100}%` }} />
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </section>
 
             {/* ==========================
@@ -456,7 +522,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                     </div>
 
                     <div>
-                        <span>Finalizadas</span>
+                        <span>Entregadas</span>
                         <strong>
                             {comandasFinalizadas}
                         </strong>
@@ -566,6 +632,33 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
 
                 </div>
 
+            </section>
+
+            <section className="informes-seccion">
+                <h2>🕘 Actividad reciente</h2>
+                <p className="informe-actividad-ayuda">Últimos 100 registros, del más nuevo al más antiguo.</p>
+                {!auditoriaDisponible ? (
+                    <p className="informe-actividad-ayuda">
+                        El historial se habilita al aplicar la migración de auditoría en Supabase.
+                    </p>
+                ) : actividad.length === 0 ? (
+                    <p className="informe-ok">Todavía no hay cambios registrados.</p>
+                ) : (
+                    <div className="informe-actividad-lista" role="list" aria-label="Actividad reciente del sistema">
+                        {actividad.map((evento) => (
+                            <article className="informe-actividad-item" role="listitem" key={evento.id}>
+                                <div className="informe-actividad-detalle">
+                                    <strong>{evento.accion}</strong>
+                                    <p>{evento.detalle}</p>
+                                </div>
+                                <div className="informe-actividad-meta">
+                                    <strong>{evento.usuarioNombre}</strong>
+                                    <time dateTime={evento.fecha}>{new Date(evento.fecha).toLocaleString("es-AR")}</time>
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+                )}
             </section>
 
             {/* ==========================

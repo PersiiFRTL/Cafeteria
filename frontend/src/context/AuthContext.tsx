@@ -10,6 +10,7 @@ import type { Session } from "@supabase/supabase-js";
 
 import type { RolEmpleado } from "../config/permisos";
 import { supabase } from "../services/supabase";
+import { consultarSesion, solicitarCierreSesion, solicitarInicioSesion } from "../services/autenticacion";
 
 interface UsuarioAutenticado {
     id: string;
@@ -49,34 +50,13 @@ interface AuthProviderProps {
     children: ReactNode;
 }
 
-const rolesValidos: RolEmpleado[] = ["ADMINISTRADOR", "EMPLEADO", "COCINA"];
-
 async function consultarPerfil(session: Session): Promise<{
     usuario?: UsuarioAutenticado;
     mensajeError?: string;
 }> {
-    const { data: perfil, error } = await supabase
-        .from("perfiles")
-        .select("id, nombre, email, rol, activo")
-        .eq("id", session.user.id)
-        .maybeSingle();
-
-    if (error || !perfil) {
-        return { mensajeError: "No se encontró el perfil de este usuario en la cafetería." };
-    }
-
-    if (!perfil.activo || !rolesValidos.includes(perfil.rol as RolEmpleado)) {
-        return { mensajeError: "Tu cuenta está desactivada o no tiene un rol válido." };
-    }
-
-    return {
-        usuario: {
-            id: perfil.id,
-            nombre: perfil.nombre,
-            email: perfil.email ?? session.user.email ?? "",
-            rol: perfil.rol as RolEmpleado
-        }
-    };
+    const resultado = await consultarSesion(session.access_token);
+    if (!resultado.correcto) return { mensajeError: resultado.mensaje };
+    return { usuario: { ...resultado.usuario, rol: resultado.usuario.rol as RolEmpleado } };
 }
 
 
@@ -136,30 +116,16 @@ export function AuthProvider({
     }> => {
 
         setErrorSesion(null);
-        const { data, error } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
-            password
-        });
+        const resultado = await solicitarInicioSesion(email.trim(), password);
+        if (!resultado.correcto) return resultado;
 
-        if (error || !data.session) {
-            return {
-                correcto: false,
-                mensaje: error?.status === 400
-                    ? "Email o contraseña incorrectos."
-                    : "No se pudo iniciar sesión con Supabase."
-            };
+        const { error } = await supabase.auth.setSession(resultado.session);
+        if (error) {
+            await solicitarCierreSesion(resultado.session.access_token).catch(() => undefined);
+            return { correcto: false, mensaje: "No se pudo guardar la sesión en este dispositivo." };
         }
 
-        const resultadoPerfil = await consultarPerfil(data.session);
-        if (!resultadoPerfil.usuario) {
-            await supabase.auth.signOut();
-            return {
-                correcto: false,
-                mensaje: resultadoPerfil.mensajeError ?? "No se pudo cargar el perfil."
-            };
-        }
-
-        setUsuario(resultadoPerfil.usuario);
+        setUsuario({ ...resultado.usuario, rol: resultado.usuario.rol as RolEmpleado });
         setErrorSesion(null);
         setEstadoSesion("lista");
         return { correcto: true };
@@ -167,8 +133,17 @@ export function AuthProvider({
 
 
     const cerrarSesion = async () => {
-        await supabase.auth.signOut();
-        setUsuario(null);
+        const { data: { session } } = await supabase.auth.getSession();
+        try {
+            if (session) await solicitarCierreSesion(session.access_token);
+        } catch {
+            // El SDK intenta revocar la sesión actual directamente si el backend no respondió.
+        }
+        try {
+            await supabase.auth.signOut({ scope: "local" });
+        } finally {
+            setUsuario(null);
+        }
     };
 
 

@@ -1,4 +1,3 @@
-import empleados from "../data/empleados.json";
 import materiasPrimas from "../data/materiasPrimas.json";
 import mesas from "../data/mesas.json";
 import productos from "../data/productos.json";
@@ -12,7 +11,6 @@ export interface DatosInicialesCafeteria {
     materiasPrimas: typeof materiasPrimas;
     recetas: typeof recetas;
     producciones: typeof producciones;
-    empleados: typeof empleados;
 }
 
 export interface CafeteriaRepository {
@@ -26,6 +24,5 @@ export const repositorioDemo: CafeteriaRepository = {
         materiasPrimas: structuredClone(materiasPrimas),
         recetas: structuredClone(recetas),
         producciones: structuredClone(producciones),
-        empleados: structuredClone(empleados)
     })
 };

@@ -11,6 +11,7 @@ import type {
 } from "../types/mapa";
 
 import { repositorioSupabaseCatalogo } from "../services/supabaseCatalogoRepository";
+import { repositorioPersonal } from "../services/personalRepository";
 import { useAuth } from "./AuthContext";
 import {
     obtenerComandaActivaDeMesa
@@ -23,10 +24,9 @@ import {
 type RolEmpleado = "ADMINISTRADOR" | "EMPLEADO" | "COCINA";
 
 interface Empleado {
-    id: number;
+    id: string;
     nombre: string;
     email: string;
-    password: string;
     rol: RolEmpleado;
     activo: boolean;
 }
@@ -88,6 +88,7 @@ interface Produccion {
     productoId: number;
     cantidad: number;
     fecha: string;
+    responsableNombre?: string;
     ingredientes?: IngredienteReceta[];
 }
 
@@ -118,7 +119,18 @@ interface OperacionStock {
     referenciaId: number;
     fecha: string;
     descripcion: string;
+    responsableNombre?: string;
     movimientos: MovimientoStock[];
+}
+
+interface EventoActividad {
+    id: number;
+    usuarioNombre: string;
+    entidad: string;
+    entidadId: string;
+    accion: string;
+    detalle: string;
+    fecha: string;
 }
 
 interface ProductoComanda {
@@ -141,6 +153,7 @@ interface Comanda {
     };
     horaRetiro?: string;
     productos: ProductoComanda[];
+    responsableNombre?: string;
     estado:
         | "pendiente"
         | "preparando"
@@ -391,6 +404,10 @@ interface CafeteriaContextType {
 
     operacionesStock: OperacionStock[];
 
+    actividad: EventoActividad[];
+
+    auditoriaDisponible: boolean;
+
     elementosMapa: ElementoMapa[];
 
     agregarElementoMapa: (
@@ -412,20 +429,20 @@ agregarEmpleado: (
     email: string,
     password: string,
     rol: RolEmpleado
-) => void;
+) => Promise<void>;
 
 editarEmpleado: (
-    id: number,
+    id: string,
     nombre: string,
     email: string,
     password: string,
     rol: RolEmpleado
-) => void;
+) => Promise<void>;
 
 cambiarEstadoEmpleado: (
-    id: number,
+    id: string,
     activo: boolean
-) => void;
+) => Promise<void>;
 }
 
 const CafeteriaContext =
@@ -475,7 +492,11 @@ export function CafeteriaProvider({
     const [operacionesStock, setOperacionesStock] =
         useState<OperacionStock[]>([]);
 
-    const cargarEstadoRemoto = useCallback(async (cargarDatosDeDemostracion = false) => {
+    const [actividad, setActividad] = useState<EventoActividad[]>([]);
+
+    const [auditoriaDisponible, setAuditoriaDisponible] = useState(false);
+
+    const cargarEstadoRemoto = useCallback(async (cargarPersonal = false) => {
         const datos = await repositorioSupabaseCatalogo.cargarDatosIniciales();
         const mapaGuardado = cargarMapa();
         const mapaRemoto = datos.elementosMapa;
@@ -492,11 +513,16 @@ export function CafeteriaProvider({
         setComandas(datos.comandas as unknown as Comanda[]);
         setMovimientosStock(datos.movimientosStock as unknown as MovimientoStock[]);
         setOperacionesStock(datos.operacionesStock as unknown as OperacionStock[]);
+        setActividad(datos.actividad);
+        setAuditoriaDisponible(datos.auditoriaDisponible);
         setProducciones(datos.producciones);
-        if (cargarDatosDeDemostracion) {
-            setEmpleados(datos.empleados as Empleado[]);
+        if (usuario?.rol === "ADMINISTRADOR" && cargarPersonal) {
+            const personal = await repositorioPersonal.listar();
+            setEmpleados(personal);
+        } else if (usuario?.rol !== "ADMINISTRADOR") {
+            setEmpleados([]);
         }
-    }, []);
+    }, [usuario?.rol]);
 
     const recargarDatos = useCallback(async () => {
         setEstadoDatos("cargando");
@@ -564,7 +590,7 @@ export function CafeteriaProvider({
             await refrescarTrasOperacion();
             return true;
         } catch (error) {
-            setErrorDatos(error instanceof Error ? error.message : "No se pudo finalizar la comanda.");
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo marcar la comanda como entregada.");
             return false;
         }
     };
@@ -702,105 +728,36 @@ export function CafeteriaProvider({
 
     // Empleados 
 
-    const agregarEmpleado = (
-    nombre: string,
-    email: string,
-    password: string,
-    rol: RolEmpleado
-) => {
-    const emailNormalizado = email.trim().toLowerCase();
-
-    if (
-        nombre.trim() === "" ||
-        emailNormalizado === "" ||
-        password.trim() === ""
-    ) {
-        return;
-    }
-
-    const emailDuplicado = empleados.some(
-        (empleado) =>
-            empleado.email.trim().toLowerCase() === emailNormalizado
-    );
-
-    if (emailDuplicado) {
-        return;
-    }
-
-    const nuevoId =
-        empleados.length > 0
-            ? Math.max(...empleados.map((empleado) => empleado.id)) + 1
-            : 1;
-
-    const nuevoEmpleado: Empleado = {
-        id: nuevoId,
-        nombre: nombre.trim(),
-        email: emailNormalizado,
-        password,
-        rol,
-        activo: true
+    const agregarEmpleado = async (
+        nombre: string,
+        email: string,
+        password: string,
+        rol: RolEmpleado
+    ): Promise<void> => {
+        const empleado = await repositorioPersonal.crear({ nombre, email, password, rol });
+        setEmpleados((actuales) => [...actuales, empleado]);
     };
 
-    setEmpleados((empleadosActuales) => [
-        ...empleadosActuales,
-        nuevoEmpleado
-    ]);
-};
-    const editarEmpleado = (
-    id: number,
-    nombre: string,
-    email: string,
-    password: string,
-    rol: RolEmpleado
-) => {
-    const emailNormalizado = email.trim().toLowerCase();
+    const editarEmpleado = async (
+        id: string,
+        nombre: string,
+        email: string,
+        password: string,
+        rol: RolEmpleado
+    ): Promise<void> => {
+        const actualizado = await repositorioPersonal.editar(id, {
+            nombre,
+            email,
+            ...(password ? { password } : {}),
+            rol
+        });
+        setEmpleados((actuales) => actuales.map((empleado) => empleado.id === id ? actualizado : empleado));
+    };
 
-    if (
-        nombre.trim() === "" ||
-        emailNormalizado === ""
-    ) {
-        return;
-    }
-
-    const emailDuplicado = empleados.some(
-        (empleado) =>
-            empleado.id !== id &&
-            empleado.email.trim().toLowerCase() === emailNormalizado
-    );
-
-    if (emailDuplicado) {
-        return;
-    }
-
-    setEmpleados((empleadosActuales) =>
-        empleadosActuales.map((empleado) =>
-            empleado.id === id
-                ? {
-                      ...empleado,
-                      nombre: nombre.trim(),
-                      email: emailNormalizado,
-                      password,
-                      rol
-                  }
-                : empleado
-        )
-    );
-};
-    const cambiarEstadoEmpleado = (
-    id: number,
-    activo: boolean
-) => {
-    setEmpleados((empleadosActuales) =>
-        empleadosActuales.map((empleado) =>
-            empleado.id === id
-                ? {
-                      ...empleado,
-                      activo
-                  }
-                : empleado
-        )
-    );
-};
+    const cambiarEstadoEmpleado = async (id: string, activo: boolean): Promise<void> => {
+        const actualizado = await repositorioPersonal.cambiarEstado(id, activo);
+        setEmpleados((actuales) => actuales.map((empleado) => empleado.id === id ? actualizado : empleado));
+    };
 
     // ==========================
     // REGISTRAR PRODUCCIÓN
@@ -1201,6 +1158,8 @@ const procesarStockComanda = async (
 
                 movimientosStock,
                 operacionesStock,
+                actividad,
+                auditoriaDisponible,
 
                 empleados,
                 agregarEmpleado,

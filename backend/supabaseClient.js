@@ -8,6 +8,7 @@ const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const publishableKey =
     process.env.SUPABASE_PUBLISHABLE_KEY ||
     process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+const secretKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabase = supabaseUrl && publishableKey
     ? createClient(supabaseUrl, publishableKey, {
@@ -18,6 +19,35 @@ const supabase = supabaseUrl && publishableKey
         }
     })
     : null;
+
+function crearClientePublico(token) {
+    if (!supabaseUrl || !publishableKey) {
+        throw new Error("Supabase no está configurado.");
+    }
+
+    return createClient(supabaseUrl, publishableKey, {
+        auth: {
+            autoRefreshToken: false,
+            detectSessionInUrl: false,
+            persistSession: false
+        },
+        ...(token ? { global: { headers: { Authorization: `Bearer ${token}` } } } : {})
+    });
+}
+
+function crearClienteAdministrador() {
+    if (!supabaseUrl || !secretKey) {
+        throw new Error("Falta configurar la clave secreta de Supabase en el backend.");
+    }
+
+    return createClient(supabaseUrl, secretKey, {
+        auth: {
+            autoRefreshToken: false,
+            detectSessionInUrl: false,
+            persistSession: false
+        }
+    });
+}
 
 async function verificarConexionSupabase() {
     if (!supabase || !supabaseUrl || !publishableKey) {
@@ -58,4 +88,12 @@ async function verificarConexionSupabase() {
     }
 }
 
-module.exports = { supabase, verificarConexionSupabase };
+module.exports = {
+    supabase,
+    crearClientePublico,
+    crearClienteAdministrador,
+    verificarConexionSupabase,
+    supabaseUrl,
+    publishableKey,
+    secretKeyConfigurada: Boolean(secretKey)
+};

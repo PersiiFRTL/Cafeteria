@@ -24,7 +24,7 @@ function Empleados() {
         useState(false);
 
     const [empleadoEditando, setEmpleadoEditando] =
-        useState<number | null>(null);
+        useState<string | null>(null);
 
 
     const [nombre, setNombre] =
@@ -34,9 +34,6 @@ function Empleados() {
         useState("");
 
     const [password, setPassword] =
-        useState("");
-
-    const [passwordOriginal, setPasswordOriginal] =
         useState("");
 
     const [mostrarPassword, setMostrarPassword] =
@@ -57,7 +54,6 @@ function Empleados() {
 
         setPassword("");
 
-        setPasswordOriginal("");
 
         setMostrarPassword(false);
 
@@ -67,20 +63,19 @@ function Empleados() {
     };
 
 
-    const crearEmpleado = () => {
+    const crearEmpleado = async () => {
 
         if (!validarEmpleado()) {
             return;
         }
 
-        agregarEmpleado(
-            nombre,
-            email,
-            password,
-            rol
-        );
-
-        mostrarToast("Empleado creado correctamente.");
+        try {
+            await agregarEmpleado(nombre, email, password, rol);
+            mostrarToast("Empleado creado correctamente.");
+        } catch (error) {
+            mostrarToast(error instanceof Error ? error.message : "No se pudo crear el empleado.", "error");
+            return;
+        }
 
         limpiarFormulario();
 
@@ -89,7 +84,7 @@ function Empleados() {
 
 
     const comenzarEdicion = (
-        id: number
+        id: string
     ) => {
 
         const empleado =
@@ -108,9 +103,7 @@ function Empleados() {
 
         setEmail(empleado.email);
 
-        setPassword(empleado.password);
-
-        setPasswordOriginal(empleado.password);
+        setPassword("");
 
         setMostrarPassword(false);
 
@@ -128,28 +121,26 @@ function Empleados() {
     };
 
 
-    const guardarEdicion = () => {
+    const guardarEdicion = async () => {
 
         if (empleadoEditando === null || !validarEmpleado(empleadoEditando)) {
             return;
         }
 
-        editarEmpleado(
-            empleadoEditando,
-            nombre,
-            email,
-            password,
-            rol
-        );
-
-        mostrarToast("Cambios del empleado guardados.");
+        try {
+            await editarEmpleado(empleadoEditando, nombre, email, password, rol);
+            mostrarToast("Cambios del empleado guardados.");
+        } catch (error) {
+            mostrarToast(error instanceof Error ? error.message : "No se pudieron guardar los cambios.", "error");
+            return;
+        }
 
         setEmpleadoEditando(null);
 
         limpiarFormulario();
     };
 
-    const validarEmpleado = (idExcluido: number | null = null) => {
+    const validarEmpleado = (idExcluido: string | null = null) => {
         if (!nombre.trim()) {
             setErrorFormulario("Ingresá el nombre del empleado.");
             return false;
@@ -172,7 +163,7 @@ function Empleados() {
             return false;
         }
 
-        const cambioContrasena = idExcluido === null || password !== passwordOriginal;
+        const cambioContrasena = idExcluido === null || password.length > 0;
         if (cambioContrasena && !contrasenaValida(password)) {
             setErrorFormulario("La contraseña debe tener al menos 8 caracteres e incluir una letra y un número.");
             return false;
@@ -182,9 +173,13 @@ function Empleados() {
         return true;
     };
 
-    const alternarEstadoEmpleado = (id: number, activo: boolean) => {
-        cambiarEstadoEmpleado(id, activo);
-        mostrarToast(activo ? "Empleado activado." : "Empleado desactivado.");
+    const alternarEstadoEmpleado = async (id: string, activo: boolean) => {
+        try {
+            await cambiarEstadoEmpleado(id, activo);
+            mostrarToast(activo ? "Empleado activado." : "Empleado desactivado.");
+        } catch (error) {
+            mostrarToast(error instanceof Error ? error.message : "No se pudo cambiar el estado del empleado.", "error");
+        }
     };
 
 
@@ -397,7 +392,7 @@ function Empleados() {
                     </span>
 
                     <span>
-                        Contraseña
+                        Acceso
                     </span>
 
                     <span>
@@ -458,14 +453,13 @@ function Empleados() {
                                     />
 
 
-                                    <div className="empleado-password-field" data-label="Contraseña">
+                                    <div className="empleado-password-field" data-label="Nueva contraseña">
                                         <input
                                             type={mostrarPassword ? "text" : "password"}
-                                            placeholder="Contraseña"
+                                            placeholder="Nueva contraseña (opcional)"
                                             value={password}
-                                            required
                                             autoComplete="new-password"
-                                            aria-label="Contraseña"
+                                            aria-label="Nueva contraseña opcional"
                                             onChange={(e) => {
                                                 setPassword(e.target.value);
                                                 setErrorFormulario("");
@@ -481,7 +475,7 @@ function Empleados() {
                                             {mostrarPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                         </button>
                                         <small className="empleado-password-hint">
-                                            Mínimo 8 caracteres, con al menos una letra y un número.
+                                            Dejala vacía para conservarla. Si la cambiás: mínimo 8 caracteres, una letra y un número.
                                         </small>
                                     </div>
 
@@ -580,8 +574,8 @@ function Empleados() {
                                 </span>
 
 
-                                <span data-label="Contraseña">
-                                    ••••••••
+                                <span data-label="Acceso">
+                                    Cuenta de Auth
                                 </span>
 
 
