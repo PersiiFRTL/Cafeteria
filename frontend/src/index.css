@@ -3159,6 +3159,34 @@ body {
     font-size: 16px;
 }
 
+.informe-franjas {
+    display: grid;
+    gap: 16px;
+}
+
+.informe-franja-etiqueta {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 7px;
+    color: #493d35;
+}
+
+.informe-franja-fondo {
+    height: 10px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: #f3e9df;
+}
+
+.informe-franja-barra {
+    height: 100%;
+    min-width: 0;
+    border-radius: inherit;
+    background: #a78a74;
+    transition: width 180ms ease;
+}
+
 /* Estados vacíos */
 
 .informe-vacio {
