@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
+import { Ban } from "lucide-react";
 
 function AccesoDenegado() {
     return (
         <div className="acceso-denegado">
             <div className="acceso-denegado-card">
                 <div className="acceso-denegado-icon">
-                    🚫
+                    <Ban className="ui-icon" aria-hidden="true" />
                 </div>
 
                 <h1>Acceso denegado</h1>

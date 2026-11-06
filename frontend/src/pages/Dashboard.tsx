@@ -1,5 +1,6 @@
 import StatCard from "../components/StatCard";
 import PendingOrders from "../components/PendingOrders";
+import { Armchair, CircleCheck, ClipboardList, Package } from "lucide-react";
 import { useDashboard } from "../context/useDashboard";
 import { contarComandasFinalizadasDelDia } from "../domain/operacionesCafeteria";
 
@@ -52,25 +53,25 @@ function Dashboard() {
                 <StatCard
                     titulo="Mesas ocupadas"
                     valor={String(mesasOcupadas)}
-                    icono="🪑"
+                    icono={<Armchair className="ui-icon" aria-hidden="true" />}
                 />
 
                 <StatCard
                     titulo="Comandas pendientes"
                     valor={String(comandasPendientes)}
-                    icono="📋"
+                    icono={<ClipboardList className="ui-icon" aria-hidden="true" />}
                 />
 
                 <StatCard
                     titulo="Comandas del día"
                     valor={String(comandasListasHoy)}
-                    icono="✅"
+                    icono={<CircleCheck className="ui-icon" aria-hidden="true" />}
                 />
 
                 <StatCard
                     titulo="Stock bajo"
                     valor={String(cantidadStockBajo)}
-                    icono="📦"
+                    icono={<Package className="ui-icon" aria-hidden="true" />}
                 />
 
             </div>

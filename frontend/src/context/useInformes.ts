@@ -10,6 +10,8 @@ export function useInformes() {
         materiasPrimas: cafeteria.materiasPrimas,
         movimientosStock: cafeteria.movimientosStock,
         actividad: cafeteria.actividad,
-        auditoriaDisponible: cafeteria.auditoriaDisponible
+        auditoriaDisponible: cafeteria.auditoriaDisponible,
+        empleados: cafeteria.empleados,
+        operacionesStock: cafeteria.operacionesStock
     };
 }

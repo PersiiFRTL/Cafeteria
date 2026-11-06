@@ -1,7 +1,11 @@
 # Tareas pendientes
 
 ## Frontend
-- [ ] ...
+- [ ] Que las mesas se puedan poner en el estado de ocupado sin tener una comanda, ya que se puede usar esa mesa para agrandar otra mesa
+- [ ] Quiero que agregar un filtro mas a comandas y preparacion, que sea el de pendientes y en preparacion. que sea un filtro conjunto de estos dos estados.
+- [ ] Agregar mas informacion a informes
+- [ ] Poner otro icono mas acorde
+- [ ] fixear la PWA
 
 ## Backend e integración
 - [x] Conectar Express con Supabase y exponer el estado de conexión.

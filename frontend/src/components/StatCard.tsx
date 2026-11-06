@@ -1,7 +1,9 @@
+import type { ReactNode } from "react";
+
 interface StatCardProps {
     titulo: string;
     valor: string;
-    icono: string;
+    icono: ReactNode;
 }
 
 function StatCard({ titulo, valor, icono }: StatCardProps) {

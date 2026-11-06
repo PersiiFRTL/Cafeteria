@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Pencil } from "lucide-react";
 import { useCatalogo } from "../context/useCatalogo";
 import { coincideBusqueda, formatearPrecio, normalizarTexto, parsearPrecio } from "../validaciones";
 import ModalConfirmacion from "../components/ModalConfirmacion";
@@ -767,7 +768,8 @@ function Productos() {
                                             )
                                         }
                                     >
-                                        ✏ Editar
+                                        <Pencil className="ui-icon" aria-hidden="true" />
+                                        Editar
                                     </button>
 
                                     <button

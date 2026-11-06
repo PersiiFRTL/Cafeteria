@@ -1,4 +1,19 @@
 import { useEffect, useState } from "react";
+import {
+    ChartNoAxesColumnIncreasing,
+    CircleCheck,
+    CircleX,
+    ClipboardList,
+    Clock3,
+    History,
+    Package,
+    RotateCcw,
+    ShoppingBag,
+    TriangleAlert,
+    TrendingUp,
+    UsersRound,
+    Utensils,
+} from "lucide-react";
 import { useInformes } from "../context/useInformes";
 
 const INFORMES_PERIODO_KEY = "cafeteria-informes-periodo";
@@ -39,7 +54,9 @@ function Informes() {
         materiasPrimas,
         movimientosStock,
         actividad,
-        auditoriaDisponible
+        auditoriaDisponible,
+        empleados,
+        operacionesStock
     } = useInformes();
 
     const [periodo, setPeriodo] = useState<
@@ -120,6 +137,48 @@ const porcentajeCanceladas = comandasFiltradas.length
     : 0;
 const comandasMesa = comandasFiltradas.filter((comanda) => comanda.tipoAtencion === "mesa").length;
 const comandasTakeAway = comandasFiltradas.filter((comanda) => comanda.tipoAtencion === "take-away").length;
+const operacionesStockFiltradas = operacionesStock.filter((operacion) => dentroDelPeriodo(operacion.fecha));
+const actividadFiltrada = actividad.filter((evento) => dentroDelPeriodo(evento.fecha));
+const resumenEmpleados = new Map<string, {
+    nombre: string;
+    rol: string;
+    activo: boolean;
+    comandas: number;
+    operacionesStock: number;
+    eventos: number;
+}>();
+const obtenerResumenEmpleado = (nombre: string) => {
+    const nombreNormalizado = nombre.trim() || "Usuario desconocido";
+    const clave = nombreNormalizado.toLocaleLowerCase("es-AR");
+    let resumen = resumenEmpleados.get(clave);
+    if (!resumen) {
+        const empleado = empleados.find((item) => item.nombre.trim().toLocaleLowerCase("es-AR") === clave);
+        resumen = {
+            nombre: empleado?.nombre ?? nombreNormalizado,
+            rol: empleado?.rol ?? "Histórico",
+            activo: empleado?.activo ?? false,
+            comandas: 0,
+            operacionesStock: 0,
+            eventos: 0
+        };
+        resumenEmpleados.set(clave, resumen);
+    }
+    return resumen;
+};
+empleados.forEach((empleado) => { obtenerResumenEmpleado(empleado.nombre); });
+comandasFiltradas.forEach((comanda) => {
+    if (comanda.responsableNombre) obtenerResumenEmpleado(comanda.responsableNombre).comandas += 1;
+});
+operacionesStockFiltradas.forEach((operacion) => {
+    if (operacion.responsableNombre) obtenerResumenEmpleado(operacion.responsableNombre).operacionesStock += 1;
+});
+actividadFiltrada.forEach((evento) => {
+    obtenerResumenEmpleado(evento.usuarioNombre).eventos += 1;
+});
+const empleadosOrdenados = Array.from(resumenEmpleados.values()).sort((a, b) =>
+    (b.comandas + b.operacionesStock + b.eventos) - (a.comandas + a.operacionesStock + a.eventos)
+    || a.nombre.localeCompare(b.nombre, "es-AR")
+);
 const franjasHorarias = [
     { nombre: "Mañana · 06 a 11", desde: 6, hasta: 11, cantidad: 0 },
     { nombre: "Mediodía · 12 a 15", desde: 12, hasta: 15, cantidad: 0 },
@@ -416,12 +475,12 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
 
             <section className="informes-seccion">
 
-                <h2>📊 Resumen general</h2>
+                <h2><ChartNoAxesColumnIncreasing className="ui-icon" aria-hidden="true" /> Resumen general</h2>
 
                 <div className="informes-tarjetas">
 
                     <div className="informe-card">
-                        <span>📋</span>
+                        <span><ClipboardList className="ui-icon" aria-hidden="true" /></span>
                         <strong>
                             {comandasFiltradas.length}
                         </strong>
@@ -429,7 +488,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                     </div>
 
                     <div className="informe-card">
-                        <span>✅</span>
+                        <span><CircleCheck className="ui-icon" aria-hidden="true" /></span>
                         <strong>
                             {comandasFinalizadas}
                         </strong>
@@ -437,7 +496,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                     </div>
 
                     <div className="informe-card">
-                        <span>❌</span>
+                        <span><CircleX className="ui-icon" aria-hidden="true" /></span>
                         <strong>
                             {comandasCanceladas}
                         </strong>
@@ -445,19 +504,19 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                     </div>
 
                     <div className="informe-card">
-                        <span>📦</span>
+                        <span><Package className="ui-icon" aria-hidden="true" /></span>
                         <strong>{unidadesSolicitadas}</strong>
                         <p>Unidades solicitadas</p>
                     </div>
 
                     <div className="informe-card">
-                        <span>📈</span>
+                        <span><TrendingUp className="ui-icon" aria-hidden="true" /></span>
                         <strong>{promedioUnidadesPorComanda.toLocaleString("es-AR", { maximumFractionDigits: 1 })}</strong>
                         <p>Unidades por comanda</p>
                     </div>
 
                     <div className="informe-card">
-                        <span>↩️</span>
+                        <span><RotateCcw className="ui-icon" aria-hidden="true" /></span>
                         <strong>{porcentajeCanceladas.toLocaleString("es-AR", { maximumFractionDigits: 1 })}%</strong>
                         <p>Comandas canceladas</p>
                     </div>
@@ -467,7 +526,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
             </section>
 
             <section className="informes-seccion">
-                <h2>🍽️ Tipo de atención</h2>
+                <h2><Utensils className="ui-icon" aria-hidden="true" /> Tipo de atención</h2>
                 <p className="informe-actividad-ayuda">Distribución de las comandas del período seleccionado.</p>
                 <div className="informe-lista">
                     <div><span>En mesa</span><strong>{comandasMesa}</strong></div>
@@ -476,7 +535,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
             </section>
 
             <section className="informes-seccion">
-                <h2>🕒 Comandas por franja horaria</h2>
+                <h2><Clock3 className="ui-icon" aria-hidden="true" /> Comandas por franja horaria</h2>
                 <p className="informe-actividad-ayuda">Se excluyen las comandas canceladas.</p>
                 <div className="informe-franjas">
                     {franjasHorarias.map((franja) => (
@@ -490,13 +549,50 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                 </div>
             </section>
 
+            <section className="informes-seccion">
+                <h2><UsersRound className="ui-icon" aria-hidden="true" /> Actividad por empleado</h2>
+                <p className="informe-actividad-ayuda">
+                    Comandas creadas y operaciones de stock en el período seleccionado.
+                </p>
+                {empleadosOrdenados.length === 0 ? (
+                    <p className="informe-vacio">No hay empleados ni actividad registrada para mostrar.</p>
+                ) : (
+                    <div className="informe-empleados-tabla" role="table" aria-label="Actividad por empleado">
+                        <div className="informe-empleados-fila informe-empleados-encabezado" role="row">
+                            <strong role="columnheader">Empleado</strong>
+                            <strong role="columnheader">Estado</strong>
+                            <strong role="columnheader">Comandas</strong>
+                            <strong role="columnheader">Operaciones de stock</strong>
+                        </div>
+                        {empleadosOrdenados.map((empleado) => {
+                            const estadoTexto = empleado.rol === "Histórico" ? "Registro histórico" : empleado.activo ? "Activo" : "Inactivo";
+                            const estadoClass = empleado.rol === "Histórico" ? "historico" : empleado.activo ? "activo" : "inactivo";
+
+                            return (
+                                <div className="informe-empleados-fila" role="row" key={empleado.nombre}>
+                                    <span role="cell">
+                                        <strong>{empleado.nombre}</strong>
+                                        <small>{empleado.rol}</small>
+                                    </span>
+                                    <span role="cell">
+                                        <span className={`informe-empleado-estado informe-empleado-estado--${estadoClass}`}>{estadoTexto}</span>
+                                    </span>
+                                    <span role="cell">{empleado.comandas}</span>
+                                    <span role="cell">{empleado.operacionesStock}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </section>
+
             {/* ==========================
                 ESTADO COMANDAS
             ========================== */}
 
             <section className="informes-seccion">
 
-                <h2>📋 Estado de comandas</h2>
+                <h2><ClipboardList className="ui-icon" aria-hidden="true" /> Estado de comandas</h2>
 
                 <div className="informe-lista">
 
@@ -545,7 +641,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
 
             <section className="informes-seccion">
 
-                <h2>🛍 Productos más solicitados</h2>
+                <h2><ShoppingBag className="ui-icon" aria-hidden="true" /> Productos más solicitados</h2>
 
                 {productosMasSolicitados.length === 0 ? (
 
@@ -591,7 +687,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
 
             <section className="informes-seccion">
 
-                <h2>📦 Movimientos de stock</h2>
+                <h2><Package className="ui-icon" aria-hidden="true" /> Movimientos de stock</h2>
 
                 <div className="informe-lista">
 
@@ -635,17 +731,17 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
             </section>
 
             <section className="informes-seccion">
-                <h2>🕘 Actividad reciente</h2>
+                <h2><History className="ui-icon" aria-hidden="true" /> Actividad reciente</h2>
                 <p className="informe-actividad-ayuda">Últimos 100 registros, del más nuevo al más antiguo.</p>
                 {!auditoriaDisponible ? (
                     <p className="informe-actividad-ayuda">
                         El historial se habilita al aplicar la migración de auditoría en Supabase.
                     </p>
-                ) : actividad.length === 0 ? (
-                    <p className="informe-ok">Todavía no hay cambios registrados.</p>
+                ) : actividadFiltrada.length === 0 ? (
+                    <p className="informe-ok">No hay cambios registrados en el período seleccionado.</p>
                 ) : (
                     <div className="informe-actividad-lista" role="list" aria-label="Actividad reciente del sistema">
-                        {actividad.map((evento) => (
+                        {actividadFiltrada.map((evento) => (
                             <article className="informe-actividad-item" role="listitem" key={evento.id}>
                                 <div className="informe-actividad-detalle">
                                     <strong>{evento.accion}</strong>
@@ -667,7 +763,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
 
             <section className="informes-seccion">
 
-                <h2>⚠️ Materias primas con stock bajo</h2>
+                <h2><TriangleAlert className="ui-icon" aria-hidden="true" /> Materias primas con stock bajo</h2>
 
                 {materiasPrimasConStockBajo.length === 0 ? (
 

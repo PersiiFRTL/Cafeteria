@@ -1,5 +1,6 @@
 import { useAuth } from "../context/AuthContext";
 import { useLocation, useNavigate } from "react-router-dom";
+import { UserRound } from "lucide-react";
 
 function Topbar() {
     const { usuario, cerrarSesion } = useAuth();
@@ -32,7 +33,7 @@ function Topbar() {
             </div>
 
             <div className="topbar-user">
-                <span className="topbar-notification" aria-hidden="true">🔔</span>
+                <span className="topbar-user-icon" aria-hidden="true"><UserRound className="ui-icon" /></span>
 
                 <button
                     type="button"

@@ -1,10 +1,20 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {
+    CircleCheck,
+    CircleX,
+    Map,
+    Pencil,
+    ShoppingBag,
+    UsersRound,
+    X,
+} from "lucide-react";
 import { tienePermiso } from "../config/permisos";
 import { useAuth } from "../context/AuthContext";
 import { useComandas } from "../context/useComandas";
 import ModalConfirmacion from "../components/ModalConfirmacion";
 import { useToast } from "../context/useToast";
+import { obtenerDimensionesElementoMapa } from "../domain/mapa";
 
 interface Mesa {
     id: number;
@@ -37,7 +47,6 @@ function Mesas() {
         useState<Mesa | null>(null);
     const [confirmarCancelarComanda, setConfirmarCancelarComanda] =
         useState<(() => void | Promise<void>) | null>(null);
-
     const seleccionarMesa = (mesa: Mesa) => {
         setMesaSeleccionada(mesa);
     };
@@ -67,7 +76,8 @@ function Mesas() {
                         onClick={() => navigate("/nueva-comanda?tipo=take-away")}
                         style={{ width: "auto", minWidth: "180px" }}
                     >
-                        🥡 Nuevo take away
+                        <ShoppingBag className="ui-icon" aria-hidden="true" />
+                        Nuevo take away
                     </button>
                 )}
 
@@ -77,7 +87,8 @@ function Mesas() {
                         onClick={() => navigate("/mapa")}
                         style={{ width: "auto", minWidth: "180px" }}
                     >
-                        🗺️ Mapa del local
+                        <Map className="ui-icon" aria-hidden="true" />
+                        Mapa del local
                     </button>
                 )}
 
@@ -88,7 +99,8 @@ function Mesas() {
                 <div className="mesas-sin-mapa" role="status">
 
                     <h2>
-                        🗺️ El mapa todavía no está configurado
+                        <Map className="ui-icon" aria-hidden="true" />
+                        El mapa todavía no está configurado
                     </h2>
 
                     <p>
@@ -116,12 +128,8 @@ function Mesas() {
                                         style={{
                                             left: elemento.x,
                                             top: elemento.y,
-                                            width: elemento.rotacion === 90
-                                                ? elemento.grosor ?? 4
-                                                : elemento.ancho * 40,
-                                            height: elemento.rotacion === 90
-                                                ? elemento.ancho * 40
-                                                : elemento.grosor ?? 4
+                                            width: obtenerDimensionesElementoMapa(elemento).ancho,
+                                            height: obtenerDimensionesElementoMapa(elemento).alto
                                         }}
                                     />
                                 );
@@ -140,8 +148,8 @@ function Mesas() {
                                         style={{
                                             left: elemento.x,
                                             top: elemento.y,
-                                            width: elemento.ancho * 40,
-                                            height: elemento.alto * 40,
+                                            width: obtenerDimensionesElementoMapa(elemento).ancho,
+                                            height: obtenerDimensionesElementoMapa(elemento).alto,
                                             transform:
                                                 `rotate(${elemento.rotacion}deg)`
                                         }}
@@ -163,8 +171,8 @@ function Mesas() {
                                     style={{
                                         left: elemento.x,
                                         top: elemento.y,
-                                        width: elemento.ancho * 40,
-                                        height: elemento.alto * 40,
+                                        width: obtenerDimensionesElementoMapa(elemento).ancho,
+                                        height: obtenerDimensionesElementoMapa(elemento).alto,
                                         transform:
                                             `rotate(${elemento.rotacion}deg)`
                                     }}
@@ -184,14 +192,15 @@ function Mesas() {
                                     </strong>
 
                                     <span>
-                                        👥 {mesa.capacidad}
+                                        {mesa.capacidad} personas
                                     </span>
 
                                     <small>
-                                        {mesa.estado === "libre"
-                                            ? "🟢 Libre"
-                                            : "🔴 Ocupada"
-                                        }
+                                        {mesa.estado === "libre" ? (
+                                            <><CircleCheck className="ui-icon mesa-estado-icon" aria-hidden="true" /> Libre</>
+                                        ) : (
+                                            <><CircleX className="ui-icon mesa-estado-icon" aria-hidden="true" /> Ocupada</>
+                                        )}
                                     </small>
 
                                 </div>
@@ -220,7 +229,8 @@ function Mesas() {
                                 </h2>
 
                                 <p>
-                                    👥 {mesaSeleccionada.capacidad} personas
+                                    <UsersRound className="ui-icon mesa-capacidad-icon" aria-hidden="true" />
+                                    {mesaSeleccionada.capacidad} personas
                                 </p>
 
                             </div>
@@ -229,7 +239,7 @@ function Mesas() {
                                 className="close-button"
                                 onClick={cerrarPanel}
                             >
-                                ✕
+                                <X className="ui-icon" aria-hidden="true" />
                             </button>
 
                         </div>
@@ -240,7 +250,8 @@ function Mesas() {
 
                                 <>
                                     <div className="mesa-panel-status libre">
-                                        🟢 Mesa libre
+                                        <CircleCheck className="ui-icon" aria-hidden="true" />
+                                        Mesa libre
                                     </div>
 
                                     <p>
@@ -255,7 +266,8 @@ function Mesas() {
                                             )
                                         }
                                     >
-                                        📋 Generar comanda
+                                        <ShoppingBag className="ui-icon" aria-hidden="true" />
+                                        Generar comanda
                                     </button>
                                 </>
 
@@ -263,7 +275,8 @@ function Mesas() {
 
                                 <>
                                     <div className="mesa-panel-status ocupada">
-                                        🔴 Mesa ocupada
+                                        <CircleX className="ui-icon" aria-hidden="true" />
+                                        Mesa ocupada
                                     </div>
 
                                     <p>
@@ -291,7 +304,8 @@ function Mesas() {
 
                                             }}
                                         >
-                                            📋 Ver comanda
+                                            <ShoppingBag className="ui-icon" aria-hidden="true" />
+                                            Ver comanda
                                         </button>
 
                                             {(() => {
@@ -312,7 +326,8 @@ function Mesas() {
                                                             )
                                                         }
                                                     >
-                                                        ✏️ Editar comanda
+                                                        <Pencil className="ui-icon" aria-hidden="true" />
+                                                        Editar comanda
                                                     </button>
                                                 );
                                             })()}
@@ -342,7 +357,8 @@ function Mesas() {
                                                         mostrarToast("Comanda cancelada y mesa liberada.");
                                                     })}
                                                 >
-                                                    ✕ Cancelar comanda y liberar mesa
+                                                    <X className="ui-icon" aria-hidden="true" />
+                                                    Cancelar comanda y liberar mesa
                                                 </button>
 
                                             );

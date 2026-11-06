@@ -1,4 +1,13 @@
 import { useEffect, useState } from "react";
+import {
+    ArrowDownToLine,
+    ArrowUpFromLine,
+    ClipboardList,
+    Factory,
+    ShoppingBag,
+    TriangleAlert,
+    Wheat,
+} from "lucide-react";
 import { useStock } from "../context/useStock";
 import { coincideBusqueda, normalizarTexto, numeroValido } from "../validaciones";
 import { useToast } from "../context/useToast";
@@ -412,7 +421,8 @@ function Stock() {
                         cambiarVista("materiasPrimas")
                     }
                 >
-                    🧂 Materias primas
+                    <Wheat className="ui-icon" aria-hidden="true" />
+                    Materias primas
                 </button>
 
 
@@ -426,7 +436,8 @@ function Stock() {
                         cambiarVista("productos")
                     }
                 >
-                    🛍 Productos
+                    <ShoppingBag className="ui-icon" aria-hidden="true" />
+                    Productos
                 </button>
 
 
@@ -440,7 +451,8 @@ function Stock() {
                         cambiarVista("movimientos")
                     }
                 >
-                    📋 Movimientos
+                    <ClipboardList className="ui-icon" aria-hidden="true" />
+                    Movimientos
                 </button>
 
             </div>
@@ -846,7 +858,8 @@ function Stock() {
                                         fontWeight: 600
                                     }}
                                 >
-                                    ⚠️ {mensajeErrorStock}
+                                    <TriangleAlert className="ui-icon" aria-hidden="true" />
+                                    {mensajeErrorStock}
                                 </div>
 
                             )}
@@ -1118,6 +1131,20 @@ function Stock() {
                         [...operacionesStock]
                             .reverse()
                             .map((operacion) => {
+                                const IconoOperacion = operacion.tipo === "produccion"
+                                    ? Factory
+                                    : operacion.tipo === "entrada"
+                                        ? ArrowDownToLine
+                                        : operacion.tipo === "salida"
+                                            ? ArrowUpFromLine
+                                            : ClipboardList;
+                                const etiquetaOperacion = operacion.tipo === "produccion"
+                                    ? "Producción"
+                                    : operacion.tipo === "entrada"
+                                        ? "Entrada de stock"
+                                        : operacion.tipo === "salida"
+                                            ? "Salida de stock"
+                                            : "Comanda";
 
                                 return (
 
@@ -1131,13 +1158,8 @@ function Stock() {
                                             <div>
 
                                                 <strong>
-                                                    {operacion.tipo === "produccion"
-                                                        ? "🏭 Producción"
-                                                        : operacion.tipo === "entrada"
-                                                            ? "📥 Entrada de stock"
-                                                            : operacion.tipo === "salida"
-                                                                ? "📤 Salida de stock"
-                                                                : "📋 Comanda"}
+                                                    <IconoOperacion className="ui-icon" aria-hidden="true" />
+                                                    {etiquetaOperacion}
                                                 </strong>
 
 

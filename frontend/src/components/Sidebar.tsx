@@ -1,6 +1,20 @@
 import { NavLink } from "react-router-dom";
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import {
+    Armchair,
+    BookOpen,
+    ChartNoAxesColumnIncreasing,
+    ClipboardList,
+    Clock3,
+    Coffee,
+    Factory,
+    Home,
+    Menu,
+    Package,
+    ShoppingBag,
+    UsersRound,
+    X,
+} from "lucide-react";
 import { tienePermiso } from "../config/permisos";
 import type { RolEmpleado } from "../config/permisos";
 import { useAuth } from "../context/AuthContext";
@@ -17,7 +31,7 @@ function Sidebar() {
 
     return (
         <aside className={`sidebar ${menuAbierto ? "mobile-open" : ""}`}>
-            <h2>☕ CAFETERÍA</h2>
+            <h2><Coffee className="sidebar-brand-icon" aria-hidden="true" /> CAFETERÍA</h2>
 
             <button
                 type="button"
@@ -37,7 +51,8 @@ function Sidebar() {
                     {tienePermiso(rolActual, "dashboard") && (
                         <li>
                             <NavLink to="/">
-                                🏠 Dashboard
+                                <Home className="sidebar-nav-icon" aria-hidden="true" />
+                                <span>Dashboard</span>
                             </NavLink>
                         </li>
                     )}
@@ -46,7 +61,8 @@ function Sidebar() {
                     {tienePermiso(rolActual, "mesas") && (
                         <li>
                             <NavLink to="/mesas">
-                                🪑 Mesas
+                                <Armchair className="sidebar-nav-icon" aria-hidden="true" />
+                                <span>Mesas</span>
                             </NavLink>
                         </li>
                     )}
@@ -54,7 +70,8 @@ function Sidebar() {
                     {tienePermiso(rolActual, "comandas") && (
                         <li>
                             <NavLink to="/comandas">
-                                📋 Comandas
+                                <ClipboardList className="sidebar-nav-icon" aria-hidden="true" />
+                                <span>Comandas</span>
                             </NavLink>
                         </li>
                     )}
@@ -62,7 +79,8 @@ function Sidebar() {
                     {tienePermiso(rolActual, "preparacion") && (
                         <li>
                             <NavLink to="/preparacion">
-                                🕒 Preparación
+                                <Clock3 className="sidebar-nav-icon" aria-hidden="true" />
+                                <span>Preparación</span>
                             </NavLink>
                         </li>
                     )}
@@ -70,7 +88,8 @@ function Sidebar() {
                     {tienePermiso(rolActual, "productos") && (
                         <li>
                             <NavLink to="/productos">
-                                🛍 Productos
+                                <ShoppingBag className="sidebar-nav-icon" aria-hidden="true" />
+                                <span>Productos</span>
                             </NavLink>
                         </li>
                     )}
@@ -78,7 +97,8 @@ function Sidebar() {
                     {tienePermiso(rolActual, "recetas") && (
                         <li>
                             <NavLink to="/recetas">
-                                📋 Recetas
+                                <BookOpen className="sidebar-nav-icon" aria-hidden="true" />
+                                <span>Recetas</span>
                             </NavLink>
                         </li>
                     )}
@@ -86,7 +106,8 @@ function Sidebar() {
                     {tienePermiso(rolActual, "stock") && (
                         <li>
                             <NavLink to="/stock">
-                                📦 Stock
+                                <Package className="sidebar-nav-icon" aria-hidden="true" />
+                                <span>Stock</span>
                             </NavLink>
                         </li>
                     )}
@@ -94,7 +115,8 @@ function Sidebar() {
                     {tienePermiso(rolActual, "produccion") && (
                         <li>
                             <NavLink to="/produccion">
-                                🏭 Producción
+                                <Factory className="sidebar-nav-icon" aria-hidden="true" />
+                                <span>Producción</span>
                             </NavLink>
                         </li>
                     )}
@@ -102,13 +124,17 @@ function Sidebar() {
                     {tienePermiso(rolActual, "empleados") && (
                         <li>
                             <NavLink to="/empleados">
-                                👥 Empleados
+                                <UsersRound className="sidebar-nav-icon" aria-hidden="true" />
+                                <span>Empleados</span>
                             </NavLink>
                         </li>
                     )}
                     {tienePermiso(rolActual, "informes") && (
                         <li>
-                            <NavLink to="/informes">📊 Informes</NavLink>
+                            <NavLink to="/informes">
+                                <ChartNoAxesColumnIncreasing className="sidebar-nav-icon" aria-hidden="true" />
+                                <span>Informes</span>
+                            </NavLink>
                         </li>
                     )}
 

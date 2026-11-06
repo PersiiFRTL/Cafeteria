@@ -1,12 +1,18 @@
 import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { DragEvent, PointerEvent as ReactPointerEvent } from "react";
+import { Armchair, Map, Minus } from "lucide-react";
 
 import { useMapa } from "../context/useMapa";
 
 import type {
     ElementoMapa
 } from "../types/mapa";
+import {
+    MAPA_DIMENSION_MESA,
+    MAPA_TAMANO_CUADRICULA,
+    obtenerDimensionesElementoMapa
+} from "../domain/mapa";
 import { useToast } from "../context/useToast";
 
 type TipoHerramienta =
@@ -86,8 +92,7 @@ function MapaEditor() {
             return false;
         }
 
-        const otroAncho = elemento.ancho * 40;
-        const otroAlto = elemento.alto * 40;
+        const { ancho: otroAncho, alto: otroAlto } = obtenerDimensionesElementoMapa(elemento);
         // Los bordes pueden tocarse; solo se bloquea el solapamiento de área.
         return x < elemento.x + otroAncho &&
             x + ancho > elemento.x &&
@@ -111,8 +116,8 @@ function MapaEditor() {
                     )
                 );
 
-            const anchoMesa = (capacidad >= 6 ? 3 : 2) * 40;
-            const altoMesa = 2 * 40;
+            const anchoMesa = MAPA_DIMENSION_MESA.ancho * MAPA_TAMANO_CUADRICULA;
+            const altoMesa = MAPA_DIMENSION_MESA.alto * MAPA_TAMANO_CUADRICULA;
             if (hayColisionMesa(x, y, anchoMesa, altoMesa)) {
                 mostrarToast("No se puede superponer una mesa con otro objeto.");
                 return;
@@ -131,15 +136,8 @@ function MapaEditor() {
                 x,
                 y,
 
-                ancho:
-                    capacidad >= 6
-                        ? 3
-                        : 2,
-
-                alto:
-                    capacidad >= 6
-                        ? 2
-                        : 2,
+                ancho: MAPA_DIMENSION_MESA.ancho,
+                alto: MAPA_DIMENSION_MESA.alto,
 
                 rotacion: 0,
 
@@ -179,14 +177,13 @@ function MapaEditor() {
     const obtenerDimensionesHerramienta = (herramienta: TipoHerramienta) => {
         if (herramienta === "linea") {
             return orientacionLinea === "vertical"
-                ? { ancho: grosorLinea, alto: largoLinea * 40 }
-                : { ancho: largoLinea * 40, alto: grosorLinea };
+                ? { ancho: grosorLinea, alto: largoLinea * MAPA_TAMANO_CUADRICULA }
+                : { ancho: largoLinea * MAPA_TAMANO_CUADRICULA, alto: grosorLinea };
         }
 
-        const capacidad = Number(herramienta.replace("mesa-", ""));
         return {
-            ancho: (capacidad >= 6 ? 3 : 2) * 40,
-            alto: 2 * 40
+            ancho: MAPA_DIMENSION_MESA.ancho * MAPA_TAMANO_CUADRICULA,
+            alto: MAPA_DIMENSION_MESA.alto * MAPA_TAMANO_CUADRICULA
         };
     };
 
@@ -202,12 +199,12 @@ function MapaEditor() {
 
         return {
             x: Math.min(
-                Math.max(0, Math.round((clientX - rect.left) / 40) * 40),
-                Math.floor(maxX / 40) * 40
+                Math.max(0, Math.round((clientX - rect.left) / MAPA_TAMANO_CUADRICULA) * MAPA_TAMANO_CUADRICULA),
+                Math.floor(maxX / MAPA_TAMANO_CUADRICULA) * MAPA_TAMANO_CUADRICULA
             ),
             y: Math.min(
-                Math.max(0, Math.round((clientY - rect.top) / 40) * 40),
-                Math.floor(maxY / 40) * 40
+                Math.max(0, Math.round((clientY - rect.top) / MAPA_TAMANO_CUADRICULA) * MAPA_TAMANO_CUADRICULA),
+                Math.floor(maxY / MAPA_TAMANO_CUADRICULA) * MAPA_TAMANO_CUADRICULA
             )
         };
     };
@@ -242,23 +239,12 @@ function MapaEditor() {
         });
     };
 
-    const obtenerDimensionesElemento = (elemento: ElementoMapa) => ({
-        ancho: elemento.tipo === "linea" && elemento.rotacion === 90
-            ? elemento.grosor ?? 4
-            : elemento.ancho * 40,
-        alto: elemento.tipo === "linea"
-            ? elemento.rotacion === 90
-                ? elemento.ancho * 40
-                : elemento.grosor ?? 4
-            : elemento.alto * 40
-    });
-
     const ajustarCoordenada = (
         valor: number,
         maximo: number
     ) => Math.min(
-        Math.max(0, Math.round(valor / 40) * 40),
-        Math.floor(maximo / 40) * 40
+        Math.max(0, Math.round(valor / MAPA_TAMANO_CUADRICULA) * MAPA_TAMANO_CUADRICULA),
+        Math.floor(maximo / MAPA_TAMANO_CUADRICULA) * MAPA_TAMANO_CUADRICULA
     );
 
     const manejarMovimientoArrastre = (
@@ -273,7 +259,7 @@ function MapaEditor() {
         if (!canvas || !elemento) return;
 
         const rect = canvas.getBoundingClientRect();
-        const dimensiones = obtenerDimensionesElemento(elemento);
+        const dimensiones = obtenerDimensionesElementoMapa(elemento);
         const maxX = Math.max(0, rect.width - dimensiones.ancho);
         const maxY = Math.max(0, rect.height - dimensiones.alto);
 
@@ -310,7 +296,7 @@ function MapaEditor() {
         if (elemento) {
             const canvas = canvasRef.current;
             const rect = canvas?.getBoundingClientRect();
-            const dimensiones = obtenerDimensionesElemento(elemento);
+            const dimensiones = obtenerDimensionesElementoMapa(elemento);
             const maxX = Math.max(0, (rect?.width ?? 0) - dimensiones.ancho);
             const maxY = Math.max(0, (rect?.height ?? 0) - dimensiones.alto);
             const x = rect
@@ -331,6 +317,7 @@ function MapaEditor() {
 
             const guardado = await editarElementoMapa({
                 ...elemento,
+                ...(elemento.tipo === "mesa" ? MAPA_DIMENSION_MESA : {}),
                 x,
                 y
             });
@@ -456,7 +443,8 @@ function MapaEditor() {
 
                 <div className="mapa-toolbar-header">
                     <h2>
-                        🗺️ Diseño del local
+                        <Map className="ui-icon" aria-hidden="true" />
+                        Diseño del local
                     </h2>
 
                     <button
@@ -489,7 +477,8 @@ function MapaEditor() {
                         }
                         className={`mapa-tool mesa-tool ${herramientaSeleccionada === "mesa-2" ? "selected" : ""}`}
                     >
-                        🪑 Mesa 2
+                        <Armchair className="ui-icon" aria-hidden="true" />
+                        Mesa 2
                     </button>
 
                     <button
@@ -506,7 +495,8 @@ function MapaEditor() {
                         }
                         className={`mapa-tool mesa-tool ${herramientaSeleccionada === "mesa-4" ? "selected" : ""}`}
                     >
-                        🪑 Mesa 4
+                        <Armchair className="ui-icon" aria-hidden="true" />
+                        Mesa 4
                     </button>
 
                     <button
@@ -523,7 +513,8 @@ function MapaEditor() {
                         }
                         className={`mapa-tool mesa-tool ${herramientaSeleccionada === "mesa-6" ? "selected" : ""}`}
                     >
-                        🪑 Mesa 6
+                        <Armchair className="ui-icon" aria-hidden="true" />
+                        Mesa 6
                     </button>
 
                     <button
@@ -540,7 +531,8 @@ function MapaEditor() {
                         }
                         className={`mapa-tool mesa-tool ${herramientaSeleccionada === "mesa-8" ? "selected" : ""}`}
                     >
-                        🪑 Mesa 8
+                        <Armchair className="ui-icon" aria-hidden="true" />
+                        Mesa 8
                     </button>
 
                     <button
@@ -557,7 +549,8 @@ function MapaEditor() {
                         }
                         className={`mapa-tool linea-tool ${herramientaSeleccionada === "linea" ? "selected" : ""}`}
                     >
-                        {orientacionLinea === "vertical" ? "┃" : "━"} Línea
+                        <Minus className={`ui-icon ${orientacionLinea === "vertical" ? "mapa-linea-vertical" : ""}`} aria-hidden="true" />
+                        Línea
                     </button>
 
                 </div>
@@ -684,16 +677,8 @@ function MapaEditor() {
                                         posicion.x,
                                     top:
                                         posicion.y,
-                                    width:
-                                        esLinea && elemento.rotacion === 90
-                                            ? elemento.grosor ?? 4
-                                            : elemento.ancho * 40,
-                                    height:
-                                        esLinea
-                                            ? elemento.rotacion === 90
-                                                ? elemento.ancho * 40
-                                                : elemento.grosor ?? 4
-                                            : elemento.alto * 40,
+                                    width: obtenerDimensionesElementoMapa(elemento).ancho,
+                                    height: obtenerDimensionesElementoMapa(elemento).alto,
                                     transform:
                                         esLinea
                                             ? "none"
@@ -715,8 +700,9 @@ function MapaEditor() {
                                         <span>
                                             {capacidad
                                                 ? `${capacidad} personas`
-                                                : "8 personas"}
+                                                : ""}
                                         </span>
+
                                     </>
                                 ) : null}
 

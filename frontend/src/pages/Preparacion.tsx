@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from "react";
-import { LayoutGrid, List } from "lucide-react";
+import { CakeSlice, ChefHat, Coffee, LayoutGrid, List, Play } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useComandas } from "../context/useComandas";
 import { useToast } from "../context/useToast";
 
@@ -34,21 +35,21 @@ const etiquetasEstado: Record<FiltroComanda | "listo", string> = {
 
 interface Sector {
     nombre: string;
-    icono: string;
+    icono: LucideIcon;
 }
 
 const sectores: Sector[] = [
     {
         nombre: "Cocina",
-        icono: "👨‍🍳"
+        icono: ChefHat
     },
     {
         nombre: "Cafetería",
-        icono: "☕"
+        icono: Coffee
     },
     {
         nombre: "Pastelería",
-        icono: "🥐"
+        icono: CakeSlice
     }
 ];
 
@@ -155,7 +156,10 @@ function Preparacion() {
 
                 <div className="sectores-seleccion">
 
-                    {sectores.map((sector) => (
+                    {sectores.map((sector) => {
+                        const IconoSector = sector.icono;
+
+                        return (
 
                         <button
                             className="sector-selector"
@@ -168,7 +172,7 @@ function Preparacion() {
                         >
 
                             <span className="sector-selector-icon">
-                                {sector.icono}
+                                <IconoSector className="ui-icon" aria-hidden="true" />
                             </span>
 
                             <strong>
@@ -177,7 +181,8 @@ function Preparacion() {
 
                         </button>
 
-                    ))}
+                        );
+                    })}
 
                 </div>
 
@@ -370,7 +375,8 @@ function Preparacion() {
                                                 )
                                             }
                                         >
-                                            ▶ Comenzar preparación
+                                            <Play className="ui-icon" aria-hidden="true" />
+                                            Comenzar preparación
                                         </button>
 
                                     )}

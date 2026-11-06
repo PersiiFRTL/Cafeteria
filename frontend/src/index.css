@@ -1,3 +1,36 @@
+:root {
+    /* Cambiá estas dos familias para probar otras fuentes. */
+    --font-sans: "Lora", sans-serif;
+    --font-display: "Poppins", serif;
+    /* --font-sans: "Poppins", sans-serif; */
+    /* --font-sans: "Roboto Slab", serif; */
+    /* --font-sans: "Lora", serif; */
+    /* --font-sans: "Libre Baskerville", serif; */
+    /* --font-display: "Poppins", sans-serif; */
+    /* --font-display: "Lora", serif; */
+    /* --font-display: "Merriweather", serif; */
+    /* --font-display: "Libre Baskerville", serif; */
+}
+
+.ui-icon {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    flex: 0 0 auto;
+    vertical-align: -0.15em;
+    stroke-width: 1.8;
+}
+
+.mesa-capacidad-icon,
+.mesa-estado-icon {
+    width: 0.9em;
+    height: 0.9em;
+}
+
+.mapa-linea-vertical {
+    transform: rotate(90deg);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -5,9 +38,23 @@
 }
 
 body {
-    font-family: Arial, sans-serif;
+    font-family: var(--font-sans);
     background-color: #fdf2e8;
     color: #493d35;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.font-display {
+    font-family: var(--font-display);
+}
+
+.font-sans {
+    font-family: var(--font-sans);
 }
 
 .login-container {
@@ -121,7 +168,7 @@ body {
 .login-button {
     margin-top: 4px;
     border: none;
-    background: linear-gradient(135deg, #a78a74, #a78a74);
+    background: linear-gradient(135deg, #6b4f3f, #6b4f3f);
     color: #fdf2e8;
     font-weight: 700;
     border-radius: 10px;
@@ -348,7 +395,7 @@ body {
     gap: 12px;
 }
 
-.topbar-notification {
+.topbar-user-icon {
     display: inline-flex;
     align-items: center;
 }
@@ -676,12 +723,12 @@ body {
 
 .primary-button {
     border: none;
-    background-color: #a78a74;
+    background-color: #6b4f3f;
     color: #fdf2e8;
 }
 
 .primary-button:hover {
-    background-color: #a78a74;
+    background-color: #594131;
 }
 
 .secondary-button {
@@ -941,7 +988,7 @@ body {
 }
 
 .comandas-vistas button.activo {
-    background: #a78a74;
+    background: #6b4f3f;
     color: #fdf2e8;
 }
 
@@ -1011,16 +1058,16 @@ body {
     width: auto;
     min-height: 42px;
     padding: 10px 14px;
-    border: 1px solid #a78a74;
+    border: 1px solid #6b4f3f;
     border-radius: 6px;
-    background: #a78a74;
+    background: #6b4f3f;
     color: #fdf2e8;
     font-size: 15px;
     cursor: pointer;
 }
 
 .sistema-modal-destructivo:hover {
-    background: #a78a74;
+    background: #594131;
 }
 
 .sistema-modal-acciones button:focus-visible {
@@ -1213,7 +1260,7 @@ body {
 .stock-actions .stock-action-edit {
     border: 0;
     border-radius: 6px;
-    background: #a78a74;
+    background: #6b4f3f;
     color: #fffdfb;
     font-weight: 600;
 }
@@ -1465,7 +1512,7 @@ body {
 }
 
 .preparacion-vistas button.activo {
-    background: #a78a74;
+    background: #6b4f3f;
     color: #fdf2e8;
 }
 
@@ -1503,7 +1550,7 @@ body {
 }
 
 .sector-header span {
-    background-color: #a78a74;
+    background-color: #6b4f3f;
     color: #fdf2e8;
     border-radius: 20px;
     padding: 4px 10px;
@@ -2525,7 +2572,7 @@ body {
 
 .produccion-fields button {
     border: none;
-    background-color: #a78a74;
+    background-color: #6b4f3f;
     color: #fdf2e8;
     padding: 11px 20px;
     border-radius: 6px;
@@ -2534,7 +2581,7 @@ body {
 }
 
 .produccion-fields button:hover {
-    background-color: #a78a74;
+    background-color: #594131;
 }
 
 .produccion-receta {
@@ -2815,8 +2862,8 @@ body {
 }
 
 .mapa-tool.selected {
-    border-color: #a78a74;
-    background-color: #a78a74;
+    border-color: #6b4f3f;
+    background-color: #6b4f3f;
     color: #fdf2e8;
     box-shadow: 0 3px 8px rgba(167, 138, 116, 0.18);
 }
@@ -2871,7 +2918,7 @@ body {
 }
 
 .mapa-orientacion button.selected {
-    background: #a78a74;
+    background: #6b4f3f;
     color: #fdf2e8;
 }
 
@@ -2994,7 +3041,7 @@ body {
     border: none;
     border-radius: 50%;
 
-    background-color: #a78a74;
+    background-color: #6b4f3f;
     color: #fdf2e8;
 
     cursor: pointer;
@@ -3003,7 +3050,7 @@ body {
 }
 
 .mapa-eliminar:hover {
-    background-color: #a78a74;
+    background-color: #594131;
 }
 
 @media (max-width: 640px) {
@@ -3245,14 +3292,14 @@ body {
 }
 
 .informes-filtros .filtro-activo {
-    background-color: #a78a74;
+    background-color: #6b4f3f;
     color: #fdf2e8;
-    border-color: #a78a74;
+    border-color: #6b4f3f;
 }
 
 .informes-filtros .filtro-activo:hover {
-    background-color: #a78a74;
-    border-color: #a78a74;
+    background-color: #594131;
+    border-color: #594131;
 }
 
 @media (max-width: 760px) {
@@ -3749,7 +3796,7 @@ body {
 body {
     min-height: 100vh;
     color: var(--color-ink);
-    font-family: "Trebuchet MS", "Segoe UI", sans-serif;
+    font-family: var(--font-sans);
     background-color: #fdf2e8;
     background-image:
         linear-gradient(rgba(167, 138, 116, 0.025) 1px, transparent 1px),
@@ -3760,7 +3807,7 @@ body {
 h1,
 .login-header h1 {
     color: var(--color-ink);
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-display);
     font-weight: 600;
 }
 
@@ -3773,8 +3820,18 @@ h1,
 .sidebar h2 {
     color: #fdf2e8;
     border-bottom-color: rgba(253, 242, 232, 0.18);
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-display);
     letter-spacing: 0;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+}
+
+.sidebar-brand-icon {
+    width: 21px;
+    height: 21px;
+    flex: 0 0 auto;
+    stroke-width: 1.7;
 }
 
 .sidebar nav li {
@@ -3791,6 +3848,19 @@ h1,
     color: #fdf2e8;
     border-radius: 8px;
     transition: background-color 160ms ease, color 160ms ease;
+}
+
+.sidebar nav a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sidebar-nav-icon {
+    width: 20px;
+    height: 20px;
+    flex: 0 0 20px;
+    stroke-width: 1.7;
 }
 
 .sidebar-bottom {
@@ -3821,7 +3891,7 @@ h1,
 
 .topbar h2 {
     color: var(--color-ink);
-    font-family: Georgia, "Times New Roman", serif;
+    font-family: var(--font-display);
     font-size: 25px;
     font-weight: 600;
 }
@@ -4178,6 +4248,90 @@ button:disabled {
     background: #f5ece4;
 }
 
+.informe-empleados-tabla {
+    overflow-x: auto;
+    border: 1px solid #eaded3;
+    border-radius: 12px;
+    background: #fffdfb;
+    box-shadow: 0 4px 14px rgba(60, 38, 28, 0.04);
+}
+
+.informe-empleados-fila {
+    display: grid;
+    grid-template-columns: minmax(180px, 1.7fr) minmax(120px, 0.95fr) minmax(90px, 0.8fr) minmax(150px, 1.1fr);
+    align-items: center;
+    gap: 12px;
+    min-width: 640px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #eaded3;
+    transition: background-color 0.2s ease;
+}
+
+.informe-empleados-fila:hover {
+    background: #fffaf6;
+}
+
+.informe-empleados-fila:last-child {
+    border-bottom: 0;
+}
+
+.informe-empleados-encabezado {
+    background: #f5ece4;
+    font-size: 0.86rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: #6c574d;
+}
+
+.informe-empleados-fila small {
+    display: block;
+    margin-top: 4px;
+    color: #75665c;
+    font-size: 0.76rem;
+}
+
+.informe-empleado-estado {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 110px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    border: 1px solid transparent;
+}
+
+.informe-empleado-estado--activo {
+    background: #ebf9f0;
+    border-color: #ccebd5;
+    color: #1f7a4a;
+}
+
+.informe-empleado-estado--inactivo {
+    background: #fff2ea;
+    border-color: #f6d3bb;
+    color: #b0622f;
+}
+
+.informe-empleado-estado--historico {
+    background: #f5f0eb;
+    border-color: #e8ddd3;
+    color: #685b52;
+}
+
+.informe-empleados-fila > [role="cell"] {
+    min-width: 0;
+    font-size: 0.93rem;
+}
+
+.informe-empleados-fila > [role="cell"]:nth-child(3),
+.informe-empleados-fila > [role="cell"]:nth-child(4) {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
 @media print {
     @page { margin: 14mm; }
 
@@ -4207,7 +4361,8 @@ button:disabled {
 
     .informes-seccion,
     .informe-card,
-    .informe-stock-bajo-table {
+    .informe-stock-bajo-table,
+    .informe-empleados-tabla {
         break-inside: avoid;
         box-shadow: none !important;
     }
@@ -4440,7 +4595,7 @@ button:disabled {
 
 .comanda-filtro-sector.activo {
     border-color: #7d6250;
-    background: #a78a74;
+    background: #6b4f3f;
     color: #fffdfb;
     box-shadow: 0 2px 6px rgba(73, 61, 53, 0.2);
 }
@@ -4478,7 +4633,7 @@ button:disabled {
 
 .productos-filtro-sector.activo {
     border-color: #7d6250;
-    background: #a78a74;
+    background: #6b4f3f;
     color: #fffdfb;
     box-shadow: 0 2px 6px rgba(73, 61, 53, 0.2);
 }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Pencil } from "lucide-react";
 import { usePersonal } from "../context/usePersonal";
 import { contrasenaValida, emailValido } from "../validaciones";
 import { useToast } from "../context/useToast";
@@ -619,7 +619,8 @@ function Empleados() {
                                             )
                                         }
                                     >
-                                        ✏ Editar
+                                        <Pencil className="ui-icon" aria-hidden="true" />
+                                        Editar
                                     </button>
 
                                 </span>

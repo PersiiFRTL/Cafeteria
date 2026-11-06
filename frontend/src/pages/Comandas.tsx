@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useComandas } from "../context/useComandas";
 import { useSearchParams } from "react-router-dom";
-import { LayoutGrid, List } from "lucide-react";
+import { ChefHat, LayoutGrid, List } from "lucide-react";
 import ModalConfirmacion from "../components/ModalConfirmacion";
 import { useToast } from "../context/useToast";
 
@@ -467,7 +467,8 @@ function Comandas() {
                                                     )
                                                 }
                                             >
-                                                👨‍🍳 Enviar a preparación
+                                                <ChefHat className="ui-icon" aria-hidden="true" />
+                                                Enviar a preparación
                                             </button>
 
                                         )}

@@ -10,6 +10,7 @@ const {
 
 const app = express();
 const PORT = Number(process.env.PORT || process.env.port || 3000);
+if (process.env.TRUST_PROXY === "1") app.set("trust proxy", 1);
 const allowedFrontendOrigins = new Set((process.env.FRONTEND_ORIGINS || [
     "http://localhost:5173",
     "http://127.0.0.1:5173"
@@ -56,6 +57,41 @@ app.get("/api/health/supabase", async (req, res) => {
 });
 
 const rolesValidos = new Set(["ADMINISTRADOR", "EMPLEADO", "COCINA"]);
+const intentosLoginPorClave = new Map();
+const ventanaIntentosLoginMs = 15 * 60 * 1000;
+const maxIntentosLoginPorVentana = 10;
+
+function ipCliente(req) {
+    return req.ip || req.socket.remoteAddress || "desconocida";
+}
+
+function claveIntentosLogin(req) {
+    const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "sin-email";
+    return `${ipCliente(req)}\u0000${email}`;
+}
+
+function limitarIntentosLogin(req, res, next) {
+    const ahora = Date.now();
+    const clave = claveIntentosLogin(req);
+    let registro = intentosLoginPorClave.get(clave);
+    if (!registro || ahora - registro.inicio >= ventanaIntentosLoginMs) {
+        registro = { inicio: ahora, cantidad: 0 };
+    }
+    if (registro.cantidad >= maxIntentosLoginPorVentana) {
+        const segundosRestantes = Math.max(1, Math.ceil((registro.inicio + ventanaIntentosLoginMs - ahora) / 1000));
+        res.setHeader("Retry-After", String(segundosRestantes));
+        return res.status(429).json({ mensaje: "Demasiados intentos de inicio de sesión. Esperá unos minutos e intentá nuevamente." });
+    }
+    registro.cantidad += 1;
+    intentosLoginPorClave.set(clave, registro);
+
+    if (intentosLoginPorClave.size > 10000) {
+        for (const [claveGuardada, intento] of intentosLoginPorClave) {
+            if (ahora - intento.inicio >= ventanaIntentosLoginMs) intentosLoginPorClave.delete(claveGuardada);
+        }
+    }
+    return next();
+}
 
 app.use("/api/auth", (_req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
@@ -85,7 +121,7 @@ async function cargarPerfilActivo(cliente, userId) {
     };
 }
 
-app.post("/api/auth/login", async (req, res) => {
+app.post("/api/auth/login", limitarIntentosLogin, async (req, res) => {
     const email = typeof req.body?.email === "string" ? req.body.email.trim() : "";
     const password = typeof req.body?.password === "string" ? req.body.password : "";
     if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !password || password.length > 1024) {
@@ -106,6 +142,7 @@ app.post("/api/auth/login", async (req, res) => {
             return res.status(403).json({ mensaje: "La cuenta está desactivada o no tiene un perfil válido." });
         }
 
+        intentosLoginPorClave.delete(claveIntentosLogin(req));
         return res.status(200).json({
             usuario,
             session: {
@@ -185,16 +222,6 @@ empleadosApi.use(async (req, res, next) => {
     }
 });
 
-async function contarAdministradoresActivos(cliente) {
-    const { data, error } = await cliente
-        .from("perfiles")
-        .select("id")
-        .eq("rol", "ADMINISTRADOR")
-        .eq("activo", true);
-    if (error) throw error;
-    return data.length;
-}
-
 function validarEmailYRol(email, rol) {
     return email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) && rolesDeEmpleado.has(rol);
 }
@@ -237,12 +264,12 @@ empleadosApi.post("/", async (req, res) => {
         }
         usuarioCreado = data.user;
 
-        const { data: perfil, error: errorPerfil } = await req.supabaseUsuario
-            .from("perfiles")
-            .update({ nombre, email, rol, activo: true })
-            .eq("id", usuarioCreado.id)
-            .select("id, nombre, email, rol, activo")
-            .single();
+        const { data: perfil, error: errorPerfil } = await req.supabaseUsuario.rpc("actualizar_perfil_empleado_seguro", {
+            p_empleado_id: usuarioCreado.id,
+            p_nombre: nombre,
+            p_email: email,
+            p_rol: rol
+        });
         if (errorPerfil) {
             await admin.auth.admin.deleteUser(usuarioCreado.id);
             return res.status(400).json({ mensaje: "Se creó la cuenta, pero no se pudo guardar el perfil." });
@@ -286,24 +313,25 @@ empleadosApi.patch("/:id", async (req, res) => {
         if (id === req.usuarioId && rol !== "ADMINISTRADOR") {
             return res.status(400).json({ mensaje: "No podés quitarte el rol de administrador desde tu propia cuenta." });
         }
-        if (actual.activo && actual.rol === "ADMINISTRADOR" && rol !== "ADMINISTRADOR") {
-            if (await contarAdministradoresActivos(req.supabaseUsuario) <= 1) {
-                return res.status(400).json({ mensaje: "Debe quedar al menos un administrador activo." });
-            }
-        }
-
         const cambiaEmail = email !== (actual.email ?? "").toLowerCase();
         if ((cambiaEmail || password) && !secretKeyConfigurada) {
             return res.status(503).json({ mensaje: "Configurá SUPABASE_SECRET_KEY en el backend para cambiar credenciales." });
         }
 
-        const { data: actualizado, error: errorPerfil } = await req.supabaseUsuario
-            .from("perfiles")
-            .update({ nombre, email, rol })
-            .eq("id", id)
-            .select("id, nombre, email, rol, activo")
-            .single();
-        if (errorPerfil) return res.status(400).json({ mensaje: errorPerfil.message });
+        const parametrosPerfil = {
+            p_empleado_id: id,
+            p_nombre: nombre,
+            p_email: email,
+            p_rol: rol
+        };
+        const { data: actualizado, error: errorPerfil } = await req.supabaseUsuario.rpc(
+            "actualizar_perfil_empleado_seguro",
+            parametrosPerfil
+        );
+        if (errorPerfil) {
+            const estado = errorPerfil.code === "42501" ? 403 : 400;
+            return res.status(estado).json({ mensaje: errorPerfil.message });
+        }
 
         if (cambiaEmail || password) {
             const atributos = {};
@@ -315,11 +343,18 @@ empleadosApi.patch("/:id", async (req, res) => {
 
             const { error: errorAuth } = await crearClienteAdministrador().auth.admin.updateUserById(id, atributos);
             if (errorAuth) {
-                await req.supabaseUsuario.from("perfiles").update({
-                    nombre: actual.nombre,
-                    email: actual.email,
-                    rol: actual.rol
-                }).eq("id", id);
+                const { error: errorRestauracion } = await req.supabaseUsuario.rpc(
+                    "actualizar_perfil_empleado_seguro",
+                    {
+                        p_empleado_id: id,
+                        p_nombre: actual.nombre,
+                        p_email: actual.email,
+                        p_rol: actual.rol
+                    }
+                );
+                if (errorRestauracion) {
+                    return res.status(502).json({ mensaje: "No se pudieron sincronizar los cambios del empleado. Revisá su perfil y credenciales." });
+                }
                 return res.status(400).json({ mensaje: errorAuth.message });
             }
         }
@@ -348,18 +383,14 @@ empleadosApi.patch("/:id/estado", async (req, res) => {
             .maybeSingle();
         if (errorActual) return res.status(502).json({ mensaje: "No se pudo consultar el empleado." });
         if (!actual) return res.status(404).json({ mensaje: "No se encontró el empleado." });
-        if (!activo && actual.activo && actual.rol === "ADMINISTRADOR" &&
-            await contarAdministradoresActivos(req.supabaseUsuario) <= 1) {
-            return res.status(400).json({ mensaje: "Debe quedar al menos un administrador activo." });
+        const { data, error } = await req.supabaseUsuario.rpc("cambiar_estado_empleado_seguro", {
+            p_empleado_id: id,
+            p_activo: activo
+        });
+        if (error) {
+            const estado = error.code === "42501" ? 403 : 400;
+            return res.status(estado).json({ mensaje: error.message });
         }
-
-        const { data, error } = await req.supabaseUsuario
-            .from("perfiles")
-            .update({ activo })
-            .eq("id", id)
-            .select("id, nombre, email, rol, activo")
-            .single();
-        if (error) return res.status(400).json({ mensaje: error.message });
         return res.json({ empleado: data });
     } catch {
         return res.status(502).json({ mensaje: "No se pudo cambiar el estado del empleado." });
