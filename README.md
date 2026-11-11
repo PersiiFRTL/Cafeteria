@@ -64,7 +64,16 @@ Las operaciones transaccionales del negocio también pasan por Express y requier
 - Stock y producción: `POST /api/stock/movimientos` y `POST /api/producciones`.
 - Mesas y mapa: `PUT /api/mapa` (incluye datos de mesa, elementos y IDs eliminados).
 
-Estas rutas ejecutan las RPC transaccionales en Supabase con el token del usuario; los controles de rol y las reglas de negocio continúan aplicándose en PostgreSQL. Las lecturas y el CRUD simple de catálogo siguen usando Supabase directamente bajo RLS.
+Estas rutas ejecutan las RPC transaccionales en Supabase con el token del usuario; los controles de rol y las reglas de negocio continúan aplicándose en PostgreSQL.
+
+Los datos y el catálogo también se consultan y gestionan mediante Express, con el token del usuario y las políticas RLS:
+
+- `GET /api/datos-iniciales`: carga productos, materias primas, recetas, mesas, mapa, comandas, stock, producción y auditoría cuando corresponde.
+- Productos: `POST /api/productos`, `PATCH /api/productos/:id`, `PATCH /api/productos/:id/stock-minimo`, `PATCH /api/productos/:id/estado` y `DELETE /api/productos/:id`.
+- Materias primas: `POST /api/materias-primas`, `PATCH /api/materias-primas/:id` y `PATCH /api/materias-primas/:id/estado`.
+- Recetas: `PUT /api/recetas/:productoId`.
+
+El frontend ya no consulta las tablas operativas de Supabase directamente. El SDK de Supabase en el navegador queda para mantener la sesión y enviar el token Bearer a Express.
 
 La gestión de personal está limitada a administradores activos:
 

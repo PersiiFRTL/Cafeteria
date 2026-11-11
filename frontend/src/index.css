@@ -1,7 +1,14 @@
+@font-face {
+    font-family: "Amoria";
+    src: url("/fonts/AMORIA.otf") format("opentype");
+    font-display: swap;
+}
+
 :root {
     /* Cambiá estas dos familias para probar otras fuentes. */
     --font-sans: "Lora", sans-serif;
     --font-display: "Poppins", serif;
+    --font-brand: "Amoria", "Poppins", serif;
     /* --font-sans: "Poppins", sans-serif; */
     /* --font-sans: "Roboto Slab", serif; */
     /* --font-sans: "Lora", serif; */
@@ -86,7 +93,7 @@ h6,
     height: 72px;
     margin: 0 auto 16px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #e9ded3, #c5c4b3);
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -94,11 +101,25 @@ h6,
     box-shadow: 0 10px 22px rgba(167, 138, 116, 0.12);
 }
 
+.login-icon img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 50%;
+}
+
 .login-header h1 {
     font-size: 2rem;
     letter-spacing: 0.06em;
     margin-bottom: 8px;
     color: #493d35;
+}
+
+.login-header h1.login-brand-name,
+.sidebar h2 .sidebar-brand-name {
+    font-family: var(--font-brand) !important;
+    letter-spacing: 0.06em;
 }
 
 .login-header p {
@@ -931,6 +952,12 @@ h6,
     border-color: #4a3728;
     background: #4a3728;
     color: #fff;
+}
+
+.comandas-filtro.activo[data-estado="activas"] {
+    border-color: #6b4f3f;
+    background: #efe4da;
+    color: #493d35;
 }
 
 .comandas-filtro.activo[data-estado="pendiente"] {
@@ -1818,6 +1845,14 @@ h6,
     font-size: 15px;
 }
 
+.producto-stock-inicial {
+    display: grid;
+    gap: 6px;
+    color: #594a3f;
+    font-size: 14px;
+    font-weight: 600;
+}
+
 .producto-form-actions {
     display: flex;
     gap: 10px;
@@ -2119,12 +2154,12 @@ h6,
 
 .stock-row {
     display: grid;
-    grid-template-columns: 2fr 1.5fr 1.5fr 1.3fr 2fr;
+    grid-template-columns: 1.7fr 1.1fr 1.3fr 1.1fr 1.25fr 1.2fr 1.5fr;
     padding: 18px 20px;
     border-bottom: 1px solid #fdf2e8;
     align-items: center;
     gap: 10px;
-    min-width: 850px;
+    min-width: 1050px;
 }
 
 .stock-row-header {
@@ -2135,7 +2170,8 @@ h6,
 
 .stock-normal,
 .stock-bajo,
-.stock-inactivo {
+.stock-inactivo,
+.stock-sin-stock-propio {
     display: inline-block;
     padding: 5px 10px;
     border-radius: 6px;
@@ -2158,11 +2194,55 @@ h6,
     color: #493d35;
 }
 
+.stock-sin-stock-propio {
+    background-color: #f3ede7;
+    color: #493d35;
+}
+
 .stock-actions {
     display: flex;
     gap: 8px;
     align-items: center;
     flex-wrap: wrap;
+}
+
+.stock-row-note {
+    color: #6b5b50;
+    font-size: 13px;
+}
+
+.stock-row .stock-action-edit {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    border-radius: 6px;
+    background: #e9ded3;
+    color: #493d35;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.stock-row .stock-action-edit:hover {
+    background: #d6c2b0;
+}
+
+.stock-producto-stock-actions {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.stock-producto-stock-actions > button {
+    width: 100%;
+}
+
+.stock-producto-cantidad-compra {
+    display: grid;
+    width: 100%;
+    gap: 6px;
+    color: #493d35;
+    font-size: 14px;
+    font-weight: 600;
 }
 
 .stock-button {
@@ -3828,10 +3908,11 @@ h1,
 }
 
 .sidebar-brand-icon {
-    width: 21px;
-    height: 21px;
+    width: 26px;
+    height: 26px;
     flex: 0 0 auto;
-    stroke-width: 1.7;
+    object-fit: contain;
+    border-radius: 50%;
 }
 
 .sidebar nav li {
@@ -3987,7 +4068,7 @@ textarea:focus-visible {
 }
 
 .login-icon {
-    background: var(--color-brand-soft);
+    background: transparent;
     box-shadow: none;
 }
 

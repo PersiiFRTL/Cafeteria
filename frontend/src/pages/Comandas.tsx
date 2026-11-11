@@ -10,6 +10,7 @@ const COMANDAS_VISTA_KEY = "cafeteria-comandas-vista";
 
 type FiltroComanda =
     | "todas"
+    | "activas"
     | "pendiente"
     | "preparando"
     | "lista"
@@ -28,6 +29,7 @@ interface ConfirmacionComanda {
 
 const filtrosComandas: { valor: FiltroComanda; etiqueta: string }[] = [
     { valor: "todas", etiqueta: "Todas" },
+    { valor: "activas", etiqueta: "Pendientes y en preparación" },
     { valor: "pendiente", etiqueta: "Pendientes" },
     { valor: "preparando", etiqueta: "En preparación" },
     { valor: "lista", etiqueta: "Listas" },
@@ -109,7 +111,9 @@ function Comandas() {
     const comandasVisibles = comandasSeleccionadas.filter(
         (comanda) =>
             filtroComanda === "todas" ||
-            comanda.estado === filtroComanda
+            (filtroComanda === "activas"
+                ? comanda.estado === "pendiente" || comanda.estado === "preparando"
+                : comanda.estado === filtroComanda)
     );
 
 

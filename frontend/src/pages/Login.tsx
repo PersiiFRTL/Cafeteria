@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { emailValido } from "../validaciones";
-import { Coffee } from "lucide-react";
 
 function Login() {
 
@@ -88,16 +87,12 @@ function Login() {
                 <div className="login-header">
 
                     <div className="login-icon">
-                        <Coffee className="ui-icon" aria-hidden="true" />
+                        <img src="/icon-192.png" alt="" aria-hidden="true" />
                     </div>
 
-                    <h1>
+                    <h1 className="login-brand-name">
                         CAFETERÍA
                     </h1>
-
-                    <p>
-                        Sistema de gestión
-                    </p>
 
                 </div>
 

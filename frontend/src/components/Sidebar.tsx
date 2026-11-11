@@ -6,7 +6,6 @@ import {
     ChartNoAxesColumnIncreasing,
     ClipboardList,
     Clock3,
-    Coffee,
     Factory,
     Home,
     Menu,
@@ -31,7 +30,10 @@ function Sidebar() {
 
     return (
         <aside className={`sidebar ${menuAbierto ? "mobile-open" : ""}`}>
-            <h2><Coffee className="sidebar-brand-icon" aria-hidden="true" /> CAFETERÍA</h2>
+            <h2>
+                <img src="/icon-192.png" className="sidebar-brand-icon" alt="" aria-hidden="true" />
+                <span className="sidebar-brand-name">CAFETERÍA</span>
+            </h2>
 
             <button
                 type="button"

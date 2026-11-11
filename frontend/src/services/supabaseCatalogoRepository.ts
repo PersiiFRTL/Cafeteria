@@ -1,17 +1,51 @@
-import type { DatosInicialesCafeteria } from "./demoCafeteriaRepository";
-import { repositorioDemo } from "./demoCafeteriaRepository";
-import { supabase } from "./supabase";
 import { solicitarApiAutenticada } from "./apiAutenticada";
 import type { ElementoMapa } from "../types/mapa";
 
-type Producto = DatosInicialesCafeteria["productos"][number];
-type MateriaPrima = DatosInicialesCafeteria["materiasPrimas"][number];
-type Receta = DatosInicialesCafeteria["recetas"][number];
+interface Producto {
+    id: number;
+    nombre: string;
+    precio: number;
+    categoria: string;
+    sector: string;
+    tipoElaboracion: "bajo_pedido" | "preelaborado" | "reventa";
+    unidadVenta: "unidad" | "porcion" | "litro" | "kg";
+    stockActual: number;
+    stockMinimo: number;
+    activo: boolean;
+    disponible: boolean;
+}
+
+interface MateriaPrima {
+    id: number;
+    nombre: string;
+    categoria: string;
+    unidad: "unidad" | "kg" | "litro";
+    stockActual: number;
+    stockMinimo: number;
+    activo: boolean;
+}
+
+interface Receta {
+    id: number;
+    productoId: number;
+    ingredientes: Array<{ materiaPrimaId: number; cantidad: number }>;
+}
+
+interface Mesa {
+    id: number;
+    numero: number;
+    capacidad: number;
+    estado: "libre" | "ocupada";
+}
 
 type ProductoInput = Pick<Producto, "nombre" | "precio" | "categoria" | "sector" | "tipoElaboracion">;
 type MateriaPrimaInput = Pick<MateriaPrima, "nombre" | "categoria" | "unidad" | "stockMinimo">;
 
-export interface DatosCafeteriaConMapa extends Omit<DatosInicialesCafeteria, "producciones"> {
+export interface DatosCafeteriaConMapa {
+    mesas: Mesa[];
+    productos: Producto[];
+    materiasPrimas: MateriaPrima[];
+    recetas: Receta[];
     elementosMapa: ElementoMapa[];
     comandas: Array<Record<string, unknown>>;
     operacionesStock: Array<Record<string, unknown>>;
@@ -41,15 +75,6 @@ interface MesaRemota {
     numero: number;
     capacidad: number;
     estado: "libre" | "ocupada";
-}
-
-function mensajeError(error: { message: string }): Error {
-    return new Error(error.message || "No se pudo guardar el cambio en Supabase.");
-}
-
-function esTablaAuditoriaNoDisponible(error: { code?: string; message?: string; status?: number }): boolean {
-    return error.code === "PGRST205" || error.code === "42P01" || error.status === 404 ||
-        /auditoria_eventos.*(not found|schema cache)/i.test(error.message ?? "");
 }
 
 function mapearProducto(row: Record<string, unknown>): Producto {
@@ -180,61 +205,37 @@ function mapearMovimientoStock(row: Record<string, unknown>): Record<string, unk
 /** Lee los datos operativos persistidos en Supabase. */
 export const repositorioSupabaseCatalogo = {
     async cargarDatosIniciales(): Promise<DatosCafeteriaConMapa> {
-        const datosDemo = await repositorioDemo.cargarDatosIniciales();
-        const [productos, materiasPrimas, recetas, mesas, elementosMapa, comandas, operacionesStock, producciones, respuestaPerfiles, eventosAuditoria] = await Promise.all([
-            supabase.from("productos").select("*").order("id"),
-            supabase.from("materias_primas").select("*").order("id"),
-            supabase
-                .from("recetas")
-                .select("id, producto_id, ingredientes:receta_ingredientes(materia_prima_id, cantidad)")
-                .order("id"),
-            supabase.from("mesas").select("*").order("numero"),
-            supabase
-                .from("elementos_mapa")
-                .select("id, tipo, x, y, ancho, alto, rotacion, mesa_id, grosor, mesa:mesas(capacidad)")
-                .order("id"),
-            supabase
-                .from("comandas")
-                .select("*, productos:comanda_items(*)")
-                .order("fecha_creacion", { ascending: false }),
-            supabase
-                .from("operaciones_stock")
-                .select("*, movimientos:movimientos_stock(*)")
-                .order("fecha", { ascending: false }),
-            supabase.from("producciones").select("*").order("fecha", { ascending: false }),
+        type RegistroRemoto = Record<string, unknown>;
+        const [datos, respuestaPerfiles] = await Promise.all([
+            solicitarApiAutenticada<{
+                productos: RegistroRemoto[];
+                materiasPrimas: RegistroRemoto[];
+                recetas: RegistroRemoto[];
+                mesas: RegistroRemoto[];
+                elementosMapa: RegistroRemoto[];
+                comandas: RegistroRemoto[];
+                operacionesStock: RegistroRemoto[];
+                producciones: RegistroRemoto[];
+                auditoriaEventos: RegistroRemoto[];
+                auditoriaDisponible: boolean;
+            }>("/api/datos-iniciales"),
             solicitarApiAutenticada<{ perfiles: Array<{ id: string; nombre: string }> }>("/api/perfiles/nombres")
-                .catch(() => ({ perfiles: [] })),
-            supabase
-                .from("auditoria_eventos")
-                .select("id, usuario_nombre, entidad, entidad_id, accion, detalle, fecha")
-                .order("fecha", { ascending: false })
-                .limit(100)
+                .catch(() => ({ perfiles: [] }))
         ]);
 
-        if (productos.error) throw mensajeError(productos.error);
-        if (materiasPrimas.error) throw mensajeError(materiasPrimas.error);
-        if (recetas.error) throw mensajeError(recetas.error);
-        if (mesas.error) throw mensajeError(mesas.error);
-        if (elementosMapa.error) throw mensajeError(elementosMapa.error);
-        if (comandas.error) throw mensajeError(comandas.error);
-        if (operacionesStock.error) throw mensajeError(operacionesStock.error);
-        if (producciones.error) throw mensajeError(producciones.error);
-        const auditoriaDisponible = !eventosAuditoria.error || !esTablaAuditoriaNoDisponible(eventosAuditoria.error);
-        if (eventosAuditoria.error && auditoriaDisponible) throw mensajeError(eventosAuditoria.error);
-
         const nombresPorId = new Map(respuestaPerfiles.perfiles.map((perfil) => [perfil.id, perfil.nombre]));
-        const comandasMapeadas = (comandas.data ?? []).map((row) =>
+        const comandasMapeadas = datos.comandas.map((row) =>
             mapearComanda(row as Record<string, unknown>, nombresPorId)
         );
-        const operacionesMapeadas = (operacionesStock.data ?? []).map((row) =>
+        const operacionesMapeadas = datos.operacionesStock.map((row) =>
             mapearOperacionStock(row as Record<string, unknown>, nombresPorId)
         );
         const movimientosMapeados = operacionesMapeadas.flatMap((operacion) =>
             operacion.movimientos as Array<Record<string, unknown>>
         );
-        const produccionesMapeadas = (producciones.data ?? []).map((row) => {
+        const produccionesMapeadas = datos.producciones.map((row) => {
             const produccion = row as Record<string, unknown>;
-            const operacionProduccion = (operacionesStock.data ?? []).find((item) =>
+            const operacionProduccion = datos.operacionesStock.find((item) =>
                 Number((item as Record<string, unknown>).produccion_id) === Number(produccion.id)
             ) as Record<string, unknown> | undefined;
             const movimientos = ((operacionProduccion?.movimientos ?? []) as Array<Record<string, unknown>>)
@@ -253,7 +254,7 @@ export const repositorioSupabaseCatalogo = {
                 }))
             };
         });
-        const actividadMapeada = (eventosAuditoria.data ?? []).map((row) => {
+        const actividadMapeada = datos.auditoriaEventos.map((row) => {
             const evento = row as Record<string, unknown>;
             return {
                 id: Number(evento.id),
@@ -267,18 +268,17 @@ export const repositorioSupabaseCatalogo = {
         });
 
         return {
-            ...datosDemo,
-            mesas: (mesas.data ?? []).map((row) => mapearMesa(row as Record<string, unknown>)),
-            productos: (productos.data ?? []).map((row) => mapearProducto(row as Record<string, unknown>)),
-            materiasPrimas: (materiasPrimas.data ?? []).map((row) => mapearMateriaPrima(row as Record<string, unknown>)),
-            recetas: (recetas.data ?? []).map((row) => mapearReceta(row as Record<string, unknown>)),
-            elementosMapa: (elementosMapa.data ?? []).map((row) => mapearElementoMapa(row as Record<string, unknown>)),
+            mesas: datos.mesas.map((row) => mapearMesa(row as Record<string, unknown>)),
+            productos: datos.productos.map((row) => mapearProducto(row as Record<string, unknown>)),
+            materiasPrimas: datos.materiasPrimas.map((row) => mapearMateriaPrima(row as Record<string, unknown>)),
+            recetas: datos.recetas.map((row) => mapearReceta(row as Record<string, unknown>)),
+            elementosMapa: datos.elementosMapa.map((row) => mapearElementoMapa(row as Record<string, unknown>)),
             comandas: comandasMapeadas,
             operacionesStock: operacionesMapeadas,
             movimientosStock: movimientosMapeados,
             producciones: produccionesMapeadas,
             actividad: actividadMapeada,
-            auditoriaDisponible
+            auditoriaDisponible: datos.auditoriaDisponible
         };
     },
 
@@ -298,6 +298,13 @@ export const repositorioSupabaseCatalogo = {
             })
         });
         return Number(respuesta.data);
+    },
+
+    async cambiarEstadoMesa(mesaId: number, estado: "libre" | "ocupada"): Promise<void> {
+        await solicitarApiAutenticada<void>(`/api/mesas/${mesaId}/estado`, {
+            method: "PATCH",
+            body: JSON.stringify({ estado })
+        });
     },
 
     async editarComanda(comandaId: number, productos: Array<{ productoId: number; cantidad: number }>): Promise<void> {
@@ -396,98 +403,95 @@ export const repositorioSupabaseCatalogo = {
     },
 
     async crearProducto(input: ProductoInput): Promise<Producto> {
-        const { data, error } = await supabase
-            .from("productos")
-            .insert({
+        const respuesta = await solicitarApiAutenticada<{ data: Record<string, unknown> }>("/api/productos", {
+            method: "POST",
+            body: JSON.stringify({
                 nombre: input.nombre.trim(),
                 precio: input.precio,
                 categoria: input.categoria.trim(),
                 sector: input.sector,
-                tipo_elaboracion: input.tipoElaboracion,
-                unidad_venta: "unidad"
+                tipoElaboracion: input.tipoElaboracion
             })
-            .select("*")
-            .single();
-        if (error) throw mensajeError(error);
-        return mapearProducto(data as Record<string, unknown>);
+        });
+        return mapearProducto(respuesta.data);
     },
 
     async editarProducto(id: number, input: ProductoInput): Promise<Producto> {
-        const { data, error } = await supabase
-            .from("productos")
-            .update({
+        const respuesta = await solicitarApiAutenticada<{ data: Record<string, unknown> }>(`/api/productos/${id}`, {
+            method: "PATCH",
+            body: JSON.stringify({
                 nombre: input.nombre.trim(),
                 precio: input.precio,
                 categoria: input.categoria.trim(),
                 sector: input.sector,
-                tipo_elaboracion: input.tipoElaboracion
+                tipoElaboracion: input.tipoElaboracion
             })
-            .eq("id", id)
-            .select("*")
-            .single();
-        if (error) throw mensajeError(error);
-        return mapearProducto(data as Record<string, unknown>);
+        });
+        return mapearProducto(respuesta.data);
+    },
+
+    async editarStockMinimoProducto(id: number, stockMinimo: number): Promise<void> {
+        await solicitarApiAutenticada<void>(`/api/productos/${id}/stock-minimo`, {
+            method: "PATCH",
+            body: JSON.stringify({ stockMinimo })
+        });
     },
 
     async eliminarProducto(id: number): Promise<void> {
-        const { error } = await supabase.from("productos").delete().eq("id", id);
-        if (error) throw mensajeError(error);
+        await solicitarApiAutenticada<void>(`/api/productos/${id}`, { method: "DELETE" });
     },
 
     async cambiarEstadoProducto(id: number, activo: boolean): Promise<void> {
-        const { error } = await supabase.from("productos").update({ activo }).eq("id", id);
-        if (error) throw mensajeError(error);
+        await solicitarApiAutenticada<void>(`/api/productos/${id}/estado`, {
+            method: "PATCH",
+            body: JSON.stringify({ activo })
+        });
     },
 
     async crearMateriaPrima(input: MateriaPrimaInput, stockInicial: number): Promise<MateriaPrima> {
-        const { data: id, error } = await supabase.rpc("crear_materia_prima", {
-            p_nombre: input.nombre.trim(),
-            p_categoria: input.categoria.trim(),
-            p_unidad: input.unidad,
-            p_stock_minimo: input.stockMinimo,
-            p_stock_inicial: stockInicial
-        });
-        if (error) throw mensajeError(error);
-
-        const { data, error: errorLectura } = await supabase
-            .from("materias_primas")
-            .select("*")
-            .eq("id", Number(id))
-            .single();
-        if (errorLectura) throw mensajeError(errorLectura);
-        return mapearMateriaPrima(data as Record<string, unknown>);
-    },
-
-    async editarMateriaPrima(id: number, input: MateriaPrimaInput): Promise<MateriaPrima> {
-        const { data, error } = await supabase
-            .from("materias_primas")
-            .update({
+        const respuesta = await solicitarApiAutenticada<{ data: Record<string, unknown> }>("/api/materias-primas", {
+            method: "POST",
+            body: JSON.stringify({
                 nombre: input.nombre.trim(),
                 categoria: input.categoria.trim(),
                 unidad: input.unidad,
-                stock_minimo: input.stockMinimo
+                stockMinimo: input.stockMinimo,
+                stockInicial
             })
-            .eq("id", id)
-            .select("*")
-            .single();
-        if (error) throw mensajeError(error);
-        return mapearMateriaPrima(data as Record<string, unknown>);
+        });
+        return mapearMateriaPrima(respuesta.data);
+    },
+
+    async editarMateriaPrima(id: number, input: MateriaPrimaInput): Promise<MateriaPrima> {
+        const respuesta = await solicitarApiAutenticada<{ data: Record<string, unknown> }>(`/api/materias-primas/${id}`, {
+            method: "PATCH",
+            body: JSON.stringify({
+                nombre: input.nombre.trim(),
+                categoria: input.categoria.trim(),
+                unidad: input.unidad,
+                stockMinimo: input.stockMinimo
+            })
+        });
+        return mapearMateriaPrima(respuesta.data);
     },
 
     async cambiarEstadoMateriaPrima(id: number, activo: boolean): Promise<void> {
-        const { error } = await supabase.from("materias_primas").update({ activo }).eq("id", id);
-        if (error) throw mensajeError(error);
+        await solicitarApiAutenticada<void>(`/api/materias-primas/${id}/estado`, {
+            method: "PATCH",
+            body: JSON.stringify({ activo })
+        });
     },
 
     async guardarReceta(productoId: number, ingredientes: Receta["ingredientes"]): Promise<number> {
-        const { data, error } = await supabase.rpc("guardar_receta", {
-            p_producto_id: productoId,
-            p_ingredientes: ingredientes.map((ingrediente) => ({
-                materiaPrimaId: ingrediente.materiaPrimaId,
-                cantidad: ingrediente.cantidad
-            }))
+        const respuesta = await solicitarApiAutenticada<{ data: number }>(`/api/recetas/${productoId}`, {
+            method: "PUT",
+            body: JSON.stringify({
+                ingredientes: ingredientes.map((ingrediente) => ({
+                    materiaPrimaId: ingrediente.materiaPrimaId,
+                    cantidad: ingrediente.cantidad
+                }))
+            })
         });
-        if (error) throw mensajeError(error);
-        return Number(data);
+        return Number(respuesta.data);
     }
 };

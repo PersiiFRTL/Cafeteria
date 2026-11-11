@@ -68,6 +68,7 @@ function Productos() {
         useState<
             "bajo_pedido" | "preelaborado" | "reventa"
         >("bajo_pedido");
+    const [stockInicial, setStockInicial] = useState("0");
     const [errorPrecio, setErrorPrecio] = useState("");
     const [dialogo, setDialogo] = useState<DialogoProducto | null>(null);
 
@@ -83,6 +84,7 @@ function Productos() {
         setSector("Cocina");
 
         setTipoElaboracion("bajo_pedido");
+        setStockInicial("0");
     };
 
 
@@ -99,20 +101,29 @@ function Productos() {
             return;
         }
 
-        const guardado = await agregarProducto(
+        const cantidadInicial = tipoElaboracion === "reventa" ? Number(stockInicial) : 0;
+        if (!Number.isInteger(cantidadInicial) || cantidadInicial < 0) {
+            setErrorPrecio("La existencia inicial debe ser un número entero igual o mayor que 0.");
+            return;
+        }
+
+        const resultado = await agregarProducto(
             nombre,
             precioNumero,
             categoria,
             sector,
-            tipoElaboracion
+            tipoElaboracion,
+            cantidadInicial
         );
 
-        if (!guardado) {
+        if (!resultado.creado) {
             mostrarToast("No se pudo guardar el producto en Supabase. Revisá tus permisos y la conexión.");
             return;
         }
 
-        mostrarToast("Producto creado correctamente.");
+        mostrarToast(resultado.stockRegistrado
+            ? "Producto creado correctamente."
+            : "Producto creado, pero no se registró la existencia inicial. Cargala desde Stock → Productos.");
 
         limpiarFormulario();
 
@@ -405,6 +416,21 @@ function Productos() {
                         </option>
 
                     </select>
+
+                    {tipoElaboracion === "reventa" && (
+                        <label className="producto-stock-inicial">
+                            Existencia inicial comprada
+                            <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                inputMode="numeric"
+                                value={stockInicial}
+                                onChange={(event) => setStockInicial(event.target.value)}
+                                aria-label="Existencia inicial comprada"
+                            />
+                        </label>
+                    )}
 
                     </div>
 

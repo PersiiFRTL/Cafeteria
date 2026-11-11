@@ -1,10 +1,12 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useStock } from "../context/useStock";
 import { numeroValido } from "../validaciones";
 import { useToast } from "../context/useToast";
 
 function Produccion() {
     const { mostrarToast } = useToast();
+    const [searchParams] = useSearchParams();
 
     const {
         productos,
@@ -14,8 +16,10 @@ function Produccion() {
         registrarProduccion
     } = useStock();
 
-    const [productoId, setProductoId] =
-        useState<number | null>(null);
+    const [productoId, setProductoId] = useState<number | null>(() => {
+        const valor = Number(searchParams.get("productoId"));
+        return Number.isSafeInteger(valor) && valor > 0 ? valor : null;
+    });
 
     const [cantidad, setCantidad] =
         useState("");

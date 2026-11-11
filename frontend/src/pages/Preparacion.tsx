@@ -9,6 +9,7 @@ const PREPARACION_FILTRO_KEY = "cafeteria-preparacion-filtro";
 
 type FiltroComanda =
     | "todas"
+    | "activas"
     | "pendiente"
     | "preparando"
     | "lista"
@@ -17,6 +18,7 @@ type FiltroComanda =
 
 const filtrosComandas: { valor: FiltroComanda; etiqueta: string }[] = [
     { valor: "todas", etiqueta: "Todas" },
+    { valor: "activas", etiqueta: "Pendientes y en preparación" },
     { valor: "pendiente", etiqueta: "Pendientes" },
     { valor: "preparando", etiqueta: "En preparación" },
     { valor: "lista", etiqueta: "Listas" },
@@ -25,6 +27,7 @@ const filtrosComandas: { valor: FiltroComanda; etiqueta: string }[] = [
 
 const etiquetasEstado: Record<FiltroComanda | "listo", string> = {
     todas: "Todas",
+    activas: "Pendientes y en preparación",
     pendiente: "Pendiente",
     preparando: "En preparación",
     lista: "Lista",
@@ -207,6 +210,9 @@ function Preparacion() {
                     }
                     if (comanda.estado === "finalizada") {
                         return false;
+                    }
+                    if (filtroComanda === "activas") {
+                        return item.estado === "pendiente" || item.estado === "preparando";
                     }
                     return (filtroComanda === "lista"
                         ? item.estado === "listo"

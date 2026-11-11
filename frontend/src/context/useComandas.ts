@@ -5,6 +5,7 @@ export function useComandas() {
     const cafeteria = useCafeteria();
     return {
         mesas: cafeteria.mesas,
+        cambiarEstadoMesa: cafeteria.cambiarEstadoMesa,
         elementosMapa: cafeteria.elementosMapa,
         comandas: cafeteria.comandas,
         errorDatos: cafeteria.errorDatos,

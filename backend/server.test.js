@@ -48,6 +48,33 @@ test("POST /api/comandas requiere autenticación", async () => {
     assert.deepEqual(await response.json(), { mensaje: "Falta la sesión de usuario." });
 });
 
+test("Las rutas de datos y catálogo requieren una sesión autenticada", async (t) => {
+    const rutas = [
+        ["GET", "/api/datos-iniciales"],
+        ["POST", "/api/productos"],
+        ["PATCH", "/api/productos/1"],
+        ["PATCH", "/api/productos/1/stock-minimo"],
+        ["PATCH", "/api/productos/1/estado"],
+        ["DELETE", "/api/productos/1"],
+        ["POST", "/api/materias-primas"],
+        ["PATCH", "/api/materias-primas/1"],
+        ["PATCH", "/api/materias-primas/1/estado"],
+        ["PUT", "/api/recetas/1"]
+    ];
+
+    for (const [method, path] of rutas) {
+        await t.test(`${method} ${path}`, async () => {
+            const response = await fetch(`${baseUrl}${path}`, {
+                method,
+                headers: { "Content-Type": "application/json" },
+                body: method === "GET" ? undefined : JSON.stringify({})
+            });
+            assert.equal(response.status, 401);
+            assert.deepEqual(await response.json(), { mensaje: "Falta la sesión de usuario." });
+        });
+    }
+});
+
 test("POST /api/auth/login valida los datos antes de consultar Supabase", async () => {
     const response = await fetch(`${baseUrl}/api/auth/login`, {
         method: "POST",

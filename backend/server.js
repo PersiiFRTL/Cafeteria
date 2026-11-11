@@ -436,11 +436,256 @@ operaciones.use(async (req, res, next) => {
         const cliente = crearClientePublico(token);
         const { data, error } = await cliente.auth.getUser(token);
         if (error || !data.user) return res.status(401).json({ mensaje: "La sesión no es válida." });
+        const perfil = await cargarPerfilActivo(cliente, data.user.id);
+        if (!perfil) return res.status(403).json({ mensaje: "La cuenta está desactivada o no tiene un perfil válido." });
         req.supabaseUsuario = cliente;
+        req.usuarioId = data.user.id;
+        req.usuarioPerfil = perfil;
         return next();
     } catch {
         return res.status(502).json({ mensaje: "No se pudo validar la sesión." });
     }
+});
+
+function errorDeTabla(error, mensaje) {
+    const estado = error?.code === "42501" ? 403
+        : error?.code === "PGRST116" ? 404
+            : ["23505", "23514", "22023", "P0001"].includes(error?.code) ? 400
+                : 502;
+    return { estado, cuerpo: { mensaje: estado === 502 ? mensaje : error.message, codigo: error.code } };
+}
+
+function tablaAuditoriaNoDisponible(error) {
+    return error?.code === "PGRST205" || error?.code === "42P01" || error?.status === 404 ||
+        /auditoria_eventos.*(not found|schema cache)/i.test(error?.message ?? "");
+}
+
+operaciones.get("/datos-iniciales", async (req, res) => {
+    try {
+        const consultas = await Promise.all([
+            req.supabaseUsuario.from("productos").select("*").order("id"),
+            req.supabaseUsuario.from("materias_primas").select("*").order("id"),
+            req.supabaseUsuario.from("recetas")
+                .select("id, producto_id, ingredientes:receta_ingredientes(materia_prima_id, cantidad)")
+                .order("id"),
+            req.supabaseUsuario.from("mesas").select("*").order("numero"),
+            req.supabaseUsuario.from("elementos_mapa")
+                .select("id, tipo, x, y, ancho, alto, rotacion, mesa_id, grosor, mesa:mesas(capacidad)")
+                .order("id"),
+            req.supabaseUsuario.from("comandas")
+                .select("*, productos:comanda_items(*)")
+                .order("fecha_creacion", { ascending: false }),
+            req.supabaseUsuario.from("operaciones_stock")
+                .select("*, movimientos:movimientos_stock(*)")
+                .order("fecha", { ascending: false }),
+            req.supabaseUsuario.from("producciones").select("*").order("fecha", { ascending: false })
+        ]);
+
+        const [productos, materiasPrimas, recetas, mesas, elementosMapa, comandas, operacionesStock, producciones] = consultas;
+        const consultaFallida = consultas.find((consulta) => consulta.error);
+        if (consultaFallida?.error) {
+            const { estado, cuerpo } = errorDeTabla(consultaFallida.error, "No se pudieron cargar los datos de la cafetería.");
+            return res.status(estado).json(cuerpo);
+        }
+
+        let auditoriaEventos = [];
+        let auditoriaDisponible = true;
+        if (req.usuarioPerfil.rol === "ADMINISTRADOR") {
+            const respuestaAuditoria = await req.supabaseUsuario.from("auditoria_eventos")
+                .select("id, usuario_nombre, entidad, entidad_id, accion, detalle, fecha")
+                .order("fecha", { ascending: false })
+                .limit(100);
+            if (respuestaAuditoria.error) {
+                if (tablaAuditoriaNoDisponible(respuestaAuditoria.error)) {
+                    auditoriaDisponible = false;
+                } else {
+                    const { estado, cuerpo } = errorDeTabla(respuestaAuditoria.error, "No se pudo cargar la auditoría.");
+                    return res.status(estado).json(cuerpo);
+                }
+            } else {
+                auditoriaEventos = respuestaAuditoria.data ?? [];
+            }
+        }
+
+        return res.json({
+            productos: productos.data ?? [],
+            materiasPrimas: materiasPrimas.data ?? [],
+            recetas: recetas.data ?? [],
+            mesas: mesas.data ?? [],
+            elementosMapa: elementosMapa.data ?? [],
+            comandas: comandas.data ?? [],
+            operacionesStock: operacionesStock.data ?? [],
+            producciones: producciones.data ?? [],
+            auditoriaEventos,
+            auditoriaDisponible
+        });
+    } catch {
+        return res.status(502).json({ mensaje: "No se pudieron cargar los datos de la cafetería." });
+    }
+});
+
+function productoValido(body) {
+    return typeof body?.nombre === "string" && body.nombre.trim().length > 0 && body.nombre.trim().length <= 120 &&
+        typeof body?.categoria === "string" && body.categoria.trim().length > 0 && body.categoria.trim().length <= 80 &&
+        ["Cocina", "Cafetería", "Pastelería"].includes(body?.sector) &&
+        ["bajo_pedido", "preelaborado", "reventa"].includes(body?.tipoElaboracion) &&
+        Number.isFinite(Number(body?.precio)) && Number(body.precio) >= 0;
+}
+
+function materiaPrimaValida(body) {
+    return typeof body?.nombre === "string" && body.nombre.trim().length > 0 && body.nombre.trim().length <= 120 &&
+        typeof body?.categoria === "string" && body.categoria.trim().length > 0 && body.categoria.trim().length <= 80 &&
+        ["unidad", "kg", "litro"].includes(body?.unidad) &&
+        Number.isFinite(Number(body?.stockMinimo)) && Number(body.stockMinimo) >= 0;
+}
+
+operaciones.post("/productos", async (req, res) => {
+    if (!productoValido(req.body)) return res.status(400).json({ mensaje: "Los datos del producto no son válidos." });
+    const { data, error } = await req.supabaseUsuario.from("productos").insert({
+        nombre: req.body.nombre.trim(),
+        precio: Number(req.body.precio),
+        categoria: req.body.categoria.trim(),
+        sector: req.body.sector,
+        tipo_elaboracion: req.body.tipoElaboracion,
+        unidad_venta: "unidad"
+    }).select("*").single();
+    if (error) {
+        const { estado, cuerpo } = errorDeTabla(error, "No se pudo crear el producto.");
+        return res.status(estado).json(cuerpo);
+    }
+    return res.status(201).json({ data });
+});
+
+operaciones.patch("/productos/:id", async (req, res) => {
+    const id = idPositivo(req.params.id);
+    if (!id || !productoValido(req.body)) return res.status(400).json({ mensaje: "El ID o los datos del producto no son válidos." });
+    const { data, error } = await req.supabaseUsuario.from("productos").update({
+        nombre: req.body.nombre.trim(),
+        precio: Number(req.body.precio),
+        categoria: req.body.categoria.trim(),
+        sector: req.body.sector,
+        tipo_elaboracion: req.body.tipoElaboracion
+    }).eq("id", id).select("*").maybeSingle();
+    if (error) {
+        const { estado, cuerpo } = errorDeTabla(error, "No se pudo actualizar el producto.");
+        return res.status(estado).json(cuerpo);
+    }
+    if (!data) return res.status(404).json({ mensaje: "No se encontró el producto." });
+    return res.json({ data });
+});
+
+operaciones.patch("/productos/:id/stock-minimo", async (req, res) => {
+    const id = idPositivo(req.params.id);
+    const stockMinimo = Number(req.body?.stockMinimo);
+    if (!id || !Number.isFinite(stockMinimo) || stockMinimo < 0) {
+        return res.status(400).json({ mensaje: "El ID o el mínimo de stock no son válidos." });
+    }
+    const { data, error } = await req.supabaseUsuario.from("productos").update({ stock_minimo: stockMinimo })
+        .eq("id", id).select("id").maybeSingle();
+    if (error) {
+        const { estado, cuerpo } = errorDeTabla(error, "No se pudo actualizar el mínimo de stock.");
+        return res.status(estado).json(cuerpo);
+    }
+    if (!data) return res.status(404).json({ mensaje: "No se encontró el producto." });
+    return res.sendStatus(204);
+});
+
+operaciones.patch("/productos/:id/estado", async (req, res) => {
+    const id = idPositivo(req.params.id);
+    if (!id || typeof req.body?.activo !== "boolean") return res.status(400).json({ mensaje: "El ID o el estado del producto no son válidos." });
+    const { data, error } = await req.supabaseUsuario.from("productos").update({ activo: req.body.activo })
+        .eq("id", id).select("id").maybeSingle();
+    if (error) {
+        const { estado, cuerpo } = errorDeTabla(error, "No se pudo actualizar el estado del producto.");
+        return res.status(estado).json(cuerpo);
+    }
+    if (!data) return res.status(404).json({ mensaje: "No se encontró el producto." });
+    return res.sendStatus(204);
+});
+
+operaciones.delete("/productos/:id", async (req, res) => {
+    const id = idPositivo(req.params.id);
+    if (!id) return res.status(400).json({ mensaje: "El ID del producto no es válido." });
+    const { data, error } = await req.supabaseUsuario.from("productos").delete().eq("id", id).select("id").maybeSingle();
+    if (error) {
+        const { estado, cuerpo } = errorDeTabla(error, "No se pudo eliminar el producto.");
+        return res.status(estado).json(cuerpo);
+    }
+    if (!data) return res.status(404).json({ mensaje: "No se encontró el producto." });
+    return res.sendStatus(204);
+});
+
+operaciones.post("/materias-primas", async (req, res) => {
+    const stockInicial = Number(req.body?.stockInicial);
+    if (!materiaPrimaValida(req.body) || !Number.isFinite(stockInicial) || stockInicial < 0) {
+        return res.status(400).json({ mensaje: "Los datos de la materia prima no son válidos." });
+    }
+    const { data: id, error } = await req.supabaseUsuario.rpc("crear_materia_prima", {
+        p_nombre: req.body.nombre.trim(),
+        p_categoria: req.body.categoria.trim(),
+        p_unidad: req.body.unidad,
+        p_stock_minimo: Number(req.body.stockMinimo),
+        p_stock_inicial: stockInicial
+    });
+    if (error) {
+        const { estado, cuerpo } = errorDeTabla(error, "No se pudo crear la materia prima.");
+        return res.status(estado).json(cuerpo);
+    }
+    const { data, error: errorLectura } = await req.supabaseUsuario.from("materias_primas").select("*").eq("id", Number(id)).single();
+    if (errorLectura) {
+        const { estado, cuerpo } = errorDeTabla(errorLectura, "La materia prima se creó, pero no se pudo recuperar.");
+        return res.status(estado).json(cuerpo);
+    }
+    return res.status(201).json({ data });
+});
+
+operaciones.patch("/materias-primas/:id", async (req, res) => {
+    const id = idPositivo(req.params.id);
+    if (!id || !materiaPrimaValida(req.body)) return res.status(400).json({ mensaje: "El ID o los datos de la materia prima no son válidos." });
+    const { data, error } = await req.supabaseUsuario.from("materias_primas").update({
+        nombre: req.body.nombre.trim(),
+        categoria: req.body.categoria.trim(),
+        unidad: req.body.unidad,
+        stock_minimo: Number(req.body.stockMinimo)
+    }).eq("id", id).select("*").maybeSingle();
+    if (error) {
+        const { estado, cuerpo } = errorDeTabla(error, "No se pudo actualizar la materia prima.");
+        return res.status(estado).json(cuerpo);
+    }
+    if (!data) return res.status(404).json({ mensaje: "No se encontró la materia prima." });
+    return res.json({ data });
+});
+
+operaciones.patch("/materias-primas/:id/estado", async (req, res) => {
+    const id = idPositivo(req.params.id);
+    if (!id || typeof req.body?.activo !== "boolean") return res.status(400).json({ mensaje: "El ID o el estado de la materia prima no son válidos." });
+    const { data, error } = await req.supabaseUsuario.from("materias_primas").update({ activo: req.body.activo })
+        .eq("id", id).select("id").maybeSingle();
+    if (error) {
+        const { estado, cuerpo } = errorDeTabla(error, "No se pudo actualizar el estado de la materia prima.");
+        return res.status(estado).json(cuerpo);
+    }
+    if (!data) return res.status(404).json({ mensaje: "No se encontró la materia prima." });
+    return res.sendStatus(204);
+});
+
+operaciones.put("/recetas/:productoId", async (req, res) => {
+    const productoId = idPositivo(req.params.productoId);
+    const ingredientes = req.body?.ingredientes;
+    if (!productoId || !Array.isArray(ingredientes) || ingredientes.some((item) =>
+        !idPositivo(item?.materiaPrimaId) || !Number.isFinite(Number(item?.cantidad)) || Number(item.cantidad) <= 0
+    )) {
+        return res.status(400).json({ mensaje: "Los datos de la receta no son válidos." });
+    }
+    const { data, error } = await req.supabaseUsuario.rpc("guardar_receta", {
+        p_producto_id: productoId,
+        p_ingredientes: ingredientes.map((item) => ({ materiaPrimaId: Number(item.materiaPrimaId), cantidad: Number(item.cantidad) }))
+    });
+    if (error) {
+        const { estado, cuerpo } = errorDeTabla(error, "No se pudo guardar la receta.");
+        return res.status(estado).json(cuerpo);
+    }
+    return res.json({ data: Number(data) });
 });
 
 async function ejecutarOperacion(req, res, nombre, parametros) {
@@ -448,6 +693,7 @@ async function ejecutarOperacion(req, res, nombre, parametros) {
         const { data, error } = await req.supabaseUsuario.rpc(nombre, parametros);
         if (error) {
             const estado = error.code === "42501" ? 403
+                : error.code === "P0002" ? 404
                 : ["22023", "23505", "23514", "P0001"].includes(error.code) ? 400
                     : 502;
             return res.status(estado).json({
@@ -474,6 +720,18 @@ operaciones.post("/comandas", (req, res) => ejecutarOperacion(req, res, "crear_c
     p_cliente_telefono: req.body?.clienteTelefono ?? null,
     p_hora_retiro: req.body?.horaRetiro ?? null
 }));
+
+operaciones.patch("/mesas/:id/estado", (req, res) => {
+    const id = idPositivo(req.params.id);
+    const estado = req.body?.estado;
+    if (!id || !["libre", "ocupada"].includes(estado)) {
+        return res.status(400).json({ mensaje: "El ID o el estado de la mesa no son válidos." });
+    }
+    return ejecutarOperacion(req, res, "cambiar_estado_mesa_manual", {
+        p_mesa_id: id,
+        p_estado: estado
+    });
+});
 
 operaciones.patch("/comandas/:id", (req, res) => {
     const id = idPositivo(req.params.id);

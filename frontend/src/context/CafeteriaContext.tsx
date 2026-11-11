@@ -269,6 +269,8 @@ interface CafeteriaContextType {
 
     mesas: Mesa[];
 
+    cambiarEstadoMesa: (mesaId: number, estado: "libre" | "ocupada") => Promise<boolean>;
+
     crearMesaMapa: (capacidad: number) => Mesa;
 
     comandas: Comanda[];
@@ -317,8 +319,9 @@ interface CafeteriaContextType {
         tipoElaboracion:
             | "bajo_pedido"
             | "preelaborado"
-            | "reventa"
-    ) => Promise<boolean>;
+            | "reventa",
+        stockInicial?: number
+    ) => Promise<{ creado: boolean; stockRegistrado: boolean }>;
 
     editarProducto: (
         id: number,
@@ -331,6 +334,8 @@ interface CafeteriaContextType {
             | "preelaborado"
             | "reventa"
     ) => Promise<boolean>;
+
+    editarStockMinimoProducto: (id: number, stockMinimo: number) => Promise<boolean>;
 
     eliminarProductoCatalogo: (id: number) => Promise<boolean>;
 
@@ -581,6 +586,25 @@ export function CafeteriaProvider({
         }
     };
 
+    const cambiarEstadoMesa = async (
+        mesaId: number,
+        estado: "libre" | "ocupada"
+    ): Promise<boolean> => {
+        if (obtenerComandaActivaDeMesa(comandas, mesaId)) {
+            setErrorDatos("No se puede cambiar el estado manual de una mesa con una comanda activa.");
+            return false;
+        }
+        try {
+            setErrorDatos(null);
+            await repositorioSupabaseCatalogo.cambiarEstadoMesa(mesaId, estado);
+            await refrescarTrasOperacion();
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo cambiar el estado de la mesa.");
+            return false;
+        }
+    };
+
     const finalizarComanda = async (
         comandaId: number
     ): Promise<boolean> => {
@@ -814,17 +838,35 @@ const procesarStockComanda = async (
         tipoElaboracion:
             | "bajo_pedido"
             | "preelaborado"
-            | "reventa"
-    ): Promise<boolean> => {
+            | "reventa",
+        stockInicial = 0
+    ): Promise<{ creado: boolean; stockRegistrado: boolean }> => {
         try {
             const nuevoProducto = await repositorioSupabaseCatalogo.crearProducto({
                 nombre, precio, categoria, sector, tipoElaboracion
             }) as Producto;
             setProductos((actuales) => [...actuales, nuevoProducto]);
-            return true;
+            if (tipoElaboracion !== "reventa" || stockInicial === 0) {
+                return { creado: true, stockRegistrado: true };
+            }
+
+            try {
+                await repositorioSupabaseCatalogo.registrarMovimientoStock(
+                    nuevoProducto.id,
+                    "producto",
+                    "entrada",
+                    stockInicial,
+                    `Stock inicial de ${stockInicial} ${nuevoProducto.unidadVenta} de ${nuevoProducto.nombre} para reventa`
+                );
+                await refrescarTrasOperacion();
+                return { creado: true, stockRegistrado: true };
+            } catch (error) {
+                setErrorDatos(error instanceof Error ? error.message : "No se pudo registrar el stock inicial.");
+                return { creado: true, stockRegistrado: false };
+            }
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : "No se pudo crear el producto.");
-            return false;
+            return { creado: false, stockRegistrado: false };
         }
     };
 
@@ -847,6 +889,21 @@ const procesarStockComanda = async (
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : "No se pudo actualizar el producto.");
+            return false;
+        }
+    };
+
+    const editarStockMinimoProducto = async (id: number, stockMinimo: number): Promise<boolean> => {
+        if (!Number.isFinite(stockMinimo) || stockMinimo < 0 || !productos.some((producto) => producto.id === id)) {
+            return false;
+        }
+        try {
+            setErrorDatos(null);
+            await repositorioSupabaseCatalogo.editarStockMinimoProducto(id, stockMinimo);
+            await refrescarTrasOperacion();
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo actualizar el stock mínimo del producto.");
             return false;
         }
     };
@@ -1124,6 +1181,7 @@ const procesarStockComanda = async (
                 recargarDatos,
 
                 mesas,
+                cambiarEstadoMesa,
 
                 comandas,
                 crearComanda,
@@ -1137,6 +1195,7 @@ const procesarStockComanda = async (
                 productos,
                 agregarProducto,
                 editarProducto,
+                editarStockMinimoProducto,
                 eliminarProductoCatalogo,
                 cambiarEstadoProductoCatalogo,
 

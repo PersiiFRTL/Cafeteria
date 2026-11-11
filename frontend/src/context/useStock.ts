@@ -5,6 +5,7 @@ export function useStock() {
     const cafeteria = useCafeteria();
     return {
         productos: cafeteria.productos,
+        editarStockMinimoProducto: cafeteria.editarStockMinimoProducto,
         materiasPrimas: cafeteria.materiasPrimas,
         recetas: cafeteria.recetas,
         producciones: cafeteria.producciones,

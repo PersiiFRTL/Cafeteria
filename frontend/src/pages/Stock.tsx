@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
     ArrowDownToLine,
     ArrowUpFromLine,
@@ -7,6 +8,7 @@ import {
     ShoppingBag,
     TriangleAlert,
     Wheat,
+    X,
 } from "lucide-react";
 import { useStock } from "../context/useStock";
 import { coincideBusqueda, normalizarTexto, numeroValido } from "../validaciones";
@@ -20,15 +22,18 @@ const formatearCantidad = (valor: number) =>
 
 function Stock() {
     const { mostrarToast } = useToast();
+    const navigate = useNavigate();
 
     const {
         materiasPrimas,
         productos,
+        recetas,
         agregarMateriaPrima,
         editarMateriaPrima,
         cambiarEstadoMateriaPrima,
         registrarEntradaMateriaPrima,
         registrarEntradaProducto,
+        editarStockMinimoProducto,
         registrarSalidaMateriaPrima,
         operacionesStock
     } = useStock();
@@ -41,9 +46,11 @@ function Stock() {
         useState<number | null>(null);
 
     const [cantidad, setCantidad] = useState("");
-    const [productoReventaSeleccionado, setProductoReventaSeleccionado] = useState<number | null>(null);
-    const [cantidadEntradaProducto, setCantidadEntradaProducto] = useState("");
-    const [errorEntradaProducto, setErrorEntradaProducto] = useState("");
+    const [productoStockSeleccionado, setProductoStockSeleccionado] = useState<number | null>(null);
+    const [cantidadCompraProducto, setCantidadCompraProducto] = useState("");
+    const [minimoReposicionProducto, setMinimoReposicionProducto] = useState("");
+    const [errorGestionProducto, setErrorGestionProducto] = useState("");
+    const [guardandoMinimoProducto, setGuardandoMinimoProducto] = useState(false);
 
     const [mensajeErrorStock, setMensajeErrorStock] = useState("");
     const [mensajeErrorMateriaPrima, setMensajeErrorMateriaPrima] = useState("");
@@ -309,46 +316,88 @@ function Stock() {
         setMensajeErrorMateriaPrima("");
     };
 
-    const productosConStock = productos.filter(
-        (producto) => producto.tipoElaboracion !== "bajo_pedido"
-    );
-    const productosConStockFiltrados = productosConStock.filter((producto) => {
+    const productosInventarioFiltrados = productos.filter((producto) => {
         const textoBusqueda = busquedaProductoStockDebounce;
+        const tipoProducto = producto.tipoElaboracion === "bajo_pedido"
+            ? "Bajo pedido"
+            : producto.tipoElaboracion === "reventa"
+                ? "Compra / reventa"
+                : "Preelaborado";
 
         return (
             coincideBusqueda(producto.nombre, textoBusqueda) ||
-            coincideBusqueda(producto.categoria, textoBusqueda)
+            coincideBusqueda(producto.categoria, textoBusqueda) ||
+            coincideBusqueda(tipoProducto, textoBusqueda)
         );
     });
-    const productosStockVisibles = productosConStockFiltrados;
+    const cantidadProductosBajoPedido = productos.filter(
+        (producto) => producto.tipoElaboracion === "bajo_pedido"
+    ).length;
+    const cantidadPreparablesPorReceta = (productoId: number) => {
+        const receta = recetas.find((item) => item.productoId === productoId);
+        if (!receta || receta.ingredientes.length === 0) return null;
 
-    const productosReventa = productos.filter(
-        (producto) => producto.tipoElaboracion === "reventa" && producto.activo
-    );
+        const cantidadesDisponibles = receta.ingredientes.map((ingrediente) => {
+            const materiaPrima = materiasPrimas.find(
+                (item) => item.id === ingrediente.materiaPrimaId && item.activo
+            );
+            if (!materiaPrima || ingrediente.cantidad <= 0) return null;
+            return Math.floor(materiaPrima.stockActual / ingrediente.cantidad);
+        });
+        if (cantidadesDisponibles.some((cantidad) => cantidad === null)) return null;
+        return Math.min(...cantidadesDisponibles as number[]);
+    };
+    const unidadCantidadPreparada = (unidad: string, cantidad: number) => {
+        if (unidad === "unidad") return cantidad === 1 ? "unidad" : "unidades";
+        if (unidad === "porcion") return cantidad === 1 ? "porción" : "porciones";
+        if (unidad === "litro") return cantidad === 1 ? "litro" : "litros";
+        return "kg";
+    };
+    const productoStockActual = productos.find((producto) => producto.id === productoStockSeleccionado);
 
-    const registrarEntradaReventa = async () => {
-        if (productoReventaSeleccionado === null) {
-            setErrorEntradaProducto("Seleccioná un producto de reventa.");
+    const abrirGestionProducto = (productoId: number) => {
+        const producto = productos.find((item) => item.id === productoId);
+        if (!producto || producto.tipoElaboracion === "bajo_pedido") return;
+        setProductoStockSeleccionado(productoId);
+        setMinimoReposicionProducto(String(producto.stockMinimo));
+        setCantidadCompraProducto("");
+        setErrorGestionProducto("");
+    };
+
+    const cerrarGestionProducto = () => {
+        setProductoStockSeleccionado(null);
+        setCantidadCompraProducto("");
+        setErrorGestionProducto("");
+    };
+
+    const guardarMinimoReposicion = async () => {
+        if (productoStockSeleccionado === null || !numeroValido(minimoReposicionProducto, 0, Number.POSITIVE_INFINITY, true)) {
+            setErrorGestionProducto("Ingresá un mínimo de reposición igual o mayor que 0.");
             return;
         }
-        if (!numeroValido(cantidadEntradaProducto, 1, Number.POSITIVE_INFINITY, true)) {
-            setErrorEntradaProducto("Ingresá una cantidad entera mayor que 0.");
+        setGuardandoMinimoProducto(true);
+        const guardado = await editarStockMinimoProducto(productoStockSeleccionado, Number(minimoReposicionProducto));
+        setGuardandoMinimoProducto(false);
+        if (!guardado) {
+            setErrorGestionProducto("No se pudo guardar el mínimo de reposición.");
             return;
         }
+        setErrorGestionProducto("");
+        mostrarToast("Mínimo de reposición actualizado.");
+    };
 
-        const registrada = await registrarEntradaProducto(
-            productoReventaSeleccionado,
-            Number(cantidadEntradaProducto)
-        );
+    const registrarCompraProducto = async () => {
+        if (productoStockSeleccionado === null || !numeroValido(cantidadCompraProducto, 1, Number.POSITIVE_INFINITY, true)) {
+            setErrorGestionProducto("Ingresá una cantidad comprada entera mayor que 0.");
+            return;
+        }
+        const registrada = await registrarEntradaProducto(productoStockSeleccionado, Number(cantidadCompraProducto));
         if (!registrada) {
-            setErrorEntradaProducto("No se pudo registrar la entrada de stock.");
+            setErrorGestionProducto("No se pudo registrar la compra. Revisá la conexión e intentá nuevamente.");
             return;
         }
-
-        mostrarToast("Entrada de stock de reventa registrada.");
-        setProductoReventaSeleccionado(null);
-        setCantidadEntradaProducto("");
-        setErrorEntradaProducto("");
+        cerrarGestionProducto();
+        mostrarToast("Compra registrada y stock actualizado.");
     };
 
     // =========================================================
@@ -940,8 +989,10 @@ function Stock() {
 
                 <div className="stock-productos-toolbar">
                     <div>
-                        <h2>Productos con stock</h2>
-                        <p>Los preelaborados aumentan con la producción; las compras y reventas, con entradas de stock.</p>
+                        <h2>Productos e inventario</h2>
+                        <p>
+                            {cantidadProductosBajoPedido} productos bajo pedido. Se muestran aquí, pero sus existencias se controlan mediante la receta y las materias primas.
+                        </p>
                     </div>
                     <label className="stock-search-inline">
                         <span>Buscar producto</span>
@@ -955,50 +1006,9 @@ function Stock() {
                     </label>
                 </div>
 
-                {productosReventa.length > 0 ? (
-                    <section className="stock-materia-form stock-reventa-entrada" aria-labelledby="titulo-entrada-reventa">
-                        <h2 id="titulo-entrada-reventa">Registrar entrada de compra / reventa</h2>
-                        <div className="stock-form-fields">
-                            <label>
-                                Producto
-                                <select
-                                    value={productoReventaSeleccionado ?? ""}
-                                    onChange={(event) => {
-                                        setProductoReventaSeleccionado(event.target.value ? Number(event.target.value) : null);
-                                        setErrorEntradaProducto("");
-                                    }}
-                                >
-                                    <option value="">Seleccionar producto</option>
-                                    {productosReventa.map((producto) => (
-                                        <option key={producto.id} value={producto.id}>{producto.nombre}</option>
-                                    ))}
-                                </select>
-                            </label>
-                            <label>
-                                Cantidad de unidades
-                                <input
-                                    type="number"
-                                    min="1"
-                                    step="1"
-                                    inputMode="numeric"
-                                    value={cantidadEntradaProducto}
-                                    onChange={(event) => {
-                                        setCantidadEntradaProducto(event.target.value);
-                                        setErrorEntradaProducto("");
-                                    }}
-                                />
-                            </label>
-                        </div>
-                        {errorEntradaProducto && <p className="form-field-error" role="alert">{errorEntradaProducto}</p>}
-                        <div className="stock-movimiento-actions">
-                            <button type="button" className="primary-button" onClick={registrarEntradaReventa}>
-                                Registrar entrada
-                            </button>
-                        </div>
-                    </section>
-                ) : (
-                    <p className="stock-form-note">Para cargar existencias sin receta, creá primero un producto de tipo Compra / reventa.</p>
-                )}
+                <p className="stock-form-note">
+                    Los productos bajo pedido muestran cuántas unidades permite preparar la receta con las materias primas disponibles. En Compra / reventa registrá las compras desde su fila y configurá el mínimo para saber cuándo reponer.
+                </p>
 
                 <div className="stock-table">
 
@@ -1016,27 +1026,37 @@ function Stock() {
                             Tipo
                         </span>
 
+                        <span>Disponible</span>
+
                         <span>
-                            Stock actual
+                            Mínimo para reponer
                         </span>
 
                         <span>
-                            Estado de stock
+                            Control
+                        </span>
+
+                        <span>
+                            Acción
                         </span>
 
                     </div>
 
 
-                {productosStockVisibles.length === 0 && (
+                {productosInventarioFiltrados.length === 0 && (
                     <div className="stock-empty" role="status">
-                        <h2>No se encontraron productos con stock</h2>
+                        <h2>No se encontraron productos</h2>
                         <p>Probá cambiar la búsqueda.</p>
                     </div>
                 )}
 
-                {productosStockVisibles.map((producto) => {
+                {productosInventarioFiltrados.map((producto) => {
 
-                            const stockBajo =
+                            const controlaStockPropio = producto.tipoElaboracion !== "bajo_pedido";
+                            const cantidadPreparables = producto.tipoElaboracion === "bajo_pedido"
+                                ? cantidadPreparablesPorReceta(producto.id)
+                                : null;
+                            const stockBajo = controlaStockPropio &&
                                 producto.stockActual <=
                                 producto.stockMinimo;
 
@@ -1063,13 +1083,26 @@ function Stock() {
 
 
                                     <span>
-                                        {producto.tipoElaboracion === "reventa" ? "Compra / reventa" : "Preelaborado"}
+                                        {producto.tipoElaboracion === "bajo_pedido"
+                                            ? "Bajo pedido"
+                                            : producto.tipoElaboracion === "reventa"
+                                                ? "Compra / reventa"
+                                                : "Preelaborado"}
                                     </span>
 
 
                                     <span>
-                                        {formatearCantidad(producto.stockActual)}{" "}
-                                        {producto.unidadVenta}
+                                        {controlaStockPropio
+                                            ? `${formatearCantidad(producto.stockActual)} ${producto.unidadVenta}`
+                                            : cantidadPreparables === null
+                                                ? "Sin receta completa"
+                                                : `${cantidadPreparables} ${unidadCantidadPreparada(producto.unidadVenta, cantidadPreparables)}`}
+                                    </span>
+
+                                    <span>
+                                        {controlaStockPropio
+                                            ? `${formatearCantidad(producto.stockMinimo)} ${producto.unidadVenta}`
+                                            : "—"}
                                     </span>
 
 
@@ -1077,16 +1110,38 @@ function Stock() {
 
                                         <span
                                             className={
-                                                stockBajo
-                                                    ? "stock-bajo"
-                                                    : "stock-normal"
+                                                !controlaStockPropio
+                                                    ? "stock-sin-stock-propio"
+                                                    : stockBajo
+                                                        ? "stock-bajo"
+                                                        : "stock-normal"
                                             }
                                         >
-                                            {stockBajo
-                                                ? "Stock bajo"
-                                                : "Normal"}
+                                            {!controlaStockPropio
+                                                ? cantidadPreparables === null ? "Revisar receta" : "Según receta"
+                                                : stockBajo
+                                                    ? "Stock bajo"
+                                                    : "Normal"}
                                         </span>
 
+                                    </span>
+
+                                    <span>
+                                        {controlaStockPropio ? (
+                                            <button
+                                                type="button"
+                                                className="stock-button stock-action-edit"
+                                                onClick={() => abrirGestionProducto(producto.id)}
+                                                aria-label={`Gestionar stock de ${producto.nombre}`}
+                                            >
+                                                {producto.tipoElaboracion === "reventa"
+                                                    ? <ShoppingBag className="ui-icon" aria-hidden="true" />
+                                                    : <Factory className="ui-icon" aria-hidden="true" />}
+                                                Gestionar
+                                            </button>
+                                        ) : producto.tipoElaboracion === "bajo_pedido" ? (
+                                            <span className="stock-row-note">Se prepara al pedir</span>
+                                        ) : null}
                                     </span>
 
                                 </div>
@@ -1251,6 +1306,93 @@ function Stock() {
 
                 </div>
 
+            )}
+
+            {productoStockActual && (
+                <div className="stock-modal-overlay" onClick={cerrarGestionProducto}>
+                    <section
+                        className="stock-materia-form stock-modal-dialog"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="producto-stock-dialog-title"
+                        onClick={(event) => event.stopPropagation()}
+                    >
+                        <div className="stock-modal-heading">
+                            <div>
+                                <h2 id="producto-stock-dialog-title">Stock de {productoStockActual.nombre}</h2>
+                                <p>
+                                    Disponible: {formatearCantidad(productoStockActual.stockActual)} {productoStockActual.unidadVenta}
+                                </p>
+                            </div>
+                            <button type="button" className="stock-modal-close" onClick={cerrarGestionProducto} aria-label="Cerrar">
+                                <X size={20} aria-hidden="true" />
+                            </button>
+                        </div>
+
+                        <div className="stock-form-fields">
+                            <label>
+                                Mínimo para volver a comprar
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    inputMode="numeric"
+                                    value={minimoReposicionProducto}
+                                    onChange={(event) => {
+                                        setMinimoReposicionProducto(event.target.value);
+                                        setErrorGestionProducto("");
+                                    }}
+                                />
+                            </label>
+                        </div>
+                        <p className="stock-form-note">
+                            Se marcará como stock bajo cuando las existencias lleguen a este mínimo o queden por debajo.
+                        </p>
+                        {errorGestionProducto && <p className="form-field-error" role="alert">{errorGestionProducto}</p>}
+                        <div className="stock-movimiento-actions stock-producto-stock-actions">
+                            <button
+                                type="button"
+                                className="secondary-button"
+                                disabled={guardandoMinimoProducto}
+                                onClick={() => void guardarMinimoReposicion()}
+                            >
+                                Guardar mínimo
+                            </button>
+
+                            {productoStockActual.tipoElaboracion === "reventa" ? (
+                                <>
+                                    <label className="stock-producto-cantidad-compra">
+                                        Cantidad comprada
+                                        <input
+                                            type="number"
+                                            min="1"
+                                            step="1"
+                                            inputMode="numeric"
+                                            value={cantidadCompraProducto}
+                                            onChange={(event) => {
+                                                setCantidadCompraProducto(event.target.value);
+                                                setErrorGestionProducto("");
+                                            }}
+                                        />
+                                    </label>
+                                    <button type="button" className="primary-button" onClick={() => void registrarCompraProducto()}>
+                                        <ShoppingBag className="ui-icon" aria-hidden="true" />
+                                        Registrar compra
+                                    </button>
+                                </>
+                            ) : (
+                                <button
+                                    type="button"
+                                    className="primary-button"
+                                    onClick={() => navigate(`/produccion?productoId=${productoStockActual.id}`)}
+                                >
+                                    <Factory className="ui-icon" aria-hidden="true" />
+                                    Registrar producción
+                                </button>
+                            )}
+                        </div>
+                    </section>
+                </div>
             )}
 
         </div>
