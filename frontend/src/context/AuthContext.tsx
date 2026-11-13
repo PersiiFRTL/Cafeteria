@@ -75,7 +75,7 @@ export function AuthProvider({
     const validacionRef = useRef(0);
     const reintentoRef = useRef<number | null>(null);
 
-    const sincronizarPerfil = useCallback(async (session: Session | null) => {
+    const sincronizarPerfil = useCallback(async function sincronizarPerfilInterno(session: Session | null) {
         const validacionActual = ++validacionRef.current;
         if (reintentoRef.current !== null) {
             window.clearTimeout(reintentoRef.current);
@@ -98,7 +98,7 @@ export function AuthProvider({
                 // Un fallo de red/servidor no invalida la sesión local.
                 setEstadoSesion(usuarioActualRef.current ? "lista" : "cargando");
                 reintentoRef.current = window.setTimeout(() => {
-                    void sincronizarPerfil(session);
+                    void sincronizarPerfilInterno(session);
                 }, 3000);
                 return;
             }

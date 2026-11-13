@@ -272,34 +272,36 @@ function Mesas() {
                                         Esta mesa está libre y disponible para iniciar una comanda.
                                     </p>
 
-                                    <button
-                                        className="primary-button"
-                                        onClick={() =>
-                                            navigate(
-                                                `/nueva-comanda?mesaId=${mesaSeleccionadaActual.id}`
-                                            )
-                                        }
-                                    >
-                                        <ShoppingBag className="ui-icon" aria-hidden="true" />
-                                        Generar comanda
-                                    </button>
-                                    
-                                    {puedeCrearComanda && (
+                                    <div className="mesa-actions">
                                         <button
-                                            className="secondary-button"
-                                            onClick={async () => {
-                                                const actualizado = await cambiarEstadoMesa(mesaSeleccionadaActual.id, "ocupada");
-                                                if (!actualizado) {
-                                                    mostrarToast(errorDatos || "No se pudo marcar la mesa como ocupada.");
-                                                    return;
-                                                }
-                                                mostrarToast("Mesa marcada como ocupada.");
-                                            }}
+                                            className="primary-button"
+                                            onClick={() =>
+                                                navigate(
+                                                    `/nueva-comanda?mesaId=${mesaSeleccionadaActual.id}`
+                                                )
+                                            }
                                         >
-                                            <CircleX className="ui-icon" aria-hidden="true" />
-                                            Marcar como ocupada
+                                            <ShoppingBag className="ui-icon" aria-hidden="true" />
+                                            Generar comanda
                                         </button>
-                                    )}
+
+                                        {puedeCrearComanda && (
+                                            <button
+                                                className="secondary-button"
+                                                onClick={async () => {
+                                                    const actualizado = await cambiarEstadoMesa(mesaSeleccionadaActual.id, "ocupada");
+                                                    if (!actualizado) {
+                                                        mostrarToast(errorDatos || "No se pudo marcar la mesa como ocupada.");
+                                                        return;
+                                                    }
+                                                    mostrarToast("Mesa marcada como ocupada.");
+                                                }}
+                                            >
+                                                <CircleX className="ui-icon" aria-hidden="true" />
+                                                Marcar como ocupada
+                                            </button>
+                                        )}
+                                    </div>
                                 </>
 
                             ) : !comandaMesaSeleccionada ? (

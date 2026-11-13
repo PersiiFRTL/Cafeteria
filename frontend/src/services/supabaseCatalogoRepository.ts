@@ -206,8 +206,7 @@ function mapearMovimientoStock(row: Record<string, unknown>): Record<string, unk
 export const repositorioSupabaseCatalogo = {
     async cargarDatosIniciales(): Promise<DatosCafeteriaConMapa> {
         type RegistroRemoto = Record<string, unknown>;
-        const [datos, respuestaPerfiles] = await Promise.all([
-            solicitarApiAutenticada<{
+        const datos = await solicitarApiAutenticada<{
                 productos: RegistroRemoto[];
                 materiasPrimas: RegistroRemoto[];
                 recetas: RegistroRemoto[];
@@ -218,12 +217,10 @@ export const repositorioSupabaseCatalogo = {
                 producciones: RegistroRemoto[];
                 auditoriaEventos: RegistroRemoto[];
                 auditoriaDisponible: boolean;
-            }>("/api/datos-iniciales"),
-            solicitarApiAutenticada<{ perfiles: Array<{ id: string; nombre: string }> }>("/api/perfiles/nombres")
-                .catch(() => ({ perfiles: [] }))
-        ]);
+                perfiles: Array<{ id: string; nombre: string }>;
+            }>("/api/datos-iniciales");
 
-        const nombresPorId = new Map(respuestaPerfiles.perfiles.map((perfil) => [perfil.id, perfil.nombre]));
+        const nombresPorId = new Map(datos.perfiles.map((perfil) => [perfil.id, perfil.nombre]));
         const comandasMapeadas = datos.comandas.map((row) =>
             mapearComanda(row as Record<string, unknown>, nombresPorId)
         );

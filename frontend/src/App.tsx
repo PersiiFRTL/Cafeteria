@@ -1,24 +1,26 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-import Dashboard from "./pages/Dashboard";
-import Login from "./pages/Login";
-import Mesas from "./pages/Mesas";
-import NuevaComanda from "./pages/NuevaComanda";
-import Comandas from "./pages/Comandas";
-import Preparacion from "./pages/Preparacion";
-import Productos from "./pages/Productos";
-import Stock from "./pages/Stock";
-import Recetas from "./pages/Recetas";
-import Produccion from "./pages/Produccion";
-import Empleados from "./pages/Empleados";
 import PermissionRoute from "./components/PermissionRoute";
-import AccesoDenegado from "./pages/AccesoDenegado";
-import MapaLocal from "./pages/MapaLocal";
-import Informes from "./pages/Informes";
-import NotFound from "./pages/NotFound";
+
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Login = lazy(() => import("./pages/Login"));
+const Mesas = lazy(() => import("./pages/Mesas"));
+const NuevaComanda = lazy(() => import("./pages/NuevaComanda"));
+const Comandas = lazy(() => import("./pages/Comandas"));
+const Preparacion = lazy(() => import("./pages/Preparacion"));
+const Productos = lazy(() => import("./pages/Productos"));
+const Stock = lazy(() => import("./pages/Stock"));
+const Recetas = lazy(() => import("./pages/Recetas"));
+const Produccion = lazy(() => import("./pages/Produccion"));
+const Empleados = lazy(() => import("./pages/Empleados"));
+const AccesoDenegado = lazy(() => import("./pages/AccesoDenegado"));
+const MapaLocal = lazy(() => import("./pages/MapaLocal"));
+const Informes = lazy(() => import("./pages/Informes"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 import { CafeteriaProvider } from "./context/CafeteriaContext";
 import { AuthProvider } from "./context/AuthContext";
@@ -33,7 +35,7 @@ function App() {
                         {/* Ruta pública */}
                         <Route
                             path="/login"
-                            element={<Login />}
+                            element={<Suspense fallback={<main className="estado-carga" role="status" aria-live="polite">Abriendo la pantalla…</main>}><Login /></Suspense>}
                         />
 
                         {/* Rutas protegidas */}
@@ -120,7 +122,7 @@ function App() {
                             </Route>
                         </Route>
 
-                        <Route path="*" element={<NotFound />} />
+                        <Route path="*" element={<Suspense fallback={<main className="estado-carga" role="status" aria-live="polite">Abriendo la pantalla…</main>}><NotFound /></Suspense>} />
 
                     </Routes>
                 </BrowserRouter>

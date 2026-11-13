@@ -4,6 +4,7 @@ import {
     useState,
     useEffect,
     useCallback,
+    useRef,
     type ReactNode
 } from "react";
 import type {
@@ -463,6 +464,7 @@ export function CafeteriaProvider({
     const { usuario, estadoSesion } = useAuth();
     const [estadoDatos, setEstadoDatos] = useState<"cargando" | "listo" | "error">("cargando");
     const [errorDatos, setErrorDatos] = useState<string | null>(null);
+    const refreshTimerRef = useRef<number | null>(null);
 
     const [elementosMapa, setElementosMapa] =
         useState<ElementoMapa[]>(() => cargarMapa());
@@ -542,15 +544,21 @@ export function CafeteriaProvider({
         }
     }, [cargarEstadoRemoto]);
 
-    const refrescarTrasOperacion = async () => {
-        try {
-            await cargarEstadoRemoto();
-        } catch (error) {
-            setErrorDatos(error instanceof Error
-                ? `La operación se guardó, pero no se pudo actualizar la vista: ${error.message}`
-                : "La operación se guardó, pero no se pudo actualizar la vista.");
-        }
+    const refrescarTrasOperacion = () => {
+        if (refreshTimerRef.current !== null) window.clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = window.setTimeout(() => {
+            refreshTimerRef.current = null;
+            void cargarEstadoRemoto().catch((error) => {
+                setErrorDatos(error instanceof Error
+                    ? `La operación se guardó, pero no se pudo actualizar la vista: ${error.message}`
+                    : "La operación se guardó, pero no se pudo actualizar la vista.");
+            });
+        }, 120);
     };
+
+    useEffect(() => () => {
+        if (refreshTimerRef.current !== null) window.clearTimeout(refreshTimerRef.current);
+    }, []);
 
     const usuarioId = usuario?.id;
     useEffect(() => {
@@ -625,7 +633,8 @@ export function CafeteriaProvider({
         try {
             setErrorDatos(null);
             await repositorioSupabaseCatalogo.cambiarEstadoMesa(mesaId, estado);
-            await refrescarTrasOperacion();
+            setMesas((actuales) => actuales.map((mesa) => mesa.id === mesaId ? { ...mesa, estado } : mesa));
+            void refrescarTrasOperacion();
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : "No se pudo cambiar el estado de la mesa.");
@@ -639,7 +648,18 @@ export function CafeteriaProvider({
         try {
             setErrorDatos(null);
             await repositorioSupabaseCatalogo.finalizarComanda(comandaId);
-            await refrescarTrasOperacion();
+            const comanda = comandas.find((actual) => actual.id === comandaId);
+            setComandas((actuales) => actuales.map((actual) => actual.id === comandaId
+                ? { ...actual, estado: "finalizada" }
+                : actual
+            ));
+            if (comanda?.mesaId !== undefined) {
+                setMesas((actuales) => actuales.map((mesa) => mesa.id === comanda.mesaId
+                    ? { ...mesa, estado: "libre" }
+                    : mesa
+                ));
+            }
+            void refrescarTrasOperacion();
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : "No se pudo marcar la comanda como entregada.");
@@ -653,7 +673,18 @@ export function CafeteriaProvider({
         try {
             setErrorDatos(null);
             await repositorioSupabaseCatalogo.cancelarComanda(comandaId);
-            await refrescarTrasOperacion();
+            const comanda = comandas.find((actual) => actual.id === comandaId);
+            setComandas((actuales) => actuales.map((actual) => actual.id === comandaId
+                ? { ...actual, estado: "cancelada" }
+                : actual
+            ));
+            if (comanda?.mesaId !== undefined) {
+                setMesas((actuales) => actuales.map((mesa) => mesa.id === comanda.mesaId
+                    ? { ...mesa, estado: "libre" }
+                    : mesa
+                ));
+            }
+            void refrescarTrasOperacion();
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : "No se pudo cancelar la comanda.");
@@ -668,7 +699,27 @@ export function CafeteriaProvider({
         try {
             setErrorDatos(null);
             await repositorioSupabaseCatalogo.agregarProductosAComanda(comandaId, productosNuevos);
-            await refrescarTrasOperacion();
+            setComandas((actuales) => actuales.map((comanda) => {
+                if (comanda.id !== comandaId) return comanda;
+                const cantidadesAgregadas = new Map<number, number>();
+                for (const agregado of productosNuevos) {
+                    cantidadesAgregadas.set(
+                        agregado.productoId,
+                        (cantidadesAgregadas.get(agregado.productoId) ?? 0) + agregado.cantidad
+                    );
+                }
+                const items = comanda.productos.map((item) => {
+                    const cantidadAgregada = cantidadesAgregadas.get(item.productoId);
+                    if (cantidadAgregada === undefined) return item;
+                    cantidadesAgregadas.delete(item.productoId);
+                    return { ...item, cantidad: item.cantidad + cantidadAgregada, estado: "pendiente" as const };
+                });
+                for (const [productoId, cantidad] of cantidadesAgregadas) {
+                    items.push({ productoId, cantidad, estado: "pendiente", cantidadStockProcesada: 0 });
+                }
+                return { ...comanda, productos: items };
+            }));
+            void refrescarTrasOperacion();
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : "No se pudieron agregar productos a la comanda.");
@@ -684,7 +735,20 @@ export function CafeteriaProvider({
         try {
             setErrorDatos(null);
             await repositorioSupabaseCatalogo.editarComanda(comandaId, productosNuevos);
-            await refrescarTrasOperacion();
+            setComandas((actuales) => actuales.map((comanda) => {
+                if (comanda.id !== comandaId) return comanda;
+                const items = productosNuevos.map((productoNuevo) => {
+                    const existente = comanda.productos.find((item) => item.productoId === productoNuevo.productoId);
+                    if (!existente) return { ...productoNuevo, estado: "pendiente" as const, cantidadStockProcesada: 0 };
+                    return {
+                        ...existente,
+                        cantidad: productoNuevo.cantidad,
+                        estado: productoNuevo.cantidad > existente.cantidad ? "pendiente" as const : existente.estado
+                    };
+                });
+                return { ...comanda, productos: items };
+            }));
+            void refrescarTrasOperacion();
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : "No se pudo editar la comanda.");
@@ -707,7 +771,20 @@ export function CafeteriaProvider({
         try {
             setErrorDatos(null);
             await repositorioSupabaseCatalogo.cambiarEstadoItemComanda(comandaId, productoId, estado);
-            await refrescarTrasOperacion();
+            setComandas((actuales) => actuales.map((comanda) => {
+                if (comanda.id !== comandaId) return comanda;
+                const items = comanda.productos.map((item) => ({
+                    ...item,
+                    ...(estado === "preparando" ? { cantidadStockProcesada: item.cantidad } : {}),
+                    ...(item.productoId === productoId ? { estado } : {})
+                }));
+                return {
+                    ...comanda,
+                    estado: items.every((item) => item.estado === "listo") ? "lista" : "preparando",
+                    productos: items
+                };
+            }));
+            void refrescarTrasOperacion();
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : "No se pudo cambiar el estado del producto.");
@@ -827,7 +904,17 @@ export function CafeteriaProvider({
         try {
             setErrorDatos(null);
             await repositorioSupabaseCatalogo.registrarProduccion(productoId, cantidad);
-            await refrescarTrasOperacion();
+            setProductos((actuales) => actuales.map((actual) => actual.id === productoId
+                ? { ...actual, stockActual: actual.stockActual + cantidad }
+                : actual
+            ));
+            setMateriasPrimas((actuales) => actuales.map((materia) => {
+                const ingrediente = receta.ingredientes.find((item) => item.materiaPrimaId === materia.id);
+                return ingrediente
+                    ? { ...materia, stockActual: materia.stockActual - ingrediente.cantidad * cantidad }
+                    : materia;
+            }));
+            void refrescarTrasOperacion();
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : 'No se pudo registrar la producción.');
@@ -897,7 +984,11 @@ const procesarStockComanda = async (
                     stockInicial,
                     `Stock inicial de ${stockInicial} ${nuevoProducto.unidadVenta} de ${nuevoProducto.nombre} para reventa`
                 );
-                await refrescarTrasOperacion();
+                setProductos((actuales) => actuales.map((producto) => producto.id === nuevoProducto.id
+                    ? { ...producto, stockActual: producto.stockActual + stockInicial }
+                    : producto
+                ));
+                void refrescarTrasOperacion();
                 return { creado: true, stockRegistrado: true };
             } catch (error) {
                 setErrorDatos(error instanceof Error ? error.message : "No se pudo registrar el stock inicial.");
@@ -939,7 +1030,11 @@ const procesarStockComanda = async (
         try {
             setErrorDatos(null);
             await repositorioSupabaseCatalogo.editarStockMinimoProducto(id, stockMinimo);
-            await refrescarTrasOperacion();
+            setProductos((actuales) => actuales.map((producto) => producto.id === id
+                ? { ...producto, stockMinimo }
+                : producto
+            ));
+            void refrescarTrasOperacion();
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : "No se pudo actualizar el stock mínimo del producto.");
@@ -1075,7 +1170,11 @@ const procesarStockComanda = async (
                 cantidad,
                 `Ingreso de ${cantidad} ${producto.unidadVenta} de ${producto.nombre} para reventa`
             );
-            await refrescarTrasOperacion();
+            setProductos((actuales) => actuales.map((actual) => actual.id === productoId
+                ? { ...actual, stockActual: actual.stockActual + cantidad }
+                : actual
+            ));
+            void refrescarTrasOperacion();
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : 'No se pudo registrar la entrada de producto.');
@@ -1098,7 +1197,11 @@ const procesarStockComanda = async (
                 cantidad,
                 `Entrada de ${cantidad} ${materia.unidad} de ${materia.nombre}`
             );
-            await refrescarTrasOperacion();
+            setMateriasPrimas((actuales) => actuales.map((actual) => actual.id === materiaPrimaId
+                ? { ...actual, stockActual: actual.stockActual + cantidad }
+                : actual
+            ));
+            void refrescarTrasOperacion();
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : 'No se pudo registrar la entrada de stock.');
@@ -1156,7 +1259,11 @@ const procesarStockComanda = async (
                 cantidad,
                 `Salida de ${cantidad} ${materia.unidad} de ${materia.nombre}`
             );
-            await refrescarTrasOperacion();
+            setMateriasPrimas((actuales) => actuales.map((actual) => actual.id === materiaPrimaId
+                ? { ...actual, stockActual: actual.stockActual - cantidad }
+                : actual
+            ));
+            void refrescarTrasOperacion();
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : 'No se pudo registrar la salida de stock.');

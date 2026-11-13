@@ -398,7 +398,7 @@ function NuevaComanda() {
         navigate("/mesas");
     };
 
-    const confirmarComanda = () => {
+    const confirmarComanda = (instanteActual: number) => {
         if (!esTakeAway && !Number.isInteger(mesaId)) {
             return;
         }
@@ -413,7 +413,7 @@ function NuevaComanda() {
         }
         setErrorTelefono("");
 
-        if (esTakeAway && (!horaRetiro || new Date(horaRetiro).getTime() < Date.now())) {
+        if (esTakeAway && (!horaRetiro || new Date(horaRetiro).getTime() < instanteActual)) {
             setErrorTakeAway("Elegí un horario de retiro actual o futuro.");
             return;
         }
@@ -439,7 +439,7 @@ function NuevaComanda() {
             const objetivo = event.target;
             if (objetivo instanceof HTMLElement && objetivo.closest("button, textarea, select, [contenteditable='true']")) return;
             event.preventDefault();
-            confirmarComanda();
+            confirmarComanda(performance.timeOrigin + event.timeStamp);
             return;
         }
 
@@ -724,7 +724,7 @@ function NuevaComanda() {
                                 Object.keys(cantidades)
                                     .length === 0
                             }
-                            onClick={confirmarComanda}
+                            onClick={() => confirmarComanda(Date.now())}
                         >
                             ✓ Confirmar comanda
                         </button>

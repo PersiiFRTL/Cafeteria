@@ -482,6 +482,16 @@ function tablaAuditoriaNoDisponible(error) {
 
 operaciones.get("/datos-iniciales", async (req, res) => {
     try {
+        const consultaAuditoria = req.usuarioPerfil.rol === "ADMINISTRADOR"
+            ? req.supabaseUsuario.from("auditoria_eventos")
+                .select("id, usuario_nombre, entidad, entidad_id, accion, detalle, fecha")
+                .order("fecha", { ascending: false })
+                .limit(100)
+            : Promise.resolve({ data: [], error: null });
+        const consultaPerfiles = secretKeyConfigurada
+            ? crearClienteAdministrador().from("perfiles").select("id, nombre").order("nombre")
+            : Promise.resolve({ data: [], error: null });
+
         const consultas = await Promise.all([
             req.supabaseUsuario.from("productos").select("*").order("id"),
             req.supabaseUsuario.from("materias_primas").select("*").order("id"),
@@ -498,32 +508,27 @@ operaciones.get("/datos-iniciales", async (req, res) => {
             req.supabaseUsuario.from("operaciones_stock")
                 .select("*, movimientos:movimientos_stock(*)")
                 .order("fecha", { ascending: false }),
-            req.supabaseUsuario.from("producciones").select("*").order("fecha", { ascending: false })
+            req.supabaseUsuario.from("producciones").select("*").order("fecha", { ascending: false }),
+            consultaAuditoria,
+            consultaPerfiles
         ]);
 
-        const [productos, materiasPrimas, recetas, mesas, elementosMapa, comandas, operacionesStock, producciones] = consultas;
-        const consultaFallida = consultas.find((consulta) => consulta.error);
+        const [productos, materiasPrimas, recetas, mesas, elementosMapa, comandas, operacionesStock, producciones, respuestaAuditoria, respuestaPerfiles] = consultas;
+        const consultaFallida = consultas.slice(0, 8).find((consulta) => consulta.error);
         if (consultaFallida?.error) {
             const { estado, cuerpo } = errorDeTabla(consultaFallida.error, "No se pudieron cargar los datos de la cafetería.");
             return res.status(estado).json(cuerpo);
         }
 
-        let auditoriaEventos = [];
+        let auditoriaEventos = respuestaAuditoria.data ?? [];
         let auditoriaDisponible = true;
-        if (req.usuarioPerfil.rol === "ADMINISTRADOR") {
-            const respuestaAuditoria = await req.supabaseUsuario.from("auditoria_eventos")
-                .select("id, usuario_nombre, entidad, entidad_id, accion, detalle, fecha")
-                .order("fecha", { ascending: false })
-                .limit(100);
-            if (respuestaAuditoria.error) {
-                if (tablaAuditoriaNoDisponible(respuestaAuditoria.error)) {
-                    auditoriaDisponible = false;
-                } else {
-                    const { estado, cuerpo } = errorDeTabla(respuestaAuditoria.error, "No se pudo cargar la auditoría.");
-                    return res.status(estado).json(cuerpo);
-                }
+        if (respuestaAuditoria.error) {
+            if (tablaAuditoriaNoDisponible(respuestaAuditoria.error)) {
+                auditoriaDisponible = false;
+                auditoriaEventos = [];
             } else {
-                auditoriaEventos = respuestaAuditoria.data ?? [];
+                const { estado, cuerpo } = errorDeTabla(respuestaAuditoria.error, "No se pudo cargar la auditoría.");
+                return res.status(estado).json(cuerpo);
             }
         }
 
@@ -537,7 +542,8 @@ operaciones.get("/datos-iniciales", async (req, res) => {
             operacionesStock: operacionesStock.data ?? [],
             producciones: producciones.data ?? [],
             auditoriaEventos,
-            auditoriaDisponible
+            auditoriaDisponible,
+            perfiles: respuestaPerfiles.error ? [] : respuestaPerfiles.data ?? []
         });
     } catch {
         return res.status(502).json({ mensaje: "No se pudieron cargar los datos de la cafetería." });

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Outlet, useLocation } from "react-router-dom";
+import { Suspense } from "react";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 import { useCafeteria } from "../context/CafeteriaContext";
@@ -84,7 +85,9 @@ function Layout() {
                         </button>
                     </section>
                 ) : (
-                    <Outlet />
+                    <Suspense fallback={<div className="estado-carga-inline" role="status" aria-live="polite">Abriendo la pestaña…</div>}>
+                        <Outlet />
+                    </Suspense>
                 )}
 
             </main>
