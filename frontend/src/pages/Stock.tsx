@@ -41,6 +41,7 @@ function Stock() {
     const [vista, setVista] = useState<
         "materiasPrimas" | "productos" | "movimientos"
     >("materiasPrimas");
+    const [ordenMovimientos, setOrdenMovimientos] = useState<"recientes" | "antiguos">("recientes");
 
     const [materiaPrimaSeleccionada, setMateriaPrimaSeleccionada] =
         useState<number | null>(null);
@@ -1170,6 +1171,18 @@ function Stock() {
 
                 <div className="operaciones-stock">
 
+                    <div className="movimientos-toolbar">
+                        <label htmlFor="orden-movimientos-stock">Ordenar movimientos</label>
+                        <select
+                            id="orden-movimientos-stock"
+                            value={ordenMovimientos}
+                            onChange={(event) => setOrdenMovimientos(event.target.value as "recientes" | "antiguos")}
+                        >
+                            <option value="recientes">Más recientes primero</option>
+                            <option value="antiguos">Más antiguos primero</option>
+                        </select>
+                    </div>
+
                     {operacionesStock.length === 0 ? (
 
                         <div className="stock-empty">
@@ -1189,7 +1202,13 @@ function Stock() {
                     ) : (
 
                         [...operacionesStock]
-                            .reverse()
+                            .sort((a, b) => {
+                                const diferenciaFecha = new Date(a.fecha).getTime() - new Date(b.fecha).getTime();
+                                const diferencia = Number.isFinite(diferenciaFecha) && diferenciaFecha !== 0
+                                    ? diferenciaFecha
+                                    : a.id - b.id;
+                                return ordenMovimientos === "recientes" ? -diferencia : diferencia;
+                            })
                             .map((operacion) => {
                                 const IconoOperacion = operacion.tipo === "produccion"
                                     ? Factory
