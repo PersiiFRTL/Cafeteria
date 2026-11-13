@@ -261,7 +261,7 @@ function Recetas() {
                         AGREGAR INGREDIENTE
                     ========================== */}
 
-                    <div className="receta-form">
+                    <div className="receta-form" data-shortcut-form>
 
                         <h2>
                             Agregar ingrediente
@@ -332,6 +332,7 @@ function Recetas() {
 
                             <button
                                 className="primary-button"
+                                data-shortcut-enter
                                 onClick={
                                     agregarIngrediente
                                 }

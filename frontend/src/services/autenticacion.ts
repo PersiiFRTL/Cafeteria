@@ -1,3 +1,5 @@
+import { urlApi } from "./urlApi";
+
 export interface UsuarioAutenticado {
     id: string;
     nombre: string;
@@ -16,7 +18,7 @@ export type ResultadoInicioSesion =
 
 export type ResultadoConsultaSesion =
     | { correcto: true; usuario: UsuarioAutenticado }
-    | { correcto: false; mensaje: string };
+    | { correcto: false; mensaje: string; transitorio: boolean };
 
 // Aísla la solicitud de login para poder probarla con una respuesta simulada.
 export async function solicitarInicioSesion(
@@ -25,7 +27,7 @@ export async function solicitarInicioSesion(
     solicitar: typeof fetch = fetch
 ): Promise<ResultadoInicioSesion> {
     try {
-        const respuesta = await solicitar("/api/auth/login", {
+        const respuesta = await solicitar(urlApi("/api/auth/login"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ email, password })
@@ -55,19 +57,23 @@ export async function consultarSesion(
     solicitar: typeof fetch = fetch
 ): Promise<ResultadoConsultaSesion> {
     try {
-        const respuesta = await solicitar("/api/auth/session", {
+        const respuesta = await solicitar(urlApi("/api/auth/session"), {
             headers: { Authorization: `Bearer ${accessToken}` }
         });
         if (!respuesta.ok) {
             const datosError = await respuesta.json().catch(() => ({})) as { mensaje?: string };
-            return { correcto: false, mensaje: datosError.mensaje || "No se pudo validar la sesión." };
+            return {
+                correcto: false,
+                mensaje: datosError.mensaje || "No se pudo validar la sesión.",
+                transitorio: respuesta.status !== 401 && respuesta.status !== 403
+            };
         }
         const datos = await respuesta.json() as { usuario: UsuarioAutenticado };
         return datos.usuario
             ? { correcto: true, usuario: datos.usuario }
-            : { correcto: false, mensaje: "El servidor no devolvió el perfil del usuario." };
+            : { correcto: false, mensaje: "El servidor no devolvió el perfil del usuario.", transitorio: true };
     } catch {
-        return { correcto: false, mensaje: "No se pudo conectar con el servidor." };
+        return { correcto: false, mensaje: "No se pudo conectar con el servidor.", transitorio: true };
     }
 }
 
@@ -75,7 +81,7 @@ export async function solicitarCierreSesion(
     accessToken: string,
     solicitar: typeof fetch = fetch
 ): Promise<void> {
-    const respuesta = await solicitar("/api/auth/logout", {
+    const respuesta = await solicitar(urlApi("/api/auth/logout"), {
         method: "POST",
         headers: { Authorization: `Bearer ${accessToken}` }
     });

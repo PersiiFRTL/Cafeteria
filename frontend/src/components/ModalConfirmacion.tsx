@@ -34,6 +34,8 @@ function ModalConfirmacion({
                 aria-describedby="sistema-modal-mensaje"
                 onKeyDown={(event) => {
                     if (event.key === "Escape") {
+                        event.preventDefault();
+                        event.stopPropagation();
                         if (cancelar) {
                             cancelar();
                         } else {
@@ -64,7 +66,8 @@ function ModalConfirmacion({
                         <button
                             type="button"
                             className="secondary-button"
-                            autoFocus
+                            data-shortcut-close
+                            autoFocus={destructivo}
                             onClick={cancelar}
                         >
                             {textoCancelar}
@@ -72,7 +75,8 @@ function ModalConfirmacion({
                     )}
                     <button
                         type="button"
-                        autoFocus={!cancelar}
+                        data-shortcut-enter
+                        autoFocus={!cancelar || !destructivo}
                         className={destructivo ? "sistema-modal-destructivo" : "primary-button"}
                         onClick={confirmar}
                     >

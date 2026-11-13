@@ -555,6 +555,7 @@ function Stock() {
                         >
                         <div
                             className={`stock-materia-form ${materiaPrimaEditando !== null ? "stock-modal-dialog" : ""}`}
+                            data-shortcut-form
                             role={materiaPrimaEditando !== null ? "dialog" : undefined}
                             aria-modal={materiaPrimaEditando !== null ? true : undefined}
                             aria-labelledby={materiaPrimaEditando !== null ? "stock-form-title" : undefined}
@@ -568,7 +569,7 @@ function Stock() {
                                         : "Nueva materia prima"}
                                 </h2>
                                 {materiaPrimaEditando !== null && (
-                                    <button type="button" className="stock-modal-close" aria-label="Cerrar edición" onClick={cancelarEdicionMateriaPrima}>
+                                    <button type="button" data-shortcut-close className="stock-modal-close" aria-label="Cerrar edición" onClick={cancelarEdicionMateriaPrima}>
                                         ×
                                     </button>
                                 )}
@@ -671,6 +672,7 @@ function Stock() {
 
                                 <button
                                     className="primary-button"
+                                    data-shortcut-enter
                                     onClick={guardarMateriaPrima}
                                 >
                                     {materiaPrimaEditando !== null ? "Guardar cambios" : "Guardar"}
@@ -679,6 +681,8 @@ function Stock() {
 
                                 <button
                                     className="stock-button"
+                                    type="button"
+                                    data-shortcut-close
                                     onClick={cancelarEdicionMateriaPrima}
                                 >
                                     Cancelar
@@ -706,7 +710,7 @@ function Stock() {
                         />
                     </div>
 
-                    <div className="stock-table">
+                    <div className="stock-table stock-table-materias">
 
                         <div className="stock-row stock-row-header">
 
@@ -866,7 +870,7 @@ function Stock() {
 
                             <div className="stock-modal-heading">
                                 <h2 id="stock-movimiento-title">Registrar movimiento</h2>
-                                <button type="button" className="stock-modal-close" aria-label="Cerrar movimiento" onClick={cerrarModalMovimiento}>
+                                <button type="button" data-shortcut-close className="stock-modal-close" aria-label="Cerrar movimiento" onClick={cerrarModalMovimiento}>
                                     ×
                                 </button>
                             </div>
@@ -962,6 +966,7 @@ function Stock() {
                                 <button
                                     type="button"
                                     className="stock-button"
+                                    data-shortcut-close
                                     onClick={cerrarModalMovimiento}
                                 >
                                     Cancelar
@@ -1324,7 +1329,7 @@ function Stock() {
                                     Disponible: {formatearCantidad(productoStockActual.stockActual)} {productoStockActual.unidadVenta}
                                 </p>
                             </div>
-                            <button type="button" className="stock-modal-close" onClick={cerrarGestionProducto} aria-label="Cerrar">
+                            <button type="button" data-shortcut-close className="stock-modal-close" onClick={cerrarGestionProducto} aria-label="Cerrar">
                                 <X size={20} aria-hidden="true" />
                             </button>
                         </div>

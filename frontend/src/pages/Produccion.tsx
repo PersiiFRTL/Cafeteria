@@ -140,7 +140,7 @@ function Produccion() {
             {/* FORMULARIO */}
             {/* ========================== */}
 
-            <div className="produccion-form">
+            <div className="produccion-form" data-shortcut-form>
 
                 <h2>
                     Registrar producción
@@ -220,6 +220,7 @@ function Produccion() {
 
 
                     <button
+                        data-shortcut-enter
                         onClick={producir}
                     >
                         Producir

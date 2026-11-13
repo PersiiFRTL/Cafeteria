@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useComandas } from "../context/useComandas";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { ChefHat, LayoutGrid, List } from "lucide-react";
 import ModalConfirmacion from "../components/ModalConfirmacion";
 import { useToast } from "../context/useToast";
@@ -58,6 +58,7 @@ function Comandas() {
     };
 
     const [searchParams] = useSearchParams();
+    const navigate = useNavigate();
     const [filtroComanda, setFiltroComanda] =
         useState<FiltroComanda>(() => {
             const valorGuardado = localStorage.getItem(COMANDAS_FILTRO_KEY) as FiltroComanda | null;
@@ -457,8 +458,7 @@ function Comandas() {
                                         {/* ENVIAR A PREPARACIÓN */}
                                         {/* ========================== */}
 
-                                        {comanda.estado ===
-                                            "pendiente" && (
+                                        {comanda.estado === "pendiente" && (
 
                                             <button
                                                 className="primary-button"
@@ -475,6 +475,16 @@ function Comandas() {
                                                 Enviar a preparación
                                             </button>
 
+                                        )}
+
+                                        {(comanda.estado === "pendiente" || comanda.estado === "preparando") && (
+                                            <button
+                                                className="secondary-button"
+                                                disabled={accionBloqueada}
+                                                onClick={() => navigate(`/nueva-comanda?editar=${comanda.id}`)}
+                                            >
+                                                Modificar comanda
+                                            </button>
                                         )}
 
 

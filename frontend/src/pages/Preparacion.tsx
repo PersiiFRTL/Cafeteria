@@ -351,8 +351,9 @@ function Preparacion() {
                                     </h3>
 
                                     <p>
-                                        Cantidad:{" "}
-                                        {item.cantidad}
+                                        {item.estado === "pendiente" && item.cantidadStockProcesada > 0
+                                            ? `Cantidad nueva: ${item.cantidad - item.cantidadStockProcesada} (total del pedido: ${item.cantidad})`
+                                            : `Cantidad: ${item.cantidad}`}
                                     </p>
 
                                     <span

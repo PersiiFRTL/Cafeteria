@@ -48,6 +48,23 @@ npm test
 
 Estas pruebas usan el ejecutor integrado de Node.js y no requieren conectarse a Supabase.
 
+### Despliegue en producción
+
+El backend se puede desplegar como contenedor desde `backend/` usando `backend/Dockerfile`, o en un host Node.js con `npm ci --omit=dev` y `npm start`. El proceso escucha en el puerto definido por `PORT` y el endpoint `GET /` sirve como comprobación de salud del servidor.
+
+Configura estas variables en el servicio del backend:
+
+- `SUPABASE_URL`: URL del proyecto Supabase.
+- `SUPABASE_PUBLISHABLE_KEY`: clave pública del proyecto.
+- `SUPABASE_SECRET_KEY`: necesaria para administrar cuentas de empleados. Solo debe existir en el backend.
+- `FRONTEND_ORIGINS`: orígenes públicos exactos del frontend, separados por comas y sin barras finales.
+- `TRUST_PROXY=1` solo si el host está detrás de exactamente un proxy confiable; en caso contrario, déjalo en `0`.
+- `PORT`: lo asigna el proveedor en la mayoría de los hosts.
+
+Para el frontend, ejecuta `npm ci` y `npm run build` desde `frontend/` y publica la carpeta `frontend/dist`. Define durante la compilación `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` y `VITE_API_BASE_URL` (la URL pública de Express, sin barra final). Si el frontend y el backend comparten origen y un proxy enruta `/api`, `VITE_API_BASE_URL` puede quedar vacío.
+
+Luego verifica `GET /` en el backend, `GET /api/health/supabase`, el inicio de sesión y una operación protegida desde el dominio público. No uses `VITE_` para claves secretas.
+
 ## Supabase
 
 El esquema está en `supabase\migrations\20261014190000_create_cafeteria_schema.sql`; los datos demo se pueden cargar desde SQL Editor con `supabase\migrations\20261014212644_seed_initial_cafeteria_data.sql`. Las migraciones posteriores deben ejecutarse en orden desde SQL Editor.

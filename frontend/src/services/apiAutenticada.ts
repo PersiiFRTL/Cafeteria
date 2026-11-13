@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { urlApi } from "./urlApi";
 
 /** Envía operaciones al backend usando la sesión del usuario autenticado. */
 export async function solicitarApiAutenticada<T>(
@@ -14,7 +15,7 @@ export async function solicitarApiAutenticada<T>(
         headers.set("Content-Type", "application/json");
     }
 
-    const respuesta = await fetch(ruta, { ...opciones, headers });
+    const respuesta = await fetch(urlApi(ruta), { ...opciones, headers });
     if (respuesta.status === 204) return undefined as T;
 
     const datos = await respuesta.json().catch(() => ({})) as { mensaje?: string };

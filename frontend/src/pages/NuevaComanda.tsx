@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import ModalConfirmacion from "../components/ModalConfirmacion";
 import { useComandas } from "../context/useComandas";
@@ -36,6 +36,7 @@ function NuevaComanda() {
     const [cantidadesIniciales, setCantidadesIniciales] =
         useState<Record<number, number>>({});
     const [dialogo, setDialogo] = useState<DialogoComanda | null>(null);
+    const [productoSeleccionadoAtajo, setProductoSeleccionadoAtajo] = useState<number | null>(null);
     const [filtroSector, setFiltroSector] = useState<"Todos" | "Cocina" | "Cafetería" | "Pastelería">("Todos");
 
     const [searchParams] = useSearchParams();
@@ -431,12 +432,44 @@ function NuevaComanda() {
         });
     };
 
+    const manejarAtajoEnComanda = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+        if (dialogo) return;
+
+        if (event.key === "Enter" && !event.repeat) {
+            const objetivo = event.target;
+            if (objetivo instanceof HTMLElement && objetivo.closest("button, textarea, select, [contenteditable='true']")) return;
+            event.preventDefault();
+            confirmarComanda();
+            return;
+        }
+
+        if (productoSeleccionadoAtajo === null) return;
+        const objetivo = event.target;
+        if (objetivo instanceof HTMLElement && objetivo.closest("input, textarea, select, [contenteditable='true']")) return;
+        if (!productosDelSector.some((producto) => producto.id === productoSeleccionadoAtajo)) {
+            setProductoSeleccionadoAtajo(null);
+            return;
+        }
+
+        const productoId = productoSeleccionadoAtajo;
+        const cantidadActual = cantidades[productoId] ?? 0;
+        if ((event.key === "+" || event.key === "Add") && puedeAgregarProducto(productoId, cantidadActual)) {
+            event.preventDefault();
+            agregarProducto(productoId);
+            return;
+        }
+        if ((event.key === "-" || event.key === "−" || event.key === "Subtract") && cantidadActual > 0) {
+            event.preventDefault();
+            quitarProducto(productoId);
+        }
+    };
+
     const productosDelSector = productos.filter((producto) =>
         producto.activo && (filtroSector === "Todos" || producto.sector === filtroSector)
     );
 
     return (
-        <div className="dashboard-content">
+        <div className="dashboard-content" onKeyDown={manejarAtajoEnComanda}>
 
             <div className="comanda-header">
                 <div>
@@ -444,6 +477,9 @@ function NuevaComanda() {
 
                     <p>
                         {esTakeAway ? "Pedido para retirar en la cafetería" : `Mesa ${numeroMesa}`}
+                    </p>
+                    <p className="atajo-teclado-ayuda">
+                        Atajos: seleccioná un producto y usá <kbd>+</kbd>/<kbd>−</kbd> · <kbd>Enter</kbd> revisar pedido · <kbd>Esc</kbd> cancelar
                     </p>
                 </div>
             </div>
@@ -539,7 +575,12 @@ function NuevaComanda() {
                                 return (
                                     <div
                                         key={producto.id}
-                                        className="producto-card"
+                                        className={`producto-card ${productoSeleccionadoAtajo === producto.id ? "producto-card-seleccionado" : ""}`}
+                                        role="group"
+                                        aria-label={`Producto ${producto.nombre}`}
+                                        aria-keyshortcuts="+ -"
+                                        onFocusCapture={() => setProductoSeleccionadoAtajo(producto.id)}
+                                        onClickCapture={() => setProductoSeleccionadoAtajo(producto.id)}
                                     >
 
                                         <div>
@@ -668,6 +709,8 @@ function NuevaComanda() {
 
                         <button
                             className="secondary-button cancelar-button"
+                            data-shortcut-close
+                            type="button"
                             onClick={() => solicitarSalida(rutaVolver)}
                         >
                             Cancelar
@@ -675,6 +718,8 @@ function NuevaComanda() {
 
                         <button
                             className="primary-button confirmar-button"
+                            data-shortcut-enter
+                            type="button"
                             disabled={
                                 Object.keys(cantidades)
                                     .length === 0

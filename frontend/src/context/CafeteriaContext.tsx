@@ -577,8 +577,36 @@ export function CafeteriaProvider({
         }
         try {
             setErrorDatos(null);
-            await repositorioSupabaseCatalogo.crearComanda(mesaId, productosNuevos, datosTakeAway);
-            await refrescarTrasOperacion();
+            const comandaId = await repositorioSupabaseCatalogo.crearComanda(mesaId, productosNuevos, datosTakeAway);
+            const nuevaComanda: Comanda = {
+                id: comandaId,
+                tipoAtencion: datosTakeAway ? "take-away" : "mesa",
+                ...(mesaId === undefined ? {} : { mesaId }),
+                ...(datosTakeAway ? {
+                    clienteTakeAway: {
+                        nombre: datosTakeAway.nombre,
+                        telefono: datosTakeAway.telefono
+                    },
+                    horaRetiro: datosTakeAway.horaRetiro
+                } : {}),
+                productos: productosNuevos.map((item) => ({
+                    productoId: item.productoId,
+                    cantidad: item.cantidad,
+                    estado: "pendiente",
+                    cantidadStockProcesada: 0
+                })),
+                responsableNombre: usuario?.nombre,
+                estado: "pendiente",
+                fechaCreacion: new Date().toISOString()
+            };
+            setComandas((actuales) => [nuevaComanda, ...actuales]);
+            if (mesaId !== undefined) {
+                setMesas((actuales) => actuales.map((mesa) =>
+                    mesa.id === mesaId ? { ...mesa, estado: "ocupada" } : mesa
+                ));
+            }
+            // La confirmación ya quedó guardada; sincronizamos el resto en segundo plano.
+            void refrescarTrasOperacion();
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : "No se pudo crear la comanda.");
@@ -818,7 +846,18 @@ const procesarStockComanda = async (
         setErrorDatos(null);
         const procesada = await repositorioSupabaseCatalogo.procesarStockComanda(comandaId);
         if (!procesada) return false;
-        await refrescarTrasOperacion();
+        setComandas((actuales) => actuales.map((comanda) => comanda.id === comandaId
+            ? {
+                ...comanda,
+                estado: "preparando",
+                productos: comanda.productos.map((item) => ({
+                    ...item,
+                    cantidadStockProcesada: item.cantidad
+                }))
+            }
+            : comanda
+        ));
+        void refrescarTrasOperacion();
         return true;
     } catch (error) {
         setErrorDatos(error instanceof Error ? error.message : "No se pudo procesar el stock de la comanda.");

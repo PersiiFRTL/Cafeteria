@@ -3,7 +3,8 @@ import {
     useContext,
     useState,
     useEffect,
-    useCallback
+    useCallback,
+    useRef
 } from "react";
 import type { ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
@@ -53,9 +54,12 @@ interface AuthProviderProps {
 async function consultarPerfil(session: Session): Promise<{
     usuario?: UsuarioAutenticado;
     mensajeError?: string;
+    transitorio?: boolean;
 }> {
     const resultado = await consultarSesion(session.access_token);
-    if (!resultado.correcto) return { mensajeError: resultado.mensaje };
+    if (!resultado.correcto) {
+        return { mensajeError: resultado.mensaje, transitorio: resultado.transitorio };
+    }
     return { usuario: { ...resultado.usuario, rol: resultado.usuario.rol as RolEmpleado } };
 }
 
@@ -67,9 +71,19 @@ export function AuthProvider({
     const [usuario, setUsuario] = useState<UsuarioAutenticado | null>(null);
     const [estadoSesion, setEstadoSesion] = useState<"cargando" | "lista">("cargando");
     const [errorSesion, setErrorSesion] = useState<string | null>(null);
+    const usuarioActualRef = useRef<UsuarioAutenticado | null>(null);
+    const validacionRef = useRef(0);
+    const reintentoRef = useRef<number | null>(null);
 
     const sincronizarPerfil = useCallback(async (session: Session | null) => {
+        const validacionActual = ++validacionRef.current;
+        if (reintentoRef.current !== null) {
+            window.clearTimeout(reintentoRef.current);
+            reintentoRef.current = null;
+        }
+
         if (!session) {
+            usuarioActualRef.current = null;
             setUsuario(null);
             setErrorSesion(null);
             setEstadoSesion("lista");
@@ -77,14 +91,26 @@ export function AuthProvider({
         }
 
         const resultado = await consultarPerfil(session);
+        if (validacionActual !== validacionRef.current) return;
         if (!resultado.usuario) {
-            setUsuario(null);
             setErrorSesion(resultado.mensajeError ?? "No se pudo cargar el perfil.");
+            if (resultado.transitorio) {
+                // Un fallo de red/servidor no invalida la sesión local.
+                setEstadoSesion(usuarioActualRef.current ? "lista" : "cargando");
+                reintentoRef.current = window.setTimeout(() => {
+                    void sincronizarPerfil(session);
+                }, 3000);
+                return;
+            }
+
+            usuarioActualRef.current = null;
+            setUsuario(null);
             setEstadoSesion("lista");
-            await supabase.auth.signOut();
+            await supabase.auth.signOut({ scope: "local" });
             return;
         }
 
+        usuarioActualRef.current = resultado.usuario;
         setUsuario(resultado.usuario);
         setErrorSesion(null);
         setEstadoSesion("lista");
@@ -95,13 +121,22 @@ export function AuthProvider({
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             // Diferir la consulta evita ejecutar otra operación de Auth dentro de su callback.
+            const validacionProgramada = ++validacionRef.current;
+            if (reintentoRef.current !== null) {
+                window.clearTimeout(reintentoRef.current);
+                reintentoRef.current = null;
+            }
             window.setTimeout(() => {
-                if (activo) void sincronizarPerfil(session);
+                if (activo && validacionProgramada === validacionRef.current) {
+                    void sincronizarPerfil(session);
+                }
             }, 0);
         });
 
         return () => {
             activo = false;
+            validacionRef.current += 1;
+            if (reintentoRef.current !== null) window.clearTimeout(reintentoRef.current);
             subscription.unsubscribe();
         };
     }, [sincronizarPerfil]);
@@ -125,7 +160,9 @@ export function AuthProvider({
             return { correcto: false, mensaje: "No se pudo guardar la sesión en este dispositivo." };
         }
 
-        setUsuario({ ...resultado.usuario, rol: resultado.usuario.rol as RolEmpleado });
+        const usuarioAutenticado = { ...resultado.usuario, rol: resultado.usuario.rol as RolEmpleado };
+        usuarioActualRef.current = usuarioAutenticado;
+        setUsuario(usuarioAutenticado);
         setErrorSesion(null);
         setEstadoSesion("lista");
         return { correcto: true };
@@ -142,6 +179,7 @@ export function AuthProvider({
         try {
             await supabase.auth.signOut({ scope: "local" });
         } finally {
+            usuarioActualRef.current = null;
             setUsuario(null);
         }
     };

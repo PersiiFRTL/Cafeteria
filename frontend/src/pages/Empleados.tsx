@@ -379,7 +379,7 @@ function Empleados() {
                 TABLA DE EMPLEADOS
             ========================== */}
 
-            <div className="productos-table">
+            <div className="productos-table empleados-table">
 
                 <div className="producto-row producto-row-header">
 

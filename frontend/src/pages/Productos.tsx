@@ -292,7 +292,7 @@ function Productos() {
 
             {mostrarFormulario && (
 
-                <div className="producto-form">
+                <div className="producto-form" data-shortcut-form>
 
                     <h2>
                         Nuevo producto
@@ -438,6 +438,7 @@ function Productos() {
 
                         <button
                             className="primary-button"
+                            data-shortcut-enter
                             onClick={
                                 crearProducto
                             }
@@ -447,6 +448,8 @@ function Productos() {
 
                         <button
                             className="secondary-button"
+                            type="button"
+                            data-shortcut-close
                             onClick={() => {
 
                                 limpiarFormulario();
@@ -555,6 +558,7 @@ function Productos() {
 
                                 <div
                                     className="producto-row producto-row-editando"
+                                    data-shortcut-form
                                     key={producto.id}
                                 >
 
@@ -706,6 +710,7 @@ function Productos() {
 
                                         <button
                                             className="primary-button"
+                                            data-shortcut-enter
                                             onClick={
                                                 guardarEdicion
                                             }
@@ -715,6 +720,8 @@ function Productos() {
 
                                         <button
                                             className="secondary-button"
+                                            type="button"
+                                            data-shortcut-close
                                             onClick={
                                                 cancelarEdicion
                                             }

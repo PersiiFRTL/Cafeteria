@@ -165,10 +165,30 @@ app.get("/api/auth/session", async (req, res) => {
     try {
         const cliente = crearClientePublico(token);
         const { data, error } = await cliente.auth.getUser(token);
-        if (error || !data.user) return res.status(401).json({ mensaje: "La sesión no es válida." });
+        if (error) {
+            const estadoError = Number(error.status);
+            if (estadoError === 401 || estadoError === 403) {
+                return res.status(401).json({ mensaje: "La sesión no es válida." });
+            }
+            return res.status(503).json({ mensaje: "No se pudo verificar la sesión temporalmente." });
+        }
+        if (!data.user) return res.status(401).json({ mensaje: "La sesión no es válida." });
 
-        const usuario = await cargarPerfilActivo(cliente, data.user.id);
-        if (!usuario) return res.status(403).json({ mensaje: "La cuenta está desactivada o no tiene un perfil válido." });
+        const { data: perfil, error: errorPerfil } = await cliente
+            .from("perfiles")
+            .select("id, nombre, email, rol, activo")
+            .eq("id", data.user.id)
+            .maybeSingle();
+        if (errorPerfil) return res.status(503).json({ mensaje: "No se pudo verificar el perfil temporalmente." });
+        if (!perfil || !perfil.activo || !rolesValidos.has(perfil.rol)) {
+            return res.status(403).json({ mensaje: "La cuenta está desactivada o no tiene un perfil válido." });
+        }
+        const usuario = {
+            id: perfil.id,
+            nombre: perfil.nombre,
+            email: perfil.email ?? "",
+            rol: perfil.rol
+        };
         return res.json({ usuario });
     } catch {
         return res.status(502).json({ mensaje: "No se pudo validar la sesión." });
