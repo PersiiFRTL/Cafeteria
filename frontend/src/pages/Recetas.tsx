@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Pencil, Power, Trash2 } from "lucide-react";
 import { useCatalogo } from "../context/useCatalogo";
 import { numeroValido } from "../validaciones";
 import { useToast } from "../context/useToast";
@@ -11,7 +12,8 @@ function Recetas() {
         materiasPrimas,
         recetas,
         agregarReceta,
-        editarReceta
+        editarReceta,
+        cambiarEstadoReceta
     } = useCatalogo();
 
     const [productoSeleccionado, setProductoSeleccionado] =
@@ -24,6 +26,33 @@ function Recetas() {
         useState("");
     const [errorCantidad, setErrorCantidad] =
         useState("");
+    const [ingredienteEnEdicion, setIngredienteEnEdicion] = useState<number | null>(null);
+
+    const prepararEdicionReceta = (productoId: number) => {
+        setProductoSeleccionado(productoId);
+        setIngredienteEnEdicion(null);
+        setMateriaPrimaSeleccionada(null);
+        setCantidad("");
+        requestAnimationFrame(() => document.getElementById("editor-receta")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    };
+
+    const prepararEdicionIngrediente = (productoId: number, materiaPrimaId: number, cantidadActual: number) => {
+        setProductoSeleccionado(productoId);
+        setIngredienteEnEdicion(materiaPrimaId);
+        setMateriaPrimaSeleccionada(materiaPrimaId);
+        setCantidad(String(cantidadActual));
+        setErrorCantidad("");
+        requestAnimationFrame(() => document.getElementById("editor-receta")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    };
+
+    const alternarEstadoReceta = async (recetaId: number, activo: boolean) => {
+        const guardada = await cambiarEstadoReceta(recetaId, activo);
+        if (!guardada) {
+            mostrarToast("No se pudo actualizar el estado de la receta.");
+            return;
+        }
+        mostrarToast(activo ? "Receta habilitada." : "Receta deshabilitada.");
+    };
 
     const agregarIngrediente = async () => {
 
@@ -121,6 +150,7 @@ function Recetas() {
         mostrarToast("Ingrediente de receta guardado.");
         setMateriaPrimaSeleccionada(null);
         setCantidad("");
+        setIngredienteEnEdicion(null);
         setErrorCantidad("");
     };
 
@@ -160,6 +190,11 @@ function Recetas() {
             mostrarToast("No se pudo actualizar la receta en Supabase.");
             return;
         }
+        if (ingredienteEnEdicion === materiaPrimaId) {
+            setIngredienteEnEdicion(null);
+            setMateriaPrimaSeleccionada(null);
+            setCantidad("");
+        }
         mostrarToast("Ingrediente eliminado de la receta.");
     };
 
@@ -169,6 +204,8 @@ function Recetas() {
                 receta.productoId ===
                 productoSeleccionado
         );
+
+    const productoActual = productos.find((producto) => producto.id === productoSeleccionado);
 
     const materiaPrimaActual = materiasPrimas.find(
         (materia) => materia.id === materiaPrimaSeleccionada
@@ -225,6 +262,7 @@ function Recetas() {
                         );
 
                         setCantidad("");
+                        setIngredienteEnEdicion(null);
                     }}
                 >
 
@@ -232,18 +270,13 @@ function Recetas() {
                         Seleccionar producto
                     </option>
 
-                    {productos
-                        .filter(
-                            (producto) =>
-                                producto.activo
-                        )
-                        .map(
+                    {productos.map(
                             (producto) => (
                                 <option
                                     key={producto.id}
                                     value={producto.id}
                                 >
-                                    {producto.nombre}
+                                    {producto.nombre}{producto.activo ? "" : " (producto inactivo)"}
                                 </option>
                             )
                         )}
@@ -261,15 +294,30 @@ function Recetas() {
                         AGREGAR INGREDIENTE
                     ========================== */}
 
-                    <div className="receta-form" data-shortcut-form>
+                    <div className="receta-form" id="editor-receta" data-shortcut-form>
 
-                        <h2>
-                            Agregar ingrediente
-                        </h2>
+                        <div className="receta-editor-heading">
+                            <div>
+                                <span className="receta-editor-eyebrow">Editor de receta</span>
+                                <h2>{ingredienteEnEdicion === null
+                                    ? `Receta de ${productoActual?.nombre ?? "producto"}`
+                                    : `Editando ingrediente de ${productoActual?.nombre ?? "la receta"}`}</h2>
+                            </div>
+                            {recetaActual && (
+                                <span className={`receta-estado ${recetaActual.activo ? "activo" : "inactivo"}`}>
+                                    {recetaActual.activo ? "Activa" : "Deshabilitada"}
+                                </span>
+                            )}
+                        </div>
+
+                        <h3 className="receta-form-subtitulo">
+                            {ingredienteEnEdicion === null ? "Agregar ingrediente" : "Editar ingrediente"}
+                        </h3>
 
                         <div className="receta-form-fields">
 
                             <select
+                                disabled={ingredienteEnEdicion !== null}
                                 value={
                                     materiaPrimaSeleccionada ??
                                     ""
@@ -290,7 +338,7 @@ function Recetas() {
                                 {materiasPrimas
                                     .filter(
                                         (materia) =>
-                                            materia.activo
+                                            materia.activo || materia.id === materiaPrimaSeleccionada
                                     )
                                     .map(
                                         (materia) => (
@@ -302,7 +350,7 @@ function Recetas() {
                                                     materia.id
                                                 }
                                             >
-                                                {materia.nombre} ({materia.unidad})
+                                                {materia.nombre} ({materia.unidad}){materia.activo ? "" : " (inactiva)"}
                                             </option>
                                         )
                                     )}
@@ -333,12 +381,23 @@ function Recetas() {
                             <button
                                 className="primary-button"
                                 data-shortcut-enter
+                                type="button"
                                 onClick={
                                     agregarIngrediente
                                 }
                             >
-                                + Agregar
+                                {ingredienteEnEdicion === null ? "+ Agregar" : "Guardar cambios"}
                             </button>
+
+                            {ingredienteEnEdicion !== null && (
+                                <button type="button" className="secondary-button" onClick={() => {
+                                    setIngredienteEnEdicion(null);
+                                    setMateriaPrimaSeleccionada(null);
+                                    setCantidad("");
+                                }}>
+                                    Cancelar edición
+                                </button>
+                            )}
 
                         </div>
 
@@ -425,13 +484,25 @@ function Recetas() {
                                             <span>
 
                                                 <button
-                                                    className="secondary-button"
+                                                    className="secondary-button receta-accion receta-accion-editar"
+                                                    type="button"
+                                                    onClick={() => prepararEdicionIngrediente(productoSeleccionado!, materia.id, ingrediente.cantidad)}
+                                                >
+                                                    <Pencil className="ui-icon" aria-hidden="true" />
+                                                    Editar
+                                                </button>
+
+                                                <button
+                                                    className="secondary-button receta-accion receta-accion-eliminar"
+                                                    type="button"
+                                                    aria-label={`Eliminar ${materia.nombre} de la receta`}
                                                     onClick={() =>
                                                         eliminarIngrediente(
                                                             materia.id
                                                         )
                                                     }
                                                 >
+                                                    <Trash2 className="ui-icon" aria-hidden="true" />
                                                     Eliminar
                                                 </button>
 
@@ -490,13 +561,15 @@ function Recetas() {
 
                             return (
                                 <div
-                                    className="receta-card"
+                                    className={`receta-card${receta.activo ? "" : " receta-card-deshabilitada"}`}
                                     key={receta.id}
                                 >
-                                    <h3>
-                                        {producto?.nombre ??
-                                            "Producto desconocido"}
-                                    </h3>
+                                    <div className="receta-card-heading">
+                                        <h3>{producto?.nombre ?? "Producto desconocido"}</h3>
+                                        <span className={`receta-estado ${receta.activo ? "activo" : "inactivo"}`}>
+                                            {receta.activo ? "Activa" : "Deshabilitada"}
+                                        </span>
+                                    </div>
 
                                     <div className="receta-card-ingredientes">
                                         {receta.ingredientes.map(
@@ -509,19 +582,28 @@ function Recetas() {
                                                     );
 
                                                 return (
-                                                    <span
-                                                        key={
-                                                            ingrediente.materiaPrimaId
-                                                        }
-                                                    >
-                                                        {materia?.nombre ??
-                                                            "Materia desconocida"}
-                                                        : {ingrediente.cantidad}{" "}
-                                                        {materia?.unidad ?? ""}
-                                                    </span>
+                                                    <div className="receta-card-ingrediente" key={ingrediente.materiaPrimaId}>
+                                                        <span>
+                                                            {materia?.nombre ?? "Materia desconocida"}: {ingrediente.cantidad} {materia?.unidad ?? ""}
+                                                        </span>
+                                                        <button type="button" className="receta-accion receta-accion-editar" aria-label={`Editar ${materia?.nombre ?? "ingrediente"} en la receta de ${producto?.nombre ?? "producto"}`} onClick={() => prepararEdicionIngrediente(receta.productoId, ingrediente.materiaPrimaId, ingrediente.cantidad)}>
+                                                            <Pencil className="ui-icon" aria-hidden="true" />
+                                                            Editar
+                                                        </button>
+                                                    </div>
                                                 );
                                             }
                                         )}
+                                    </div>
+                                    <div className="receta-card-actions">
+                                        <button type="button" className="secondary-button receta-accion receta-accion-editar" onClick={() => prepararEdicionReceta(receta.productoId)}>
+                                            <Pencil className="ui-icon" aria-hidden="true" />
+                                            Editar receta
+                                        </button>
+                                        <button type="button" className={`receta-accion ${receta.activo ? "receta-accion-deshabilitar" : "receta-accion-habilitar"}`} onClick={() => void alternarEstadoReceta(receta.id, !receta.activo)}>
+                                            <Power className="ui-icon" aria-hidden="true" />
+                                            {receta.activo ? "Deshabilitar" : "Habilitar"}
+                                        </button>
                                     </div>
                                 </div>
                             );

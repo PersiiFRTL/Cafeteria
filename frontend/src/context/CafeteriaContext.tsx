@@ -81,6 +81,7 @@ interface IngredienteReceta {
 interface Receta {
     id: number;
     productoId: number;
+    activo: boolean;
     ingredientes: IngredienteReceta[];
 }
 
@@ -394,6 +395,8 @@ interface CafeteriaContextType {
         recetaId: number,
         ingredientes: IngredienteReceta[]
     ) => Promise<boolean>;
+
+    cambiarEstadoReceta: (recetaId: number, activo: boolean) => Promise<boolean>;
 
     producciones: Produccion[];
 
@@ -897,7 +900,7 @@ export function CafeteriaProvider({
         cantidad: number
     ): Promise<boolean> => {
         const producto = productos.find((actual) => actual.id === productoId);
-        const receta = recetas.find((actual) => actual.productoId === productoId);
+        const receta = recetas.find((actual) => actual.productoId === productoId && actual.activo);
         if (!Number.isFinite(cantidad) || cantidad <= 0 || producto?.tipoElaboracion !== 'preelaborado' || !receta) {
             return false;
         }
@@ -1292,7 +1295,7 @@ const procesarStockComanda = async (
 
         try {
             const id = await repositorioSupabaseCatalogo.guardarReceta(productoId, ingredientes);
-            setRecetas((actuales) => [...actuales, { id, productoId, ingredientes }]);
+            setRecetas((actuales) => [...actuales, { id, productoId, activo: true, ingredientes }]);
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : "No se pudo guardar la receta.");
@@ -1314,6 +1317,19 @@ const procesarStockComanda = async (
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : "No se pudo guardar la receta.");
+            return false;
+        }
+    };
+
+    const cambiarEstadoReceta = async (recetaId: number, activo: boolean): Promise<boolean> => {
+        const receta = recetas.find((actual) => actual.id === recetaId);
+        if (!receta) return false;
+        try {
+            await repositorioSupabaseCatalogo.cambiarEstadoReceta(receta.productoId, activo);
+            setRecetas((actuales) => actuales.map((item) => item.id === recetaId ? { ...item, activo } : item));
+            return true;
+        } catch (error) {
+            setErrorDatos(error instanceof Error ? error.message : "No se pudo cambiar el estado de la receta.");
             return false;
         }
     };
@@ -1356,6 +1372,7 @@ const procesarStockComanda = async (
                 recetas,
                 agregarReceta,
                 editarReceta,
+                cambiarEstadoReceta,
 
                 producciones,
                 registrarProduccion,

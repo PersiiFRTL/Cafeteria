@@ -38,11 +38,12 @@ export async function solicitarInicioSesion(
         }
 
         if (!respuesta.ok) {
-            const datosError = await respuesta.json().catch(() => ({})) as { mensaje?: string };
-            return { correcto: false, mensaje: datosError.mensaje || "Ocurrió un error en el servidor." };
+            const datosError = await respuesta.json().catch(() => ({})) as { error?: { message?: string } };
+            return { correcto: false, mensaje: datosError.error?.message || "Ocurrió un error en el servidor." };
         }
 
-        const datos = await respuesta.json() as { usuario: UsuarioAutenticado; session: SesionAutenticacion };
+        const respuestaDatos = await respuesta.json() as { data: { usuario: UsuarioAutenticado; session: SesionAutenticacion } };
+        const datos = respuestaDatos.data;
         if (!datos.usuario || !datos.session?.access_token || !datos.session?.refresh_token) {
             return { correcto: false, mensaje: "El servidor devolvió una sesión incompleta." };
         }
@@ -61,14 +62,15 @@ export async function consultarSesion(
             headers: { Authorization: `Bearer ${accessToken}` }
         });
         if (!respuesta.ok) {
-            const datosError = await respuesta.json().catch(() => ({})) as { mensaje?: string };
+            const datosError = await respuesta.json().catch(() => ({})) as { error?: { message?: string } };
             return {
                 correcto: false,
-                mensaje: datosError.mensaje || "No se pudo validar la sesión.",
+                mensaje: datosError.error?.message || "No se pudo validar la sesión.",
                 transitorio: respuesta.status !== 401 && respuesta.status !== 403
             };
         }
-        const datos = await respuesta.json() as { usuario: UsuarioAutenticado };
+        const respuestaDatos = await respuesta.json() as { data: { usuario: UsuarioAutenticado } };
+        const datos = respuestaDatos.data;
         return datos.usuario
             ? { correcto: true, usuario: datos.usuario }
             : { correcto: false, mensaje: "El servidor no devolvió el perfil del usuario.", transitorio: true };

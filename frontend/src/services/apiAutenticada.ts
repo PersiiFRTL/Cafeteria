@@ -18,9 +18,9 @@ export async function solicitarApiAutenticada<T>(
     const respuesta = await fetch(urlApi(ruta), { ...opciones, headers });
     if (respuesta.status === 204) return undefined as T;
 
-    const datos = await respuesta.json().catch(() => ({})) as { mensaje?: string };
+    const datos = await respuesta.json().catch(() => ({})) as { error?: { message?: string } };
     if (!respuesta.ok) {
-        throw new Error(datos.mensaje || "No se pudo completar la operación en el servidor.");
+        throw new Error(datos.error?.message || "No se pudo completar la operación en el servidor.");
     }
     return datos as T;
 }

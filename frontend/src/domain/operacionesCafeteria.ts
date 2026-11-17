@@ -46,6 +46,7 @@ interface ProductoStockComandaOperacion {
 
 interface RecetaStockComandaOperacion {
     productoId: number;
+    activo?: boolean;
     ingredientes: { materiaPrimaId: number; cantidad: number }[];
 }
 
@@ -89,7 +90,7 @@ export function calcularConsumoStockComanda<TMateria extends MateriaPrimaOperaci
             continue;
         }
 
-        const receta = recetas.find((actual) => actual.productoId === producto.id);
+        const receta = recetas.find((actual) => actual.productoId === producto.id && actual.activo !== false);
         if (!receta || receta.ingredientes.length === 0) return null;
 
         for (const ingrediente of receta.ingredientes) {

@@ -2534,6 +2534,47 @@ h6,
     padding: 14px;
 }
 
+.receta-card-deshabilitada {
+    border-color: #d8c9bd;
+    background: #faf7f4;
+}
+
+.receta-card-heading,
+.receta-card-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.receta-card-heading h3 {
+    margin-bottom: 10px;
+}
+
+.receta-estado {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    padding: 4px 9px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.receta-estado.activo {
+    color: #28633c;
+    background: #e9f5ec;
+}
+
+.receta-estado.inactivo {
+    color: #755a48;
+    background: #eee7e0;
+}
+
+.receta-card-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    margin-top: 14px;
+}
+
 .receta-card h3 {
     margin-bottom: 10px;
     font-size: 16px;
@@ -2545,6 +2586,95 @@ h6,
     gap: 6px;
     color: #493d35;
     font-size: 14px;
+}
+
+.receta-card-ingrediente {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 5px 0;
+    border-bottom: 1px solid #f3e9e1;
+}
+
+.receta-accion {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: auto;
+    min-height: 36px;
+    padding: 7px 11px;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 650;
+    line-height: 1.2;
+    transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, transform 140ms ease;
+}
+
+.receta-accion:hover {
+    transform: translateY(-1px);
+}
+
+.receta-accion .ui-icon {
+    width: 15px;
+    height: 15px;
+}
+
+.receta-accion-editar {
+    border-color: #e9ded3;
+    background: #fffdfb;
+    color: #594131;
+}
+
+.receta-accion-editar:hover {
+    border-color: #d8c4b2;
+    background: #f6eee7;
+}
+
+.receta-accion-eliminar {
+    border-color: #efd8d2;
+    background: #fff9f7;
+    color: #914e43;
+}
+
+.receta-accion-eliminar:hover {
+    border-color: #dfb8ae;
+    background: #f9eae6;
+}
+
+.receta-accion-deshabilitar {
+    border-color: #e8d7c1;
+    background: #fbf4ea;
+    color: #79552e;
+}
+
+.receta-accion-deshabilitar:hover {
+    border-color: #d8bd9a;
+    background: #f4e7d5;
+}
+
+.receta-accion-habilitar {
+    border-color: #6b4f3f;
+    background: #6b4f3f;
+    color: #fdf2e8;
+}
+
+.receta-accion-habilitar:hover {
+    background: #594131;
+}
+
+.receta-card-actions .receta-accion {
+    flex: 0 0 auto;
+}
+
+.receta-row span:last-child {
+    display: flex;
+    align-items: center;
+    gap: 7px;
 }
 
 .recetas-listado-vacio {
@@ -2583,6 +2713,36 @@ h6,
 
 .receta-form h2 {
     margin-bottom: 15px;
+}
+
+.receta-editor-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 16px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid #f0e5dc;
+}
+
+.receta-editor-eyebrow {
+    display: block;
+    margin-bottom: 5px;
+    color: #8c705d;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.receta-editor-heading h2 {
+    margin: 0;
+}
+
+.receta-form-subtitulo {
+    margin: 0 0 14px;
+    color: #493d35;
+    font-size: 16px;
 }
 
 .receta-form-fields {

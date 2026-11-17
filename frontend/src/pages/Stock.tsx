@@ -335,7 +335,7 @@ function Stock() {
         (producto) => producto.tipoElaboracion === "bajo_pedido"
     ).length;
     const cantidadPreparablesPorReceta = (productoId: number) => {
-        const receta = recetas.find((item) => item.productoId === productoId);
+        const receta = recetas.find((item) => item.productoId === productoId && item.activo);
         if (!receta || receta.ingredientes.length === 0) return null;
 
         const cantidadesDisponibles = receta.ingredientes.map((ingrediente) => {

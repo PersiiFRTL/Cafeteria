@@ -28,6 +28,7 @@ interface MateriaPrima {
 interface Receta {
     id: number;
     productoId: number;
+    activo: boolean;
     ingredientes: Array<{ materiaPrimaId: number; cantidad: number }>;
 }
 
@@ -110,6 +111,7 @@ function mapearReceta(row: Record<string, unknown>): Receta {
     return {
         id: Number(row.id),
         productoId: Number(row.producto_id),
+        activo: row.activo !== false,
         ingredientes: ingredientes.map((ingrediente) => ({
             materiaPrimaId: Number(ingrediente.materia_prima_id),
             cantidad: Number(ingrediente.cantidad)
@@ -204,22 +206,46 @@ function mapearMovimientoStock(row: Record<string, unknown>): Record<string, unk
 
 /** Lee los datos operativos persistidos en Supabase. */
 export const repositorioSupabaseCatalogo = {
+    async obtenerInformeVentas(desde: string, hasta: string): Promise<{
+        totalComandas: number;
+        comandasFinalizadas: number;
+        productosVendidos: number;
+        ventasEstimadas: number;
+        productosMasVendidos: Array<{ productoId: number; nombre: string; cantidad: number; ventas: number }>;
+        ventasPorDia: Array<{ fecha: string; comandas: number; ventas: number }>;
+    }> {
+        const query = new URLSearchParams({ desde, hasta });
+        const respuesta = await solicitarApiAutenticada<{ data: {
+            totalComandas: number; comandasFinalizadas: number; productosVendidos: number; ventasEstimadas: number;
+            productosMasVendidos: Array<{ productoId: number; nombre: string; cantidad: number; ventas: number }>;
+            ventasPorDia: Array<{ fecha: string; comandas: number; ventas: number }>;
+        } }>(`/api/informes/ventas?${query.toString()}`);
+        return respuesta.data;
+    },
+
     async cargarDatosIniciales(): Promise<DatosCafeteriaConMapa> {
         type RegistroRemoto = Record<string, unknown>;
-        const datos = await solicitarApiAutenticada<{
-                productos: RegistroRemoto[];
-                materiasPrimas: RegistroRemoto[];
-                recetas: RegistroRemoto[];
-                mesas: RegistroRemoto[];
-                elementosMapa: RegistroRemoto[];
-                comandas: RegistroRemoto[];
-                operacionesStock: RegistroRemoto[];
-                producciones: RegistroRemoto[];
-                auditoriaEventos: RegistroRemoto[];
-                auditoriaDisponible: boolean;
-                perfiles: Array<{ id: string; nombre: string }>;
-            }>("/api/datos-iniciales");
-
+        type Pagina<T> = { data: T[] };
+        const consultas = await Promise.all([
+            solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/productos?limit=100"),
+            solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/materias-primas?limit=100"),
+            solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/recetas?limit=100"),
+            solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/mesas?limit=100"),
+            solicitarApiAutenticada<{ data: { mesas: RegistroRemoto[]; elementos: RegistroRemoto[] } }>("/api/mapa"),
+            solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/comandas?limit=100"),
+            solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/stock/movimientos?limit=100"),
+            solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/producciones?limit=100"),
+            solicitarApiAutenticada<{ data: Array<{ id: string; nombre: string }> }>("/api/perfiles/nombres").catch(() => ({ data: [] })),
+            solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/auditoria?limit=100").then((resultado) => ({ ...resultado, disponible: true })).catch(() => ({ data: [], disponible: false }))
+        ]);
+        const [productos, materiasPrimas, recetas, mesas, mapa, comandas, operacionesStock, producciones, perfiles, auditoria] = consultas;
+        const datos = {
+            productos: productos.data, materiasPrimas: materiasPrimas.data, recetas: recetas.data,
+            mesas: mesas.data, elementosMapa: mapa.data.elementos, comandas: comandas.data,
+            operacionesStock: operacionesStock.data, producciones: producciones.data,
+            auditoriaEventos: auditoria.data, auditoriaDisponible: auditoria.disponible,
+            perfiles: perfiles.data
+        };
         const nombresPorId = new Map(datos.perfiles.map((perfil) => [perfil.id, perfil.nombre]));
         const comandasMapeadas = datos.comandas.map((row) =>
             mapearComanda(row as Record<string, unknown>, nombresPorId)
@@ -480,7 +506,7 @@ export const repositorioSupabaseCatalogo = {
     },
 
     async guardarReceta(productoId: number, ingredientes: Receta["ingredientes"]): Promise<number> {
-        const respuesta = await solicitarApiAutenticada<{ data: number }>(`/api/recetas/${productoId}`, {
+        const respuesta = await solicitarApiAutenticada<{ data: { id: number } }>(`/api/recetas/${productoId}`, {
             method: "PUT",
             body: JSON.stringify({
                 ingredientes: ingredientes.map((ingrediente) => ({
@@ -489,6 +515,13 @@ export const repositorioSupabaseCatalogo = {
                 }))
             })
         });
-        return Number(respuesta.data);
+        return Number(respuesta.data.id);
+    },
+
+    async cambiarEstadoReceta(productoId: number, activo: boolean): Promise<void> {
+        await solicitarApiAutenticada(`/api/recetas/${productoId}/estado`, {
+            method: "PATCH",
+            body: JSON.stringify({ activo })
+        });
     }
 };

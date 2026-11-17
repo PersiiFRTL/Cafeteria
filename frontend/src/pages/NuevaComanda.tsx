@@ -280,7 +280,7 @@ function NuevaComanda() {
             }
 
             const receta = recetas.find(
-                (item) => item.productoId === Number(idProducto)
+                (item) => item.productoId === Number(idProducto) && item.activo
             );
 
             // Sin receta todavía no hay consumos que puedan validarse aquí.
@@ -323,7 +323,7 @@ function NuevaComanda() {
             return `Stock insuficiente. Disponible: ${producto.stockActual} ${producto.unidadVenta}.`;
         }
 
-        const receta = recetas.find((item) => item.productoId === productoId);
+        const receta = recetas.find((item) => item.productoId === productoId && item.activo);
         if (!receta || receta.ingredientes.length === 0) {
             return "Falta una receta con ingredientes; no se puede agregar a la comanda.";
         }
@@ -580,7 +580,7 @@ function NuevaComanda() {
                                         aria-label={`Producto ${producto.nombre}`}
                                         aria-keyshortcuts="+ -"
                                         onFocusCapture={() => setProductoSeleccionadoAtajo(producto.id)}
-                                        onClickCapture={() => setProductoSeleccionadoAtajo(producto.id)}
+                                        onClick={() => setProductoSeleccionadoAtajo(producto.id)}
                                     >
 
                                         <div>
@@ -611,11 +611,14 @@ function NuevaComanda() {
                                             {cantidad > 0 && (
                                                 <>
                                                     <button
-                                                        onClick={() =>
+                                                        type="button"
+                                                        aria-label={`Quitar una unidad de ${producto.nombre}`}
+                                                        onClick={(event) => {
+                                                            event.stopPropagation();
                                                             quitarProducto(
                                                                 producto.id
-                                                            )
-                                                        }
+                                                            );
+                                                        }}
                                                     >
                                                         −
                                                     </button>
@@ -628,11 +631,14 @@ function NuevaComanda() {
 
                                             {puedeAgregar && (
                                                 <button
-                                                    onClick={() =>
+                                                    type="button"
+                                                    aria-label={`Agregar una unidad de ${producto.nombre}`}
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
                                                         agregarProducto(
                                                             producto.id
-                                                        )
-                                                    }
+                                                        );
+                                                    }}
                                                 >
                                                     +
                                                 </button>

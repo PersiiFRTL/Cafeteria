@@ -15,6 +15,7 @@ import {
     Utensils,
 } from "lucide-react";
 import { useInformes } from "../context/useInformes";
+import { repositorioSupabaseCatalogo } from "../services/supabaseCatalogoRepository";
 
 const INFORMES_PERIODO_KEY = "cafeteria-informes-periodo";
 const INFORMES_RANGO_KEY = "cafeteria-informes-rango";
@@ -80,6 +81,31 @@ function Informes() {
     const [fechaHasta, setFechaHasta] = useState(() => leerRangoGuardado()?.hasta ?? "");
     const [editandoRango, setEditandoRango] = useState(false);
     const [errorRango, setErrorRango] = useState("");
+    const [informeVentas, setInformeVentas] = useState<Awaited<ReturnType<typeof repositorioSupabaseCatalogo.obtenerInformeVentas>> | null>(null);
+    const [errorInformeVentas, setErrorInformeVentas] = useState("");
+
+    useEffect(() => {
+        const hoy = fechaLocalISO(new Date());
+        let desde = "2000-01-01";
+        if (periodo === "hoy") desde = hoy;
+        if (periodo === "7dias" || periodo === "30dias") {
+            const fecha = new Date();
+            fecha.setDate(fecha.getDate() - (periodo === "7dias" ? 7 : 30));
+            desde = fechaLocalISO(fecha);
+        }
+        if (periodo === "rango") {
+            if (!rangoAplicado) return;
+            desde = rangoAplicado.desde;
+        }
+        const hasta = periodo === "rango" && rangoAplicado ? rangoAplicado.hasta : hoy;
+        let vigente = true;
+        repositorioSupabaseCatalogo.obtenerInformeVentas(desde, hasta)
+            .then((informe) => { if (vigente) { setInformeVentas(informe); setErrorInformeVentas(""); } })
+            .catch((error: unknown) => {
+                if (vigente) setErrorInformeVentas(error instanceof Error ? error.message : "No se pudo cargar el informe de ventas.");
+            });
+        return () => { vigente = false; };
+    }, [periodo, rangoAplicado]);
 
     useEffect(() => {
         localStorage.setItem(INFORMES_PERIODO_KEY, periodo);
@@ -287,7 +313,7 @@ const imprimirInforme = () => {
 
     });
 
-    const productosMasSolicitados = Array.from(
+    const productosMasSolicitados = informeVentas?.productosMasVendidos.map((producto) => ({ nombre: producto.nombre, cantidad: producto.cantidad })) ?? Array.from(
         productosSolicitados.entries()
     )
         .map(([productoId, cantidad]) => {
@@ -481,16 +507,14 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
 
                     <div className="informe-card">
                         <span><ClipboardList className="ui-icon" aria-hidden="true" /></span>
-                        <strong>
-                            {comandasFiltradas.length}
-                        </strong>
+                        <strong>{informeVentas?.totalComandas ?? comandasFiltradas.length}</strong>
                         <p>Comandas</p>
                     </div>
 
                     <div className="informe-card">
                         <span><CircleCheck className="ui-icon" aria-hidden="true" /></span>
                         <strong>
-                            {comandasFinalizadas}
+                            {informeVentas?.comandasFinalizadas ?? comandasFinalizadas}
                         </strong>
                         <p>Entregadas</p>
                     </div>
@@ -505,8 +529,8 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
 
                     <div className="informe-card">
                         <span><Package className="ui-icon" aria-hidden="true" /></span>
-                        <strong>{unidadesSolicitadas}</strong>
-                        <p>Unidades solicitadas</p>
+                        <strong>{informeVentas?.productosVendidos ?? unidadesSolicitadas}</strong>
+                        <p>Unidades vendidas</p>
                     </div>
 
                     <div className="informe-card">
@@ -522,6 +546,8 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                     </div>
 
                 </div>
+                {errorInformeVentas && <p className="informe-vacio" role="status">Informe de ventas no disponible: {errorInformeVentas}</p>}
+                {informeVentas && <p className="informe-actividad-ayuda">Ventas estimadas del período: <strong>{informeVentas.ventasEstimadas.toLocaleString("es-AR", { style: "currency", currency: "ARS" })}</strong></p>}
 
             </section>
 

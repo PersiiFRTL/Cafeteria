@@ -1,0 +1,10 @@
+const express = require("express");
+const controller = require("../controllers/authController");
+const limitarIntentosLogin = require("../middlewares/loginRateLimit");
+const { asyncHandler } = require("../middlewares/responses");
+const router = express.Router();
+router.use((_req, res, next) => { res.setHeader("Cache-Control", "no-store"); res.setHeader("Pragma", "no-cache"); next(); });
+router.post("/login", limitarIntentosLogin, asyncHandler(controller.login));
+router.get("/session", asyncHandler(controller.session));
+router.post("/logout", asyncHandler(controller.logout));
+module.exports = router;

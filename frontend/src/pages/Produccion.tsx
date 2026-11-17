@@ -59,7 +59,7 @@ function Produccion() {
     const receta =
         recetas.find(
             (receta) =>
-                receta.productoId === productoId
+                receta.productoId === productoId && receta.activo
         );
 
     // ==========================

@@ -12,6 +12,7 @@ export function useCatalogo() {
         eliminarProductoCatalogo: cafeteria.eliminarProductoCatalogo,
         cambiarEstadoProductoCatalogo: cafeteria.cambiarEstadoProductoCatalogo,
         agregarReceta: cafeteria.agregarReceta,
-        editarReceta: cafeteria.editarReceta
+        editarReceta: cafeteria.editarReceta,
+        cambiarEstadoReceta: cafeteria.cambiarEstadoReceta
     };
 }
