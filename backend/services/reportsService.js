@@ -1,4 +1,13 @@
 async function obtenerVentas(db, desde, hastaExclusiva) {
+    const agregado = await db.rpc("informe_ventas", {
+        p_desde: desde,
+        p_hasta_exclusiva: hastaExclusiva
+    });
+    if (!agregado.error) return agregado.data;
+
+    // Compatibility while the SQL migration is rolling out across environments.
+    if (!["PGRST202", "42883"].includes(agregado.error.code)) throw agregado.error;
+
     let query = db.from("comandas")
         .select("id,estado,fecha_creacion,fecha_finalizacion,productos:comanda_items(producto_id,nombre_producto,precio_unitario,cantidad)")
         .gte("fecha_creacion", desde).lt("fecha_creacion", hastaExclusiva)

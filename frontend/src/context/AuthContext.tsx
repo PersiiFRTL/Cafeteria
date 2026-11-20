@@ -74,6 +74,7 @@ export function AuthProvider({
     const usuarioActualRef = useRef<UsuarioAutenticado | null>(null);
     const validacionRef = useRef(0);
     const reintentoRef = useRef<number | null>(null);
+    const tokenVerificadoEnLoginRef = useRef<string | null>(null);
 
     const sincronizarPerfil = useCallback(async function sincronizarPerfilInterno(session: Session | null) {
         const validacionActual = ++validacionRef.current;
@@ -119,7 +120,16 @@ export function AuthProvider({
     useEffect(() => {
         let activo = true;
 
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+            if (event === "SIGNED_IN" && session?.access_token === tokenVerificadoEnLoginRef.current) {
+                tokenVerificadoEnLoginRef.current = null;
+                validacionRef.current += 1;
+                if (reintentoRef.current !== null) {
+                    window.clearTimeout(reintentoRef.current);
+                    reintentoRef.current = null;
+                }
+                return;
+            }
             // Diferir la consulta evita ejecutar otra operación de Auth dentro de su callback.
             const validacionProgramada = ++validacionRef.current;
             if (reintentoRef.current !== null) {
@@ -154,8 +164,10 @@ export function AuthProvider({
         const resultado = await solicitarInicioSesion(email.trim(), password);
         if (!resultado.correcto) return resultado;
 
+        tokenVerificadoEnLoginRef.current = resultado.session.access_token;
         const { error } = await supabase.auth.setSession(resultado.session);
         if (error) {
+            tokenVerificadoEnLoginRef.current = null;
             await solicitarCierreSesion(resultado.session.access_token).catch(() => undefined);
             return { correcto: false, mensaje: "No se pudo guardar la sesión en este dispositivo." };
         }

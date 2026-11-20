@@ -1,5 +1,5 @@
 const { crearClientePublico, url, publishableKey } = require("../config/supabase");
-const { cargarPerfilActivo, tokenDeAutorizacion } = require("../middlewares/auth");
+const { cargarPerfilActivo, tokenDeAutorizacion, idUsuarioDelToken } = require("../middlewares/auth");
 const { enviarDatos, enviarError } = require("../middlewares/responses");
 
 exports.login = async (req, res) => {
@@ -36,18 +36,16 @@ exports.session = async (req, res) => {
     const token = tokenDeAutorizacion(req);
     if (!token) return enviarError(res, 401, "AUTH_REQUIRED", "Falta la sesión de usuario.");
     try {
+        const userId = idUsuarioDelToken(token);
+        if (!userId) return enviarError(res, 401, "INVALID_SESSION", "La sesión no es válida.");
         const client = crearClientePublico(token);
-        const { data, error } = await client.auth.getUser(token);
-        if (error) {
-            const status = [401, 403].includes(Number(error.status)) ? 401 : 503;
-            return enviarError(res, status, status === 401 ? "INVALID_SESSION" : "AUTH_TEMPORARILY_UNAVAILABLE",
-                status === 401 ? "La sesión no es válida." : "No se pudo verificar la sesión temporalmente.");
-        }
-        if (!data.user) return enviarError(res, 401, "INVALID_SESSION", "La sesión no es válida.");
-        const profile = await cargarPerfilActivo(client, data.user.id);
+        const profile = await cargarPerfilActivo(client, userId);
         if (!profile) return enviarError(res, 403, "PROFILE_INACTIVE", "La cuenta está desactivada o no tiene un perfil válido.");
         return enviarDatos(res, { usuario: profile });
-    } catch {
+    } catch (error) {
+        if (error?.status === 401 || error?.code === "PGRST301") {
+            return enviarError(res, 401, "INVALID_SESSION", "La sesión no es válida.");
+        }
         return enviarError(res, 503, "AUTH_TEMPORARILY_UNAVAILABLE", "No se pudo verificar la sesión temporalmente.");
     }
 };

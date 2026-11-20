@@ -8,6 +8,16 @@ if (config.trustProxy) app.set("trust proxy", 1);
 app.disable("x-powered-by");
 app.use(express.json({ limit: "16kb" }));
 app.use((req, res, next) => {
+    if (config.performanceLogs && req.path.startsWith("/api/")) {
+        const started = process.hrtime.bigint();
+        res.once("finish", () => {
+            const durationMs = Number(process.hrtime.bigint() - started) / 1e6;
+            console.info(JSON.stringify({ type: "http_performance", method: req.method, path: req.path, status: res.statusCode, durationMs: Number(durationMs.toFixed(1)), ...(Number.isFinite(req.authDurationMs) ? { authMs: Number(req.authDurationMs.toFixed(1)) } : {}) }));
+        });
+    }
+    next();
+});
+app.use((req, res, next) => {
     const origin = req.headers.origin;
     if (origin && config.frontendOrigins.has(origin)) {
         res.setHeader("Access-Control-Allow-Origin", origin);

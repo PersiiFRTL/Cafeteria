@@ -32,7 +32,7 @@ async function listarNombresPerfiles(db) {
 }
 
 async function listarProductos(db, filters, page) {
-    let query = db.from("productos").select("*", { count: "exact" }).order("nombre").range(page.from, page.to);
+    let query = db.from("productos").select("id,nombre,precio,categoria,sector,tipo_elaboracion,unidad_venta,stock_actual,stock_minimo,activo,disponible", { count: "exact" }).order("nombre").range(page.from, page.to);
     if (filters.activo !== undefined) query = query.eq("activo", filters.activo);
     if (filters.disponible !== undefined) query = query.eq("disponible", filters.disponible);
     if (filters.sector) query = query.eq("sector", filters.sector);
@@ -47,18 +47,18 @@ async function obtenerPorId(db, tabla, id, campos = "*") {
 }
 
 async function listarMateriasPrimas(db, activo, page) {
-    let query = db.from("materias_primas").select("*", { count: "exact" }).order("nombre").range(page.from, page.to);
+    let query = db.from("materias_primas").select("id,nombre,categoria,unidad,stock_actual,stock_minimo,activo", { count: "exact" }).order("nombre").range(page.from, page.to);
     if (activo !== undefined) query = query.eq("activo", activo);
     return ejecutarConsulta(query, "No se pudieron cargar las materias primas.");
 }
 
 async function listarMesas(db, page) {
-    const query = db.from("mesas").select("*", { count: "exact" }).order("numero").range(page.from, page.to);
+    const query = db.from("mesas").select("id,numero,capacidad,estado", { count: "exact" }).order("numero").range(page.from, page.to);
     return ejecutarConsulta(query, "No se pudieron cargar las mesas.");
 }
 
 async function listarComandas(db, filters, page) {
-    let query = db.from("comandas").select("*, productos:comanda_items(*)", { count: "exact" })
+    let query = db.from("comandas").select("id,tipo_atencion,mesa_id,cliente_nombre,cliente_telefono,hora_retiro,creada_por,estado,fecha_creacion,productos:comanda_items(producto_id,nombre_producto,precio_unitario,cantidad,estado,cantidad_stock_procesada)", { count: "exact" })
         .order("fecha_creacion", { ascending: false }).range(page.from, page.to);
     if (filters.estado) query = query.eq("estado", filters.estado);
     if (filters.mesaId) query = query.eq("mesa_id", filters.mesaId);
@@ -68,7 +68,7 @@ async function listarComandas(db, filters, page) {
 }
 
 async function obtenerComanda(db, id) {
-    const { data, error } = await db.from("comandas").select("*, productos:comanda_items(*)").eq("id", id).maybeSingle();
+    const { data, error } = await db.from("comandas").select("id,tipo_atencion,mesa_id,cliente_nombre,cliente_telefono,hora_retiro,creada_por,estado,fecha_creacion,productos:comanda_items(producto_id,nombre_producto,precio_unitario,cantidad,estado,cantidad_stock_procesada)").eq("id", id).maybeSingle();
     if (error) throw error;
     return data;
 }

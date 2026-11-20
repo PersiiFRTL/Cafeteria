@@ -223,6 +223,62 @@ export const repositorioSupabaseCatalogo = {
         return respuesta.data;
     },
 
+    async cargarCambiosRecientes(opciones: { stock?: boolean; producciones?: boolean } = {}): Promise<Partial<DatosCafeteriaConMapa>> {
+        type RegistroRemoto = Record<string, unknown>;
+        type Pagina<T> = { data: T[] };
+        const peticiones: Array<Promise<unknown>> = [
+            solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/auditoria?limit=100")
+                .then((respuesta) => ({ tipo: "auditoria", data: respuesta.data }))
+                .catch(() => ({ tipo: "auditoria", data: null }))
+        ];
+        if (opciones.stock) {
+            peticiones.push(solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/stock/movimientos?limit=100")
+                .then((respuesta) => ({ tipo: "stock", data: respuesta.data })));
+        }
+        if (opciones.producciones) {
+            peticiones.push(solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/producciones?limit=100")
+                .then((respuesta) => ({ tipo: "producciones", data: respuesta.data })));
+        }
+        const necesitaResponsables = Boolean(opciones.stock || opciones.producciones);
+        const perfilesPromise = necesitaResponsables
+            ? solicitarApiAutenticada<{ data: Array<{ id: string; nombre: string }> }>("/api/perfiles/nombres").catch(() => ({ data: [] }))
+            : Promise.resolve({ data: [] as Array<{ id: string; nombre: string }> });
+        const [resultados, perfiles] = await Promise.all([Promise.all(peticiones), perfilesPromise]);
+        const nombresPorId = new Map(perfiles.data.map((perfil) => [perfil.id, perfil.nombre]));
+        const auditoria = resultados.find((resultado) => (resultado as { tipo: string }).tipo === "auditoria") as { data: RegistroRemoto[] | null };
+        const resultado: Partial<DatosCafeteriaConMapa> = {
+            ...(auditoria.data === null ? { auditoriaDisponible: false } : {
+                auditoriaDisponible: true,
+                actividad: auditoria.data.map((evento) => ({
+                    id: Number(evento.id), usuarioNombre: String(evento.usuario_nombre ?? "Usuario"),
+                    entidad: String(evento.entidad), entidadId: String(evento.entidad_id),
+                    accion: String(evento.accion), detalle: String(evento.detalle), fecha: String(evento.fecha)
+                }))
+            })
+        };
+        const stock = resultados.find((item) => (item as { tipo: string }).tipo === "stock") as { data: RegistroRemoto[] } | undefined;
+        if (stock) {
+            const operaciones = stock.data.map((row) => mapearOperacionStock(row, nombresPorId));
+            resultado.operacionesStock = operaciones as DatosCafeteriaConMapa["operacionesStock"];
+            resultado.movimientosStock = operaciones.flatMap((operacion) => operacion.movimientos as Array<Record<string, unknown>>) as DatosCafeteriaConMapa["movimientosStock"];
+        }
+        const producciones = resultados.find((item) => (item as { tipo: string }).tipo === "producciones") as { data: RegistroRemoto[] } | undefined;
+        if (producciones) {
+            const operacionesStock = stock?.data ?? [];
+            const operacionesPorProduccion = new Map(operacionesStock.map((operacion) => [Number(operacion.produccion_id), operacion]));
+            resultado.producciones = producciones.data.map((row) => {
+                const operacion = operacionesPorProduccion.get(Number(row.id));
+                const movimientos = ((operacion?.movimientos ?? []) as RegistroRemoto[]).filter((item) => item.materia_prima_id !== null);
+                return {
+                    id: Number(row.id), productoId: Number(row.producto_id), cantidad: Number(row.cantidad), fecha: String(row.fecha),
+                    ...(typeof row.creada_por === "string" && nombresPorId.has(row.creada_por) ? { responsableNombre: nombresPorId.get(row.creada_por) } : {}),
+                    ingredientes: movimientos.map((item) => ({ materiaPrimaId: Number(item.materia_prima_id), cantidad: Number(item.cantidad) }))
+                };
+            });
+        }
+        return resultado;
+    },
+
     async cargarDatosIniciales(): Promise<DatosCafeteriaConMapa> {
         type RegistroRemoto = Record<string, unknown>;
         type Pagina<T> = { data: T[] };
@@ -247,6 +303,9 @@ export const repositorioSupabaseCatalogo = {
             perfiles: perfiles.data
         };
         const nombresPorId = new Map(datos.perfiles.map((perfil) => [perfil.id, perfil.nombre]));
+        const operacionesPorProduccion = new Map(datos.operacionesStock.map((item) => [
+            Number((item as RegistroRemoto).produccion_id), item as RegistroRemoto
+        ]));
         const comandasMapeadas = datos.comandas.map((row) =>
             mapearComanda(row as Record<string, unknown>, nombresPorId)
         );
@@ -258,9 +317,7 @@ export const repositorioSupabaseCatalogo = {
         );
         const produccionesMapeadas = datos.producciones.map((row) => {
             const produccion = row as Record<string, unknown>;
-            const operacionProduccion = datos.operacionesStock.find((item) =>
-                Number((item as Record<string, unknown>).produccion_id) === Number(produccion.id)
-            ) as Record<string, unknown> | undefined;
+            const operacionProduccion = operacionesPorProduccion.get(Number(produccion.id));
             const movimientos = ((operacionProduccion?.movimientos ?? []) as Array<Record<string, unknown>>)
                 .filter((item) => item.materia_prima_id !== null);
             return {

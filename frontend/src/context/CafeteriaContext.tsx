@@ -468,6 +468,7 @@ export function CafeteriaProvider({
     const [estadoDatos, setEstadoDatos] = useState<"cargando" | "listo" | "error">("cargando");
     const [errorDatos, setErrorDatos] = useState<string | null>(null);
     const refreshTimerRef = useRef<number | null>(null);
+    const refreshPendienteRef = useRef({ stock: false, producciones: false });
 
     const [elementosMapa, setElementosMapa] =
         useState<ElementoMapa[]>(() => cargarMapa());
@@ -547,11 +548,21 @@ export function CafeteriaProvider({
         }
     }, [cargarEstadoRemoto]);
 
-    const refrescarTrasOperacion = () => {
+    const refrescarTrasOperacion = (opciones: { stock?: boolean; producciones?: boolean } = {}) => {
+        refreshPendienteRef.current.stock ||= Boolean(opciones.stock);
+        refreshPendienteRef.current.producciones ||= Boolean(opciones.producciones);
         if (refreshTimerRef.current !== null) window.clearTimeout(refreshTimerRef.current);
         refreshTimerRef.current = window.setTimeout(() => {
             refreshTimerRef.current = null;
-            void cargarEstadoRemoto().catch((error) => {
+            const recursos = refreshPendienteRef.current;
+            refreshPendienteRef.current = { stock: false, producciones: false };
+            void repositorioSupabaseCatalogo.cargarCambiosRecientes(recursos).then((datos) => {
+                if (datos.actividad) setActividad(datos.actividad);
+                if (datos.auditoriaDisponible !== undefined) setAuditoriaDisponible(datos.auditoriaDisponible);
+                if (datos.operacionesStock) setOperacionesStock(datos.operacionesStock as unknown as OperacionStock[]);
+                if (datos.movimientosStock) setMovimientosStock(datos.movimientosStock as unknown as MovimientoStock[]);
+                if (datos.producciones) setProducciones(datos.producciones);
+            }).catch((error) => {
                 setErrorDatos(error instanceof Error
                     ? `La operación se guardó, pero no se pudo actualizar la vista: ${error.message}`
                     : "La operación se guardó, pero no se pudo actualizar la vista.");
@@ -787,7 +798,7 @@ export function CafeteriaProvider({
                     productos: items
                 };
             }));
-            void refrescarTrasOperacion();
+            void refrescarTrasOperacion({ stock: estado === "preparando" });
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : "No se pudo cambiar el estado del producto.");
@@ -917,7 +928,7 @@ export function CafeteriaProvider({
                     ? { ...materia, stockActual: materia.stockActual - ingrediente.cantidad * cantidad }
                     : materia;
             }));
-            void refrescarTrasOperacion();
+            void refrescarTrasOperacion({ stock: true, producciones: true });
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : 'No se pudo registrar la producción.');
@@ -947,7 +958,7 @@ const procesarStockComanda = async (
             }
             : comanda
         ));
-        void refrescarTrasOperacion();
+        void refrescarTrasOperacion({ stock: true });
         return true;
     } catch (error) {
         setErrorDatos(error instanceof Error ? error.message : "No se pudo procesar el stock de la comanda.");
@@ -991,7 +1002,7 @@ const procesarStockComanda = async (
                     ? { ...producto, stockActual: producto.stockActual + stockInicial }
                     : producto
                 ));
-                void refrescarTrasOperacion();
+                void refrescarTrasOperacion({ stock: true });
                 return { creado: true, stockRegistrado: true };
             } catch (error) {
                 setErrorDatos(error instanceof Error ? error.message : "No se pudo registrar el stock inicial.");
@@ -1177,7 +1188,7 @@ const procesarStockComanda = async (
                 ? { ...actual, stockActual: actual.stockActual + cantidad }
                 : actual
             ));
-            void refrescarTrasOperacion();
+            void refrescarTrasOperacion({ stock: true });
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : 'No se pudo registrar la entrada de producto.');
@@ -1204,7 +1215,7 @@ const procesarStockComanda = async (
                 ? { ...actual, stockActual: actual.stockActual + cantidad }
                 : actual
             ));
-            void refrescarTrasOperacion();
+            void refrescarTrasOperacion({ stock: true });
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : 'No se pudo registrar la entrada de stock.');
@@ -1266,7 +1277,7 @@ const procesarStockComanda = async (
                 ? { ...actual, stockActual: actual.stockActual - cantidad }
                 : actual
             ));
-            void refrescarTrasOperacion();
+            void refrescarTrasOperacion({ stock: true });
             return true;
         } catch (error) {
             setErrorDatos(error instanceof Error ? error.message : 'No se pudo registrar la salida de stock.');

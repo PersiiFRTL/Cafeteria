@@ -1,16 +1,29 @@
 import { supabase } from "./supabase";
 import { urlApi } from "./urlApi";
 
+let lecturaSesionEnCurso: Promise<string | null> | null = null;
+
+async function obtenerTokenSesion(): Promise<string | null> {
+    if (!lecturaSesionEnCurso) {
+        lecturaSesionEnCurso = supabase.auth.getSession()
+            .then(({ data, error }) => error || !data.session ? null : data.session.access_token)
+            .finally(() => {
+                lecturaSesionEnCurso = null;
+            });
+    }
+    return lecturaSesionEnCurso;
+}
+
 /** Envía operaciones al backend usando la sesión del usuario autenticado. */
 export async function solicitarApiAutenticada<T>(
     ruta: string,
     opciones: RequestInit = {}
 ): Promise<T> {
-    const { data: { session }, error: errorSesion } = await supabase.auth.getSession();
-    if (errorSesion || !session) throw new Error("La sesión venció. Iniciá sesión nuevamente.");
+    const accessToken = await obtenerTokenSesion();
+    if (!accessToken) throw new Error("La sesión venció. Iniciá sesión nuevamente.");
 
     const headers = new Headers(opciones.headers);
-    headers.set("Authorization", `Bearer ${session.access_token}`);
+    headers.set("Authorization", `Bearer ${accessToken}`);
     if (opciones.body && !headers.has("Content-Type")) {
         headers.set("Content-Type", "application/json");
     }

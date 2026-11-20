@@ -32,6 +32,16 @@ test("GET /api/auth/session rechaza una petición sin token", async () => {
     assert.deepEqual(await response.json(), { error: { code: "AUTH_REQUIRED", message: "Falta la sesión de usuario." } });
 });
 
+test("GET /api/auth/session rechaza un token que no es un JWT antes de consultar Supabase", async () => {
+    const response = await fetch(`${baseUrl}/api/auth/session`, {
+        headers: { Authorization: "Bearer token-malformado" }
+    });
+    assert.equal(response.status, 401);
+    assert.deepEqual(await response.json(), {
+        error: { code: "INVALID_SESSION", message: "La sesión no es válida." }
+    });
+});
+
 test("GET /api/empleados requiere autenticación", async () => {
     const response = await fetch(`${baseUrl}/api/empleados`);
     assert.equal(response.status, 401);

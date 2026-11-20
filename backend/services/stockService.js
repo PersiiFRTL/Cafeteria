@@ -1,7 +1,7 @@
 const { ejecutarConsulta } = require("./supabaseService");
 
 async function listarMovimientos(db, filters, page) {
-    let query = db.from("operaciones_stock").select("*, movimientos:movimientos_stock(*)", { count: "exact" })
+    let query = db.from("operaciones_stock").select("id,tipo,comanda_id,produccion_id,fecha,descripcion,creada_por,movimientos:movimientos_stock(id,tipo,materia_prima_id,producto_id,cantidad,fecha,descripcion)", { count: "exact" })
         .order("fecha", { ascending: false }).range(page.from, page.to);
     if (filters.desde) query = query.gte("fecha", filters.desde);
     if (filters.hastaExclusiva) query = query.lt("fecha", filters.hastaExclusiva);
@@ -10,7 +10,7 @@ async function listarMovimientos(db, filters, page) {
 }
 
 async function listarProducciones(db, page, rango) {
-    let query = db.from("producciones").select("*", { count: "exact" }).order("fecha", { ascending: false }).range(page.from, page.to);
+    let query = db.from("producciones").select("id,producto_id,cantidad,fecha,creada_por", { count: "exact" }).order("fecha", { ascending: false }).range(page.from, page.to);
     if (rango.desde) query = query.gte("fecha", rango.desde);
     if (rango.hastaExclusiva) query = query.lt("fecha", rango.hastaExclusiva);
     return ejecutarConsulta(query, "No se pudieron cargar las producciones.");
