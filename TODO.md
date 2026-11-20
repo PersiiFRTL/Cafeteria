@@ -13,3 +13,6 @@
 - [x] Registrar y consultar responsables de cambios en comandas, catálogo, stock, recetas y empleados.
 - [ ] Revisar si conviene migrar el CRUD simple de catálogo a Express; actualmente se protege con RLS desde el cliente Supabase.
 - [x] Agregar pruebas automatizadas iniciales para disponibilidad, validación y autenticación de endpoints del backend.
+
+## Implementacion
+- [] Hacer el manual de implementación

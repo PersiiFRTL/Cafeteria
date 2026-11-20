@@ -27,6 +27,18 @@ function Recetas() {
     const [errorCantidad, setErrorCantidad] =
         useState("");
     const [ingredienteEnEdicion, setIngredienteEnEdicion] = useState<number | null>(null);
+    const [filtroRecetas, setFiltroRecetas] = useState("");
+    const [guardandoReceta, setGuardandoReceta] = useState(false);
+
+    const ejecutarGuardadoReceta = async (accion: () => Promise<boolean>) => {
+        if (guardandoReceta) return false;
+        setGuardandoReceta(true);
+        try {
+            return await accion();
+        } finally {
+            setGuardandoReceta(false);
+        }
+    };
 
     const prepararEdicionReceta = (productoId: number) => {
         setProductoSeleccionado(productoId);
@@ -99,10 +111,10 @@ function Recetas() {
                                 : ingrediente
                     );
 
-                const guardada = await editarReceta(
+                const guardada = await ejecutarGuardadoReceta(() => editarReceta(
                     recetaExistente.id,
                     ingredientesActualizados
-                );
+                ));
                 if (!guardada) {
                     mostrarToast("No se pudo guardar la receta en Supabase.");
                     return;
@@ -110,7 +122,7 @@ function Recetas() {
 
             } else {
 
-                const guardada = await editarReceta(
+                const guardada = await ejecutarGuardadoReceta(() => editarReceta(
                     recetaExistente.id,
                     [
                         ...recetaExistente.ingredientes,
@@ -121,7 +133,7 @@ function Recetas() {
                                 cantidadNumero
                         }
                     ]
-                );
+                ));
                 if (!guardada) {
                     mostrarToast("No se pudo guardar la receta en Supabase.");
                     return;
@@ -130,7 +142,7 @@ function Recetas() {
 
         } else {
 
-            const guardada = await agregarReceta(
+            const guardada = await ejecutarGuardadoReceta(() => agregarReceta(
                 productoSeleccionado,
                 [
                     {
@@ -140,7 +152,7 @@ function Recetas() {
                             cantidadNumero
                     }
                 ]
-            );
+            ));
             if (!guardada) {
                 mostrarToast("No se pudo guardar la receta en Supabase.");
                 return;
@@ -230,6 +242,63 @@ function Recetas() {
                 </div>
 
             </div>
+
+            <section className="recetas-listado" aria-label="Listado de recetas">
+                <div className="recetas-listado-header">
+                    <h2>Recetas cargadas</h2>
+                    <input
+                        type="search"
+                        className="recetas-listado-search"
+                        placeholder="Filtrar por producto..."
+                        aria-label="Filtrar recetas por producto"
+                        value={filtroRecetas}
+                        onChange={(event) => setFiltroRecetas(event.target.value)}
+                    />
+                    <span>{recetas.length} receta(s)</span>
+                </div>
+                {recetas.length === 0 ? (
+                    <p className="recetas-listado-vacio">Todavía no hay recetas cargadas.</p>
+                ) : (
+                    <div className="recetas-cards">
+                        {recetas.filter((receta) => {
+                            const nombreProducto = productos.find((item) => item.id === receta.productoId)?.nombre ?? "";
+                            return nombreProducto.toLocaleLowerCase().includes(filtroRecetas.trim().toLocaleLowerCase());
+                        }).map((receta) => {
+                            const producto = productos.find((item) => item.id === receta.productoId);
+                            return (
+                                <article className={`receta-card${receta.activo ? "" : " receta-card-deshabilitada"}`} key={receta.id}>
+                                    <div className="receta-card-heading">
+                                        <h3>{producto?.nombre ?? "Producto desconocido"}</h3>
+                                        <span className={`receta-estado ${receta.activo ? "activo" : "inactivo"}`}>{receta.activo ? "Activa" : "Deshabilitada"}</span>
+                                    </div>
+                                    <p>{receta.ingredientes.length} ingrediente(s)</p>
+                                    <div className="receta-card-ingredientes">
+                                        {receta.ingredientes.map((ingrediente) => {
+                                            const materia = materiasPrimas.find((item) => item.id === ingrediente.materiaPrimaId);
+                                            return (
+                                                <div className="receta-card-ingrediente" key={ingrediente.materiaPrimaId}>
+                                                    <span>{materia?.nombre ?? "Materia desconocida"}: {ingrediente.cantidad} {materia?.unidad ?? ""}</span>
+                                                    <button type="button" className="receta-accion receta-accion-editar" aria-label={`Editar ${materia?.nombre ?? "ingrediente"} en la receta de ${producto?.nombre ?? "producto"}`} onClick={() => prepararEdicionIngrediente(receta.productoId, ingrediente.materiaPrimaId, ingrediente.cantidad)}>
+                                                        <Pencil className="ui-icon" aria-hidden="true" /> Editar
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                    <div className="receta-card-actions">
+                                        <button type="button" disabled={guardandoReceta} className="secondary-button receta-accion receta-accion-editar" onClick={() => prepararEdicionReceta(receta.productoId)}>
+                                            <Pencil className="ui-icon" aria-hidden="true" /> Editar receta
+                                        </button>
+                                        <button type="button" className={`receta-accion ${receta.activo ? "receta-accion-deshabilitar" : "receta-accion-habilitar"}`} onClick={() => void alternarEstadoReceta(receta.id, !receta.activo)}>
+                                            <Power className="ui-icon" aria-hidden="true" /> {receta.activo ? "Deshabilitar" : "Habilitar"}
+                                        </button>
+                                    </div>
+                                </article>
+                            );
+                        })}
+                    </div>
+                )}
+            </section>
 
 
             {/* ==========================
@@ -380,13 +449,15 @@ function Recetas() {
 
                             <button
                                 className="primary-button"
+                                disabled={guardandoReceta}
                                 data-shortcut-enter
                                 type="button"
                                 onClick={
                                     agregarIngrediente
                                 }
                             >
-                                {ingredienteEnEdicion === null ? "+ Agregar" : "Guardar cambios"}
+                                {guardandoReceta && <span className="spinner-inline" aria-hidden="true" />}
+                                {guardandoReceta ? "Guardando…" : ingredienteEnEdicion === null ? "+ Agregar" : "Guardar cambios"}
                             </button>
 
                             {ingredienteEnEdicion !== null && (
@@ -529,89 +600,6 @@ function Recetas() {
 
                 </>
             )}
-
-            {/* ==========================
-                RECETAS EXISTENTES
-            ========================== */}
-
-            <div className="recetas-listado">
-
-                <div className="recetas-listado-header">
-                    <h2>Recetas cargadas</h2>
-
-                    <span>
-                        {recetas.length} receta(s)
-                    </span>
-                </div>
-
-                {recetas.length === 0 ? (
-
-                    <p className="recetas-listado-vacio">
-                        Todavía no hay recetas cargadas.
-                    </p>
-
-                ) : (
-
-                    <div className="recetas-cards">
-                        {recetas.map((receta) => {
-                            const producto = productos.find(
-                                (item) =>
-                                    item.id === receta.productoId
-                            );
-
-                            return (
-                                <div
-                                    className={`receta-card${receta.activo ? "" : " receta-card-deshabilitada"}`}
-                                    key={receta.id}
-                                >
-                                    <div className="receta-card-heading">
-                                        <h3>{producto?.nombre ?? "Producto desconocido"}</h3>
-                                        <span className={`receta-estado ${receta.activo ? "activo" : "inactivo"}`}>
-                                            {receta.activo ? "Activa" : "Deshabilitada"}
-                                        </span>
-                                    </div>
-
-                                    <div className="receta-card-ingredientes">
-                                        {receta.ingredientes.map(
-                                            (ingrediente) => {
-                                                const materia =
-                                                    materiasPrimas.find(
-                                                        (item) =>
-                                                            item.id ===
-                                                            ingrediente.materiaPrimaId
-                                                    );
-
-                                                return (
-                                                    <div className="receta-card-ingrediente" key={ingrediente.materiaPrimaId}>
-                                                        <span>
-                                                            {materia?.nombre ?? "Materia desconocida"}: {ingrediente.cantidad} {materia?.unidad ?? ""}
-                                                        </span>
-                                                        <button type="button" className="receta-accion receta-accion-editar" aria-label={`Editar ${materia?.nombre ?? "ingrediente"} en la receta de ${producto?.nombre ?? "producto"}`} onClick={() => prepararEdicionIngrediente(receta.productoId, ingrediente.materiaPrimaId, ingrediente.cantidad)}>
-                                                            <Pencil className="ui-icon" aria-hidden="true" />
-                                                            Editar
-                                                        </button>
-                                                    </div>
-                                                );
-                                            }
-                                        )}
-                                    </div>
-                                    <div className="receta-card-actions">
-                                        <button type="button" className="secondary-button receta-accion receta-accion-editar" onClick={() => prepararEdicionReceta(receta.productoId)}>
-                                            <Pencil className="ui-icon" aria-hidden="true" />
-                                            Editar receta
-                                        </button>
-                                        <button type="button" className={`receta-accion ${receta.activo ? "receta-accion-deshabilitar" : "receta-accion-habilitar"}`} onClick={() => void alternarEstadoReceta(receta.id, !receta.activo)}>
-                                            <Power className="ui-icon" aria-hidden="true" />
-                                            {receta.activo ? "Deshabilitar" : "Habilitar"}
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-
-            </div>
 
         </div>
     );

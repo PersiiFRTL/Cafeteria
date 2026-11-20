@@ -26,6 +26,7 @@ function Produccion() {
 
     const [mensaje, setMensaje] =
         useState("");
+    const [produciendo, setProduciendo] = useState(false);
 
     const [produccionDetalleId, setProduccionDetalleId] =
         useState<number | null>(null);
@@ -94,11 +95,17 @@ function Produccion() {
             return;
         }
 
-        const resultado =
-            await registrarProduccion(
+        if (produciendo) return;
+        setProduciendo(true);
+        let resultado: boolean;
+        try {
+            resultado = await registrarProduccion(
                 productoId,
                 cantidadProduccion
             );
+        } finally {
+            setProduciendo(false);
+        }
 
         if (!resultado) {
             setMensaje(
@@ -220,10 +227,13 @@ function Produccion() {
 
 
                     <button
+                        type="button"
+                        disabled={produciendo}
                         data-shortcut-enter
                         onClick={producir}
                     >
-                        Producir
+                        {produciendo && <span className="spinner-inline" aria-hidden="true" />}
+                        {produciendo ? "Produciendo…" : "Producir"}
                     </button>
 
                 </div>

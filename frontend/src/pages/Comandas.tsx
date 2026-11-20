@@ -18,6 +18,7 @@ type FiltroComanda =
     | "cancelada";
 
 type VistaComandas = "grilla" | "lista";
+type OrdenComandas = "recientes" | "antiguas" | "estado" | "mesa";
 
 interface ConfirmacionComanda {
     titulo: string;
@@ -72,6 +73,7 @@ function Comandas() {
             ? valorGuardado
             : "grilla";
     });
+    const [ordenComandas, setOrdenComandas] = useState<OrdenComandas>("recientes");
 
     useEffect(() => {
         localStorage.setItem(COMANDAS_FILTRO_KEY, filtroComanda);
@@ -129,16 +131,28 @@ function Comandas() {
     const comandasOrdenadas = [
         ...comandasVisibles
     ].sort((comandaA, comandaB) => {
+        const fechaA = new Date(comandaA.fechaCreacion).getTime();
+        const fechaB = new Date(comandaB.fechaCreacion).getTime();
+        const fechaSeguraA = Number.isFinite(fechaA) ? fechaA : comandaA.id;
+        const fechaSeguraB = Number.isFinite(fechaB) ? fechaB : comandaB.id;
+        const desempateReciente = fechaSeguraB - fechaSeguraA || comandaB.id - comandaA.id;
+
+        if (ordenComandas === "recientes") return desempateReciente;
+        if (ordenComandas === "antiguas") return fechaSeguraA - fechaSeguraB || comandaA.id - comandaB.id;
+
         const diferenciaPrioridad =
             prioridadComanda[comandaA.estado] -
             prioridadComanda[comandaB.estado];
 
-        if (diferenciaPrioridad !== 0) {
+        if (ordenComandas === "estado" && diferenciaPrioridad !== 0) {
             return diferenciaPrioridad;
         }
-
-        return new Date(comandaA.fechaCreacion).getTime() -
-            new Date(comandaB.fechaCreacion).getTime();
+        if (ordenComandas === "mesa") {
+            const mesaA = mesas.find((mesa) => mesa.id === comandaA.mesaId)?.numero ?? Number.POSITIVE_INFINITY;
+            const mesaB = mesas.find((mesa) => mesa.id === comandaB.mesaId)?.numero ?? Number.POSITIVE_INFINITY;
+            if (mesaA !== mesaB) return mesaA - mesaB;
+        }
+        return desempateReciente;
     });
 
     const obtenerProducto = (
@@ -248,6 +262,20 @@ function Comandas() {
                     >
                         <List size={18} aria-hidden="true" />
                     </button>
+                </div>
+
+                <div className="movimientos-toolbar comandas-orden-toolbar">
+                    <label htmlFor="orden-comandas">Ordenar por</label>
+                    <select
+                        id="orden-comandas"
+                        value={ordenComandas}
+                        onChange={(event) => setOrdenComandas(event.target.value as OrdenComandas)}
+                    >
+                        <option value="recientes">Más recientes primero</option>
+                        <option value="antiguas">Más antiguas primero</option>
+                        <option value="estado">Estado</option>
+                        <option value="mesa">Mesa</option>
+                    </select>
                 </div>
             </div>
 
@@ -471,6 +499,7 @@ function Comandas() {
                                                     )
                                                 }
                                             >
+                                                {accionBloqueada && <span className="spinner-inline" aria-hidden="true" />}
                                                 <ChefHat className="ui-icon" aria-hidden="true" />
                                                 Enviar a preparación
                                             </button>

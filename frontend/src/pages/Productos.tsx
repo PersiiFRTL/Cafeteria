@@ -71,6 +71,7 @@ function Productos() {
     const [stockInicial, setStockInicial] = useState("0");
     const [errorPrecio, setErrorPrecio] = useState("");
     const [dialogo, setDialogo] = useState<DialogoProducto | null>(null);
+    const [guardandoProducto, setGuardandoProducto] = useState(false);
 
 
     const limpiarFormulario = () => {
@@ -107,14 +108,21 @@ function Productos() {
             return;
         }
 
-        const resultado = await agregarProducto(
-            nombre,
-            precioNumero,
-            categoria,
-            sector,
-            tipoElaboracion,
-            cantidadInicial
-        );
+        if (guardandoProducto) return;
+        setGuardandoProducto(true);
+        let resultado;
+        try {
+            resultado = await agregarProducto(
+                nombre,
+                precioNumero,
+                categoria,
+                sector,
+                tipoElaboracion,
+                cantidadInicial
+            );
+        } finally {
+            setGuardandoProducto(false);
+        }
 
         if (!resultado.creado) {
             mostrarToast("No se pudo guardar el producto en Supabase. Revisá tus permisos y la conexión.");
@@ -188,14 +196,21 @@ function Productos() {
             return;
         }
 
-        const guardado = await editarProducto(
-            productoEditando,
-            nombre,
-            precioNumero,
-            categoria,
-            sector,
-            tipoElaboracion
-        );
+        if (guardandoProducto) return;
+        setGuardandoProducto(true);
+        let guardado: boolean;
+        try {
+            guardado = await editarProducto(
+                productoEditando,
+                nombre,
+                precioNumero,
+                categoria,
+                sector,
+                tipoElaboracion
+            );
+        } finally {
+            setGuardandoProducto(false);
+        }
 
         if (!guardado) {
             mostrarToast("No se pudo actualizar el producto en Supabase. Revisá tus permisos y la conexión.");
@@ -438,12 +453,14 @@ function Productos() {
 
                         <button
                             className="primary-button"
+                            disabled={guardandoProducto}
                             data-shortcut-enter
                             onClick={
                                 crearProducto
                             }
                         >
-                            Crear producto
+                            {guardandoProducto && <span className="spinner-inline" aria-hidden="true" />}
+                            {guardandoProducto ? "Guardando…" : "Crear producto"}
                         </button>
 
                         <button
@@ -525,6 +542,8 @@ function Productos() {
                     <span>
                         Elaboración
                     </span>
+
+                    <span>Stock</span>
 
                     <span>
                         Estado
@@ -681,6 +700,9 @@ function Productos() {
 
                                     </select>
 
+                                    <span className="producto-stock-chip" data-label="Stock">
+                                        {producto.tipoElaboracion === "bajo_pedido" ? "Según receta" : `${producto.stockActual} ${producto.unidadVenta}`}
+                                    </span>
 
                                     <label className="producto-estado-switch" data-label="Estado">
                                         <input
@@ -710,12 +732,14 @@ function Productos() {
 
                                         <button
                                             className="primary-button"
+                                            disabled={guardandoProducto}
                                             data-shortcut-enter
                                             onClick={
                                                 guardarEdicion
                                             }
                                         >
-                                            Guardar
+                                            {guardandoProducto && <span className="spinner-inline" aria-hidden="true" />}
+                                            {guardandoProducto ? "Guardando…" : "Guardar"}
                                         </button>
 
                                         <button
@@ -768,6 +792,21 @@ function Productos() {
                                             ? "Compra / reventa"
                                             : "Bajo pedido"}
 
+                                </span>
+
+                                <span data-label="Stock">
+                                    {producto.tipoElaboracion === "bajo_pedido" ? (
+                                        <span className="producto-stock-chip segun-receta">Según receta</span>
+                                    ) : (() => {
+                                        const stockBajo = producto.stockActual <= producto.stockMinimo;
+                                        const sinStock = producto.stockActual <= 0;
+                                        return (
+                                            <span className={`producto-stock-chip ${stockBajo ? "bajo" : "normal"}`}>
+                                                {sinStock ? "Sin stock" : stockBajo ? "Stock bajo" : "Stock normal"}
+                                                <small>{producto.stockActual} {producto.unidadVenta}</small>
+                                            </span>
+                                        );
+                                    })()}
                                 </span>
 
                                 <span data-label="Estado">

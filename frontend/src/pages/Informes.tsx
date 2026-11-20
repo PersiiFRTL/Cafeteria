@@ -19,6 +19,7 @@ import { repositorioSupabaseCatalogo } from "../services/supabaseCatalogoReposit
 
 const INFORMES_PERIODO_KEY = "cafeteria-informes-periodo";
 const INFORMES_RANGO_KEY = "cafeteria-informes-rango";
+const ACTIVIDAD_POR_PAGINA = 10;
 
 interface RangoFechas {
     desde: string;
@@ -46,6 +47,22 @@ const fechaLocalISO = (fecha: Date) => {
     local.setMinutes(local.getMinutes() - local.getTimezoneOffset());
     return local.toISOString().slice(0, 10);
 };
+
+type PeriodoInforme = "hoy" | "7dias" | "30dias" | "todo" | "rango";
+
+function obtenerRangoConsulta(periodo: PeriodoInforme, rango: RangoFechas | null) {
+    const hoy = fechaLocalISO(new Date());
+    let desde = "2000-01-01";
+    if (periodo === "hoy") desde = hoy;
+    if (periodo === "7dias" || periodo === "30dias") {
+        const fecha = new Date();
+        fecha.setDate(fecha.getDate() - (periodo === "7dias" ? 6 : 29));
+        desde = fechaLocalISO(fecha);
+    }
+    if (periodo === "rango" && rango) desde = rango.desde;
+    const hasta = periodo === "rango" && rango ? rango.hasta : hoy;
+    return { desde, hasta };
+}
 
 function Informes() {
 
@@ -80,32 +97,42 @@ function Informes() {
     const [fechaDesde, setFechaDesde] = useState(() => leerRangoGuardado()?.desde ?? "");
     const [fechaHasta, setFechaHasta] = useState(() => leerRangoGuardado()?.hasta ?? "");
     const [editandoRango, setEditandoRango] = useState(false);
+    const [paginaActividad, setPaginaActividad] = useState(1);
     const [errorRango, setErrorRango] = useState("");
-    const [informeVentas, setInformeVentas] = useState<Awaited<ReturnType<typeof repositorioSupabaseCatalogo.obtenerInformeVentas>> | null>(null);
-    const [errorInformeVentas, setErrorInformeVentas] = useState("");
+    const [estadoInformeVentas, setEstadoInformeVentas] = useState<{
+        clave: string;
+        datos: Awaited<ReturnType<typeof repositorioSupabaseCatalogo.obtenerInformeVentas>>;
+    } | null>(null);
+    const [errorInformeVentas, setErrorInformeVentas] = useState<{ clave: string; mensaje: string } | null>(null);
+    const [claveCargaDemorada, setClaveCargaDemorada] = useState<string | null>(null);
+    const { desde: desdeInforme, hasta: hastaInforme } = obtenerRangoConsulta(periodo, rangoAplicado);
+    const claveInforme = `${desdeInforme}|${hastaInforme}`;
+    const informeVentas = estadoInformeVentas?.clave === claveInforme ? estadoInformeVentas.datos : null;
+    const mensajeErrorInforme = errorInformeVentas?.clave === claveInforme ? errorInformeVentas.mensaje : "";
+    const mostrandoCargaInforme = claveCargaDemorada === claveInforme;
 
     useEffect(() => {
-        const hoy = fechaLocalISO(new Date());
-        let desde = "2000-01-01";
-        if (periodo === "hoy") desde = hoy;
-        if (periodo === "7dias" || periodo === "30dias") {
-            const fecha = new Date();
-            fecha.setDate(fecha.getDate() - (periodo === "7dias" ? 7 : 30));
-            desde = fechaLocalISO(fecha);
-        }
-        if (periodo === "rango") {
-            if (!rangoAplicado) return;
-            desde = rangoAplicado.desde;
-        }
-        const hasta = periodo === "rango" && rangoAplicado ? rangoAplicado.hasta : hoy;
         let vigente = true;
-        repositorioSupabaseCatalogo.obtenerInformeVentas(desde, hasta)
-            .then((informe) => { if (vigente) { setInformeVentas(informe); setErrorInformeVentas(""); } })
+        const temporizadorCarga = window.setTimeout(() => {
+            if (vigente) setClaveCargaDemorada(claveInforme);
+        }, 500);
+        repositorioSupabaseCatalogo.obtenerInformeVentas(desdeInforme, hastaInforme)
+            .then((informe) => {
+                if (!vigente) return;
+                setEstadoInformeVentas({ clave: claveInforme, datos: informe });
+                setErrorInformeVentas(null);
+                setClaveCargaDemorada((actual) => actual === claveInforme ? null : actual);
+            })
             .catch((error: unknown) => {
-                if (vigente) setErrorInformeVentas(error instanceof Error ? error.message : "No se pudo cargar el informe de ventas.");
+                if (!vigente) return;
+                setErrorInformeVentas({ clave: claveInforme, mensaje: error instanceof Error ? error.message : "No se pudo cargar el informe de ventas." });
+                setClaveCargaDemorada((actual) => actual === claveInforme ? null : actual);
             });
-        return () => { vigente = false; };
-    }, [periodo, rangoAplicado]);
+        return () => {
+            vigente = false;
+            window.clearTimeout(temporizadorCarga);
+        };
+    }, [claveInforme, desdeInforme, hastaInforme]);
 
     useEffect(() => {
         localStorage.setItem(INFORMES_PERIODO_KEY, periodo);
@@ -127,13 +154,13 @@ if (periodo === "hoy") {
 
 if (periodo === "7dias") {
     inicioPeriodo.setDate(
-        ahora.getDate() - 7
+        ahora.getDate() - 6
     );
 }
 
 if (periodo === "30dias") {
     inicioPeriodo.setDate(
-        ahora.getDate() - 30
+        ahora.getDate() - 29
     );
 }
 
@@ -165,6 +192,12 @@ const comandasMesa = comandasFiltradas.filter((comanda) => comanda.tipoAtencion 
 const comandasTakeAway = comandasFiltradas.filter((comanda) => comanda.tipoAtencion === "take-away").length;
 const operacionesStockFiltradas = operacionesStock.filter((operacion) => dentroDelPeriodo(operacion.fecha));
 const actividadFiltrada = actividad.filter((evento) => dentroDelPeriodo(evento.fecha));
+const totalPaginasActividad = Math.max(1, Math.ceil(actividadFiltrada.length / ACTIVIDAD_POR_PAGINA));
+const paginaActividadSegura = Math.min(paginaActividad, totalPaginasActividad);
+const actividadPaginada = actividadFiltrada.slice(
+    (paginaActividadSegura - 1) * ACTIVIDAD_POR_PAGINA,
+    paginaActividadSegura * ACTIVIDAD_POR_PAGINA
+);
 const resumenEmpleados = new Map<string, {
     nombre: string;
     rol: string;
@@ -237,6 +270,7 @@ const aplicarRangoFechas = () => {
 
     setRangoAplicado({ desde: fechaDesde, hasta: fechaHasta });
     setPeriodo("rango");
+    setPaginaActividad(1);
     setEditandoRango(false);
     setErrorRango("");
 };
@@ -393,7 +427,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                                 ? "filtro-activo"
                                 : ""
                         }
-                        onClick={() => { setPeriodo("hoy"); setEditandoRango(false); }}
+                        onClick={() => { setPeriodo("hoy"); setPaginaActividad(1); setEditandoRango(false); }}
                     >
                         Hoy
                     </button>
@@ -404,7 +438,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                                 ? "filtro-activo"
                                 : ""
                         }
-                        onClick={() => { setPeriodo("7dias"); setEditandoRango(false); }}
+                        onClick={() => { setPeriodo("7dias"); setPaginaActividad(1); setEditandoRango(false); }}
                     >
                         Últimos 7 días
                     </button>
@@ -415,7 +449,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                                 ? "filtro-activo"
                                 : ""
                         }
-                        onClick={() => { setPeriodo("30dias"); setEditandoRango(false); }}
+                        onClick={() => { setPeriodo("30dias"); setPaginaActividad(1); setEditandoRango(false); }}
                     >
                         Últimos 30 días
                     </button>
@@ -426,7 +460,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                                 ? "filtro-activo"
                                 : ""
                         }
-                        onClick={() => { setPeriodo("todo"); setEditandoRango(false); }}
+                        onClick={() => { setPeriodo("todo"); setPaginaActividad(1); setEditandoRango(false); }}
                     >
                         Todo
                     </button>
@@ -499,9 +533,16 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                 RESUMEN
             ========================== */}
 
-            <section className="informes-seccion">
+            <section className="informes-seccion" aria-busy={mostrandoCargaInforme}>
 
                 <h2><ChartNoAxesColumnIncreasing className="ui-icon" aria-hidden="true" /> Resumen general</h2>
+
+                {mostrandoCargaInforme && (
+                    <div className="informe-cargando" role="status" aria-live="polite">
+                        <span className="spinner-inline" aria-hidden="true" />
+                        Actualizando el informe para el período seleccionado…
+                    </div>
+                )}
 
                 <div className="informes-tarjetas">
 
@@ -546,8 +587,13 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                     </div>
 
                 </div>
-                {errorInformeVentas && <p className="informe-vacio" role="status">Informe de ventas no disponible: {errorInformeVentas}</p>}
-                {informeVentas && <p className="informe-actividad-ayuda">Ventas estimadas del período: <strong>{informeVentas.ventasEstimadas.toLocaleString("es-AR", { style: "currency", currency: "ARS" })}</strong></p>}
+                {mensajeErrorInforme && <p className="informe-vacio" role="status">Informe de ventas no disponible: {mensajeErrorInforme}</p>}
+                {informeVentas && (
+                    <div className="informe-ventas-resumen">
+                        <span>Ventas estimadas del período</span>
+                        <strong>{informeVentas.ventasEstimadas.toLocaleString("es-AR", { style: "currency", currency: "ARS" })}</strong>
+                    </div>
+                )}
 
             </section>
 
@@ -758,7 +804,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
 
             <section className="informes-seccion">
                 <h2><History className="ui-icon" aria-hidden="true" /> Actividad reciente</h2>
-                <p className="informe-actividad-ayuda">Últimos 100 registros, del más nuevo al más antiguo.</p>
+                <p className="informe-actividad-ayuda">Hasta 100 registros recientes, del más nuevo al más antiguo. Se muestran de a 10 por página.</p>
                 {!auditoriaDisponible ? (
                     <p className="informe-actividad-ayuda">
                         El historial se habilita al aplicar la migración de auditoría en Supabase.
@@ -767,7 +813,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                     <p className="informe-ok">No hay cambios registrados en el período seleccionado.</p>
                 ) : (
                     <div className="informe-actividad-lista" role="list" aria-label="Actividad reciente del sistema">
-                        {actividadFiltrada.map((evento) => (
+                        {actividadPaginada.map((evento) => (
                             <article className="informe-actividad-item" role="listitem" key={evento.id}>
                                 <div className="informe-actividad-detalle">
                                     <strong>{evento.accion}</strong>
@@ -780,6 +826,33 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                             </article>
                         ))}
                     </div>
+                )}
+                {auditoriaDisponible && actividadFiltrada.length > 0 && (
+                    <nav className="informe-paginacion" aria-label="Paginación de actividad reciente">
+                        <span className="informe-paginacion-total">
+                            {actividadFiltrada.length} registro(s) · Página {paginaActividadSegura} de {totalPaginasActividad}
+                        </span>
+                        <div className="informe-paginacion-controles">
+                            <button
+                                type="button"
+                                className="secondary-button"
+                                disabled={paginaActividadSegura <= 1}
+                                onClick={() => setPaginaActividad((pagina) => Math.max(1, pagina - 1))}
+                                aria-label="Ver página anterior de actividad"
+                            >
+                                Anterior
+                            </button>
+                            <button
+                                type="button"
+                                className="secondary-button"
+                                disabled={paginaActividadSegura >= totalPaginasActividad}
+                                onClick={() => setPaginaActividad((pagina) => Math.min(totalPaginasActividad, pagina + 1))}
+                                aria-label="Ver página siguiente de actividad"
+                            >
+                                Siguiente
+                            </button>
+                        </div>
+                    </nav>
                 )}
             </section>
 

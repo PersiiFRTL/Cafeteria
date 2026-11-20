@@ -47,6 +47,7 @@ function Stock() {
         useState<number | null>(null);
 
     const [cantidad, setCantidad] = useState("");
+    const [guardandoMovimiento, setGuardandoMovimiento] = useState(false);
     const [productoStockSeleccionado, setProductoStockSeleccionado] = useState<number | null>(null);
     const [cantidadCompraProducto, setCantidadCompraProducto] = useState("");
     const [minimoReposicionProducto, setMinimoReposicionProducto] = useState("");
@@ -156,10 +157,17 @@ function Stock() {
         // =====================================================
 
         if (tipo === "entrada") {
-            const entradaRegistrada = await registrarEntradaMateriaPrima(
-                materiaPrimaSeleccionada,
-                cantidadNumero
-            );
+            if (guardandoMovimiento) return;
+            setGuardandoMovimiento(true);
+            let entradaRegistrada: boolean;
+            try {
+                entradaRegistrada = await registrarEntradaMateriaPrima(
+                    materiaPrimaSeleccionada,
+                    cantidadNumero
+                );
+            } finally {
+                setGuardandoMovimiento(false);
+            }
             if (!entradaRegistrada) {
                 setMensajeErrorStock("No se pudo registrar la entrada en Supabase.");
                 return;
@@ -192,10 +200,17 @@ function Stock() {
         }
 
 
-        const salidaRegistrada = await registrarSalidaMateriaPrima(
-            materiaPrimaSeleccionada,
-            cantidadNumero
-        );
+        if (guardandoMovimiento) return;
+        setGuardandoMovimiento(true);
+        let salidaRegistrada: boolean;
+        try {
+            salidaRegistrada = await registrarSalidaMateriaPrima(
+                materiaPrimaSeleccionada,
+                cantidadNumero
+            );
+        } finally {
+            setGuardandoMovimiento(false);
+        }
 
         if (!salidaRegistrada) {
             setMensajeErrorStock(
@@ -588,8 +603,6 @@ function Stock() {
                                     )
                                 }
                             />
-
-
                             <input
                                 type="text"
                                 placeholder="Categoría"
@@ -919,6 +932,9 @@ function Stock() {
                             )}
 
 
+                            <label className="stock-movimiento-cantidad">
+                            Cantidad
+                            <div className="stock-cantidad-con-unidad">
                             <input
                                 type="number"
                                 min="0"
@@ -936,30 +952,37 @@ function Stock() {
 
                                 }}
                             />
+                            <span>{materiasPrimas.find((materia) => materia.id === materiaPrimaSeleccionada)?.unidad}</span>
+                            </div>
+                            </label>
 
 
                             <div className="stock-movimiento-actions">
 
                                 <button
                                     className="primary-button"
+                                    disabled={guardandoMovimiento}
                                     onClick={() =>
                                         registrarMovimiento(
                                             "entrada"
                                         )
                                     }
                                 >
+                                    {guardandoMovimiento && <span className="spinner-inline" aria-hidden="true" />}
                                     + Entrada
                                 </button>
 
 
                                 <button
                                     className="stock-button"
+                                    disabled={guardandoMovimiento}
                                     onClick={() =>
                                         registrarMovimiento(
                                             "salida"
                                         )
                                     }
                                 >
+                                    {guardandoMovimiento && <span className="spinner-inline" aria-hidden="true" />}
                                     - Salida
                                 </button>
 

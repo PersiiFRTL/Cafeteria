@@ -954,6 +954,11 @@ h6,
     margin-bottom: 0;
 }
 
+.comandas-orden-toolbar {
+    margin: 0 0 0 auto;
+    flex: 0 0 auto;
+}
+
 .comandas-filtro {
     display: inline-flex;
     align-items: center;
@@ -1948,12 +1953,48 @@ h6,
 
 .producto-row {
     display: grid;
-    grid-template-columns: 1.8fr 1.1fr 1fr 1.1fr 1.2fr 1fr 1.3fr;
+    grid-template-columns: 1.8fr 1.1fr 1fr 1.1fr 1.2fr 1fr 1fr 1.3fr;
     padding: 18px 20px;
     border-bottom: 1px solid #fdf2e8;
     align-items: center;
     gap: 10px;
-    min-width: 1000px;
+    min-width: 1120px;
+}
+
+.producto-stock-chip {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+    width: fit-content;
+    max-width: 100%;
+    border-radius: 999px;
+    padding: 5px 9px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.producto-stock-chip.normal {
+    color: #28633c;
+    background: #e9f5ec;
+}
+
+.producto-stock-chip.bajo {
+    color: #9a3f32;
+    background: #fae9e5;
+}
+
+.producto-stock-chip small {
+    font-size: 11px;
+    font-weight: 600;
+    opacity: .85;
+}
+
+.producto-stock-chip.segun-receta {
+    color: #755a48;
+    background: #eee7e0;
 }
 
 .empleados-table .producto-row {
@@ -2371,6 +2412,38 @@ h6,
     margin-bottom: 15px;
 }
 
+.stock-movimiento-cantidad {
+    display: grid;
+    gap: 7px;
+    width: min(100%, 280px);
+    margin-bottom: 15px;
+    color: #493d35;
+    font-weight: 650;
+}
+
+.stock-cantidad-con-unidad {
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    border: 1px solid #e9ded3;
+    border-radius: 6px;
+    background: #fffdfb;
+}
+
+.stock-movimiento .stock-cantidad-con-unidad input {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    border: 0;
+}
+
+.stock-cantidad-con-unidad > span {
+    padding: 0 12px;
+    color: #755a48;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
 .stock-movimiento-actions {
     display: flex;
     gap: 10px;
@@ -2512,9 +2585,23 @@ h6,
 
 .recetas-listado-header {
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
     margin-bottom: 15px;
+}
+
+.recetas-listado-search {
+    width: min(100%, 300px);
+    min-height: 40px;
+    margin-left: auto;
+    padding: 8px 12px;
+    border: 1px solid #e9ded3;
+    border-radius: 7px;
+    background: #fffdfb;
+    color: #493d35;
+    font: inherit;
 }
 
 .recetas-listado-header span {
@@ -3003,6 +3090,34 @@ h6,
     font: inherit;
 }
 
+.informe-cargando {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 16px;
+    padding: 11px 14px;
+    border: 1px solid var(--color-line);
+    border-radius: 8px;
+    background: var(--color-surface);
+    color: var(--color-ink-muted, #755a48);
+    font-size: 14px;
+}
+
+.spinner-inline {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: giro-spinner 700ms linear infinite;
+}
+
+@keyframes giro-spinner {
+    to { transform: rotate(360deg); }
+}
+
 .operacion-stock {
     background-color: #fffdfb;
     border-radius: 10px;
@@ -3403,6 +3518,24 @@ h6,
     color: #75665c;
 }
 
+.informe-ventas-resumen {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 16px;
+    padding: 14px 16px;
+    border: 1px solid #e9ded3;
+    border-radius: 8px;
+    background: #fffaf5;
+    color: #493d35;
+}
+
+.informe-ventas-resumen strong {
+    flex-shrink: 0;
+    color: #493d35;
+}
+
 .informe-actividad-lista {
     display: grid;
     gap: 10px;
@@ -3435,7 +3568,37 @@ h6,
     font-size: 0.9rem;
 }
 
+.informe-paginacion {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #e9ded3;
+}
+
+.informe-paginacion-total {
+    color: #75665c;
+    font-size: 14px;
+}
+
+.informe-paginacion-controles {
+    display: flex;
+    gap: 8px;
+}
+
+.informe-paginacion-controles button {
+    width: auto;
+    min-width: 98px;
+}
+
 @media (max-width: 700px) {
+    .informe-paginacion {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
     .informe-actividad-item {
         flex-direction: column;
         gap: 8px;
