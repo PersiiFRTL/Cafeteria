@@ -104,33 +104,26 @@ function Informes() {
         datos: Awaited<ReturnType<typeof repositorioSupabaseCatalogo.obtenerInformeVentas>>;
     } | null>(null);
     const [errorInformeVentas, setErrorInformeVentas] = useState<{ clave: string; mensaje: string } | null>(null);
-    const [claveCargaDemorada, setClaveCargaDemorada] = useState<string | null>(null);
     const { desde: desdeInforme, hasta: hastaInforme } = obtenerRangoConsulta(periodo, rangoAplicado);
     const claveInforme = `${desdeInforme}|${hastaInforme}`;
     const informeVentas = estadoInformeVentas?.clave === claveInforme ? estadoInformeVentas.datos : null;
     const mensajeErrorInforme = errorInformeVentas?.clave === claveInforme ? errorInformeVentas.mensaje : "";
-    const mostrandoCargaInforme = claveCargaDemorada === claveInforme;
+    const mostrandoCargaInforme = !informeVentas && !mensajeErrorInforme;
 
     useEffect(() => {
         let vigente = true;
-        const temporizadorCarga = window.setTimeout(() => {
-            if (vigente) setClaveCargaDemorada(claveInforme);
-        }, 500);
         repositorioSupabaseCatalogo.obtenerInformeVentas(desdeInforme, hastaInforme)
             .then((informe) => {
                 if (!vigente) return;
                 setEstadoInformeVentas({ clave: claveInforme, datos: informe });
                 setErrorInformeVentas(null);
-                setClaveCargaDemorada((actual) => actual === claveInforme ? null : actual);
             })
             .catch((error: unknown) => {
                 if (!vigente) return;
                 setErrorInformeVentas({ clave: claveInforme, mensaje: error instanceof Error ? error.message : "No se pudo cargar el informe de ventas." });
-                setClaveCargaDemorada((actual) => actual === claveInforme ? null : actual);
             });
         return () => {
             vigente = false;
-            window.clearTimeout(temporizadorCarga);
         };
     }, [claveInforme, desdeInforme, hastaInforme]);
 
@@ -182,12 +175,12 @@ const unidadesSolicitadas = comandasNoCanceladas.reduce(
     (total, comanda) => total + comanda.productos.reduce((subtotal, item) => subtotal + item.cantidad, 0),
     0
 );
-const promedioUnidadesPorComanda = comandasNoCanceladas.length
-    ? unidadesSolicitadas / comandasNoCanceladas.length
-    : 0;
-const porcentajeCanceladas = comandasFiltradas.length
-    ? (comandasCanceladas / comandasFiltradas.length) * 100
-    : 0;
+const promedioUnidadesPorComanda = informeVentas?.comandasFinalizadas
+    ? informeVentas.productosVendidos / informeVentas.comandasFinalizadas
+    : comandasNoCanceladas.length ? unidadesSolicitadas / comandasNoCanceladas.length : 0;
+const porcentajeCanceladas = informeVentas?.totalComandas
+    ? ((informeVentas.comandasCanceladas ?? 0) / informeVentas.totalComandas) * 100
+    : comandasFiltradas.length ? (comandasCanceladas / comandasFiltradas.length) * 100 : 0;
 const comandasMesa = comandasFiltradas.filter((comanda) => comanda.tipoAtencion === "mesa").length;
 const comandasTakeAway = comandasFiltradas.filter((comanda) => comanda.tipoAtencion === "take-away").length;
 const operacionesStockFiltradas = operacionesStock.filter((operacion) => dentroDelPeriodo(operacion.fecha));
@@ -270,6 +263,7 @@ const aplicarRangoFechas = () => {
 
     setRangoAplicado({ desde: fechaDesde, hasta: fechaHasta });
     setPeriodo("rango");
+    setErrorInformeVentas(null);
     setPaginaActividad(1);
     setEditandoRango(false);
     setErrorRango("");
@@ -427,7 +421,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                                 ? "filtro-activo"
                                 : ""
                         }
-                        onClick={() => { setPeriodo("hoy"); setPaginaActividad(1); setEditandoRango(false); }}
+                        onClick={() => { setPeriodo("hoy"); setErrorInformeVentas(null); setPaginaActividad(1); setEditandoRango(false); }}
                     >
                         Hoy
                     </button>
@@ -438,7 +432,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                                 ? "filtro-activo"
                                 : ""
                         }
-                        onClick={() => { setPeriodo("7dias"); setPaginaActividad(1); setEditandoRango(false); }}
+                        onClick={() => { setPeriodo("7dias"); setErrorInformeVentas(null); setPaginaActividad(1); setEditandoRango(false); }}
                     >
                         Últimos 7 días
                     </button>
@@ -449,7 +443,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                                 ? "filtro-activo"
                                 : ""
                         }
-                        onClick={() => { setPeriodo("30dias"); setPaginaActividad(1); setEditandoRango(false); }}
+                        onClick={() => { setPeriodo("30dias"); setErrorInformeVentas(null); setPaginaActividad(1); setEditandoRango(false); }}
                     >
                         Últimos 30 días
                     </button>
@@ -460,7 +454,7 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                                 ? "filtro-activo"
                                 : ""
                         }
-                        onClick={() => { setPeriodo("todo"); setPaginaActividad(1); setEditandoRango(false); }}
+                        onClick={() => { setPeriodo("todo"); setErrorInformeVentas(null); setPaginaActividad(1); setEditandoRango(false); }}
                     >
                         Todo
                     </button>
@@ -537,25 +531,27 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
 
                 <h2><ChartNoAxesColumnIncreasing className="ui-icon" aria-hidden="true" /> Resumen general</h2>
 
-                {mostrandoCargaInforme && (
+                {mostrandoCargaInforme ? (
                     <div className="informe-cargando" role="status" aria-live="polite">
                         <span className="spinner-inline" aria-hidden="true" />
                         Actualizando el informe para el período seleccionado…
                     </div>
-                )}
+                ) : mensajeErrorInforme ? (
+                    <p className="form-field-error informe-error" role="alert">Informe agregado no disponible: {mensajeErrorInforme} Se muestran los datos disponibles en la pantalla.</p>
+                ) : null}
 
                 <div className="informes-tarjetas">
 
                     <div className="informe-card">
                         <span><ClipboardList className="ui-icon" aria-hidden="true" /></span>
-                        <strong>{informeVentas?.totalComandas ?? comandasFiltradas.length}</strong>
+                        <strong>{informeVentas?.totalComandas ?? (mensajeErrorInforme ? comandasFiltradas.length : "—")}</strong>
                         <p>Comandas</p>
                     </div>
 
                     <div className="informe-card">
                         <span><CircleCheck className="ui-icon" aria-hidden="true" /></span>
                         <strong>
-                            {informeVentas?.comandasFinalizadas ?? comandasFinalizadas}
+                            {informeVentas?.comandasFinalizadas ?? (mensajeErrorInforme ? comandasFinalizadas : "—")}
                         </strong>
                         <p>Entregadas</p>
                     </div>
@@ -563,31 +559,30 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                     <div className="informe-card">
                         <span><CircleX className="ui-icon" aria-hidden="true" /></span>
                         <strong>
-                            {comandasCanceladas}
+                            {informeVentas?.comandasCanceladas ?? (mensajeErrorInforme ? comandasCanceladas : "—")}
                         </strong>
                         <p>Canceladas</p>
                     </div>
 
                     <div className="informe-card">
                         <span><Package className="ui-icon" aria-hidden="true" /></span>
-                        <strong>{informeVentas?.productosVendidos ?? unidadesSolicitadas}</strong>
+                        <strong>{informeVentas?.productosVendidos ?? (mensajeErrorInforme ? unidadesSolicitadas : "—")}</strong>
                         <p>Unidades vendidas</p>
                     </div>
 
                     <div className="informe-card">
                         <span><TrendingUp className="ui-icon" aria-hidden="true" /></span>
-                        <strong>{promedioUnidadesPorComanda.toLocaleString("es-AR", { maximumFractionDigits: 1 })}</strong>
-                        <p>Unidades por comanda</p>
+                        <strong>{informeVentas || mensajeErrorInforme ? promedioUnidadesPorComanda.toLocaleString("es-AR", { maximumFractionDigits: 1 }) : "—"}</strong>
+                        <p>Unidades por comanda finalizada</p>
                     </div>
 
                     <div className="informe-card">
                         <span><RotateCcw className="ui-icon" aria-hidden="true" /></span>
-                        <strong>{porcentajeCanceladas.toLocaleString("es-AR", { maximumFractionDigits: 1 })}%</strong>
+                        <strong>{informeVentas || mensajeErrorInforme ? `${porcentajeCanceladas.toLocaleString("es-AR", { maximumFractionDigits: 1 })}%` : "—"}</strong>
                         <p>Comandas canceladas</p>
                     </div>
 
                 </div>
-                {mensajeErrorInforme && <p className="informe-vacio" role="status">Informe de ventas no disponible: {mensajeErrorInforme}</p>}
                 {informeVentas && (
                     <div className="informe-ventas-resumen">
                         <span>Ventas estimadas del período</span>
@@ -597,6 +592,8 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
 
             </section>
 
+            {(informeVentas || mensajeErrorInforme) && (
+                <>
             <section className="informes-seccion">
                 <h2><Utensils className="ui-icon" aria-hidden="true" /> Tipo de atención</h2>
                 <p className="informe-actividad-ayuda">Distribución de las comandas del período seleccionado.</p>
@@ -891,6 +888,9 @@ const movimientosFiltrados = movimientosStock.filter((movimiento) => dentroDelPe
                 )}
 
             </section>
+
+                </>
+            )}
 
         </div>
     );

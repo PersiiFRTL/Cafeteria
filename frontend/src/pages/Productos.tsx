@@ -33,7 +33,6 @@ function Productos() {
 
     const [busqueda, setBusqueda] = useState("");
     const [busquedaDebounce, setBusquedaDebounce] = useState("");
-    const [filtroSector, setFiltroSector] = useState("Todos");
 
     useEffect(() => {
         const temporizador = window.setTimeout(() => {
@@ -46,10 +45,7 @@ function Productos() {
     const productosFiltrados = productos.filter((producto) => {
         const textoBusqueda = busquedaDebounce;
 
-        const coincideNombre = coincideBusqueda(producto.nombre, textoBusqueda);
-        const coincideSector = filtroSector === "Todos" || producto.sector === filtroSector;
-
-        return coincideNombre && coincideSector;
+        return coincideBusqueda(producto.nombre, textoBusqueda);
     });
 
     const [nombre, setNombre] =
@@ -501,20 +497,6 @@ function Productos() {
                 />
             </div>
 
-            <div className="productos-filtros-sector" role="group" aria-label="Filtrar productos por sector">
-                {["Todos", "Cocina", "Cafetería", "Pastelería"].map((sectorOpcion) => (
-                    <button
-                        key={sectorOpcion}
-                        type="button"
-                        className={`productos-filtro-sector${filtroSector === sectorOpcion ? " activo" : ""}`}
-                        aria-pressed={filtroSector === sectorOpcion}
-                        onClick={() => setFiltroSector(sectorOpcion)}
-                    >
-                        {sectorOpcion}
-                    </button>
-                ))}
-            </div>
-
             {/* ==========================
                 TABLA DE PRODUCTOS
             ========================== */}
@@ -700,8 +682,19 @@ function Productos() {
 
                                     </select>
 
-                                    <span className="producto-stock-chip" data-label="Stock">
-                                        {producto.tipoElaboracion === "bajo_pedido" ? "Según receta" : `${producto.stockActual} ${producto.unidadVenta}`}
+                                    <span data-label="Stock">
+                                        {producto.tipoElaboracion === "bajo_pedido" ? (
+                                            <span className="producto-stock-chip segun-receta">Según receta</span>
+                                        ) : (() => {
+                                            const sinStock = producto.stockActual <= 0;
+                                            const stockBajo = producto.stockActual <= producto.stockMinimo;
+                                            return (
+                                                <span className={`producto-stock-chip ${sinStock ? "sin-stock" : stockBajo ? "bajo" : "normal"}`}>
+                                                    {sinStock ? "Sin stock" : stockBajo ? "Stock bajo" : "Stock normal"}
+                                                    <small>{producto.stockActual} {producto.unidadVenta} · mín. {producto.stockMinimo} {producto.unidadVenta}</small>
+                                                </span>
+                                            );
+                                        })()}
                                     </span>
 
                                     <label className="producto-estado-switch" data-label="Estado">
@@ -801,9 +794,9 @@ function Productos() {
                                         const stockBajo = producto.stockActual <= producto.stockMinimo;
                                         const sinStock = producto.stockActual <= 0;
                                         return (
-                                            <span className={`producto-stock-chip ${stockBajo ? "bajo" : "normal"}`}>
+                                            <span className={`producto-stock-chip ${sinStock ? "sin-stock" : stockBajo ? "bajo" : "normal"}`} aria-label={`${sinStock ? "Sin stock" : stockBajo ? "Stock bajo" : "Stock normal"}: ${producto.stockActual} ${producto.unidadVenta}; mínimo ${producto.stockMinimo} ${producto.unidadVenta}`}>
                                                 {sinStock ? "Sin stock" : stockBajo ? "Stock bajo" : "Stock normal"}
-                                                <small>{producto.stockActual} {producto.unidadVenta}</small>
+                                                <small>{producto.stockActual} {producto.unidadVenta} · mín. {producto.stockMinimo} {producto.unidadVenta}</small>
                                             </span>
                                         );
                                     })()}

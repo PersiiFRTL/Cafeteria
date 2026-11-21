@@ -29,6 +29,7 @@ function Produccion() {
 
     const [mensaje, setMensaje] =
         useState("");
+    const [tipoMensaje, setTipoMensaje] = useState<"error" | "exito" | null>(null);
     const [produciendo, setProduciendo] = useState(false);
 
     const [produccionDetalleId, setProduccionDetalleId] =
@@ -111,11 +112,13 @@ function Produccion() {
     const producir = async () => {
 
         setMensaje("");
+        setTipoMensaje(null);
 
         if (!productoId) {
             setMensaje(
                 "Seleccioná un producto."
             );
+            setTipoMensaje("error");
             return;
         }
 
@@ -126,6 +129,7 @@ function Produccion() {
             setMensaje(
                 "Ingresá una cantidad entera mayor que 0."
             );
+            setTipoMensaje("error");
             return;
         }
 
@@ -133,6 +137,7 @@ function Produccion() {
             setMensaje(
                 "El producto no tiene una receta cargada."
             );
+            setTipoMensaje("error");
             return;
         }
 
@@ -152,12 +157,14 @@ function Produccion() {
             setMensaje(
                 "No hay suficiente materia prima para realizar la producción."
             );
+            setTipoMensaje("error");
             return;
         }
 
         setMensaje(
             `Producción realizada correctamente: ${cantidadProduccion} ${productoSeleccionado?.nombre}.`
         );
+        setTipoMensaje("exito");
         mostrarToast("Producción registrada correctamente.");
 
         setCantidad("");
@@ -220,6 +227,7 @@ function Produccion() {
                                 );
 
                                 setMensaje("");
+                                setTipoMensaje(null);
                             }}
                         >
 
@@ -360,7 +368,7 @@ function Produccion() {
 
                 {mensaje && (
 
-                    <div className="produccion-mensaje">
+                    <div className={`produccion-mensaje ${tipoMensaje ?? ""}`} role={tipoMensaje === "error" ? "alert" : "status"}>
                         {mensaje}
                     </div>
 

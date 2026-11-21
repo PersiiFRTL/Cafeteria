@@ -4430,6 +4430,78 @@ h6,
     --color-surface: #fffdfb;
     --color-line: #c5c4b3;
     --shadow-soft: 0 8px 24px rgba(73, 61, 53, 0.09);
+    --color-error: #b42318;
+    --color-error-soft: #fef3f2;
+    --color-error-line: #fecdca;
+    --color-success: #287a3d;
+    --color-success-soft: #edf7ef;
+    --color-success-line: #b7dfbf;
+}
+
+/* Error feedback uses the same accessible red treatment throughout the app. */
+.login-field-error,
+.login-error,
+.form-field-error,
+.take-away-error,
+.comandas-error,
+.datos-error,
+.toast-error,
+.produccion-mensaje.error,
+.produccion-vacia[role="alert"] {
+    color: var(--color-error);
+}
+
+.login-error,
+.comandas-error,
+.datos-error,
+.produccion-mensaje.error,
+.produccion-vacia[role="alert"] {
+    border: 1px solid var(--color-error-line);
+    background: var(--color-error-soft);
+}
+
+.login-field input[aria-invalid="true"],
+input[aria-invalid="true"],
+select[aria-invalid="true"] {
+    border-color: var(--color-error);
+}
+
+.login-field input[aria-invalid="true"]:focus,
+input[aria-invalid="true"]:focus,
+select[aria-invalid="true"]:focus {
+    box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.14);
+}
+
+.toast-error {
+    border-left-color: var(--color-error);
+    background: var(--color-error-soft);
+}
+
+.toast-error > svg {
+    color: var(--color-error);
+}
+
+.produccion-mensaje.exito {
+    color: var(--color-success);
+    border: 1px solid var(--color-success-line);
+    background: var(--color-success-soft);
+}
+
+.producto-stock-chip.normal {
+    color: #176b35;
+    background: #e4f5e9;
+    box-shadow: inset 0 0 0 1px #b7dfbf;
+}
+
+.producto-stock-chip.bajo,
+.producto-stock-chip.sin-stock {
+    color: #a51d16;
+    background: #ffebe9;
+    box-shadow: inset 0 0 0 1px #fecdca;
+}
+
+.producto-stock-chip.sin-stock {
+    background: #fddedb;
 }
 
 body {
@@ -5359,44 +5431,6 @@ button:disabled {
 }
 
 .comanda-filtro-sector:focus-visible {
-    outline: 3px solid #493d35;
-    outline-offset: 2px;
-}
-
-.productos-filtros-sector {
-    display: flex;
-    gap: 8px;
-    margin: 12px 0 16px;
-    overflow-x: auto;
-    padding: 2px 2px 7px;
-}
-
-.productos-filtro-sector {
-    flex: 0 0 auto;
-    padding: 8px 14px;
-    border: 1px solid #d5c3b4;
-    border-radius: 999px;
-    background: #fffdfb;
-    color: #493d35;
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
-}
-
-.productos-filtro-sector:hover {
-    border-color: #a78a74;
-    background: #f5ece4;
-}
-
-.productos-filtro-sector.activo {
-    border-color: #7d6250;
-    background: #6b4f3f;
-    color: #fffdfb;
-    box-shadow: 0 2px 6px rgba(73, 61, 53, 0.2);
-}
-
-.productos-filtro-sector:focus-visible {
     outline: 3px solid #493d35;
     outline-offset: 2px;
 }

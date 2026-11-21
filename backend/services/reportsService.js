@@ -49,6 +49,7 @@ async function obtenerVentas(db, desde, hastaExclusiva) {
     return {
         totalComandas: comandas.length,
         comandasFinalizadas: finalizadas.length,
+        comandasCanceladas: comandas.filter((comanda) => comanda.estado === "cancelada").length,
         productosVendidos,
         ventasEstimadas: Number(ventasEstimadas.toFixed(2)),
         productosMasVendidos: [...ranking.values()].sort((a, b) => b.cantidad - a.cantidad).slice(0, 10),

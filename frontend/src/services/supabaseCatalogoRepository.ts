@@ -292,6 +292,7 @@ export const repositorioSupabaseCatalogo = {
     async obtenerInformeVentas(desde: string, hasta: string): Promise<{
         totalComandas: number;
         comandasFinalizadas: number;
+        comandasCanceladas: number;
         productosVendidos: number;
         ventasEstimadas: number;
         productosMasVendidos: Array<{ productoId: number; nombre: string; cantidad: number; ventas: number }>;
@@ -299,7 +300,7 @@ export const repositorioSupabaseCatalogo = {
     }> {
         const query = new URLSearchParams({ desde, hasta });
         const respuesta = await solicitarApiAutenticada<{ data: {
-            totalComandas: number; comandasFinalizadas: number; productosVendidos: number; ventasEstimadas: number;
+            totalComandas: number; comandasFinalizadas: number; comandasCanceladas: number; productosVendidos: number; ventasEstimadas: number;
             productosMasVendidos: Array<{ productoId: number; nombre: string; cantidad: number; ventas: number }>;
             ventasPorDia: Array<{ fecha: string; comandas: number; ventas: number }>;
         } }>(`/api/informes/ventas?${query.toString()}`);

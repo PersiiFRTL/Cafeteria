@@ -1132,6 +1132,7 @@ function Stock() {
                             const cantidadPreparables = producto.tipoElaboracion === "bajo_pedido"
                                 ? cantidadPreparablesPorReceta(producto.id)
                                 : null;
+                            const sinStock = controlaStockPropio && producto.stockActual <= 0;
                             const stockBajo = controlaStockPropio &&
                                 producto.stockActual <=
                                 producto.stockMinimo;
@@ -1168,11 +1169,35 @@ function Stock() {
 
 
                                     <span>
-                                        {controlaStockPropio
-                                            ? `${formatearCantidad(producto.stockActual)} ${producto.unidadVenta}`
-                                            : cantidadPreparables === null
-                                                ? "Sin receta completa"
-                                                : `${cantidadPreparables} ${unidadCantidadPreparada(producto.unidadVenta, cantidadPreparables)}`}
+                                        {controlaStockPropio ? (
+                                            <span
+                                                className={`producto-stock-chip ${sinStock ? "sin-stock" : stockBajo ? "bajo" : "normal"}`}
+                                                aria-label={`${sinStock ? "Sin stock" : stockBajo ? "Stock bajo" : "Stock normal"}: ${formatearCantidad(producto.stockActual)} ${producto.unidadVenta}`}
+                                            >
+                                                {sinStock ? "Sin stock" : stockBajo ? "Stock bajo" : "Stock normal"}
+                                                <small>
+                                                    {formatearCantidad(producto.stockActual)} {producto.unidadVenta}
+                                                </small>
+                                            </span>
+                                        ) : (
+                                            <span
+                                                className={`producto-stock-chip ${cantidadPreparables === null ? "bajo" : cantidadPreparables === 0 ? "sin-stock" : "segun-receta"}`}
+                                                aria-label={cantidadPreparables === null
+                                                    ? "No se puede calcular la disponibilidad: revisar receta"
+                                                    : `${cantidadPreparables === 0 ? "Sin disponibilidad" : "Según receta"}: ${cantidadPreparables} ${unidadCantidadPreparada(producto.unidadVenta, cantidadPreparables)} preparables`}
+                                            >
+                                                {cantidadPreparables === null
+                                                    ? "Revisar receta"
+                                                    : cantidadPreparables === 0
+                                                        ? "Sin disponibilidad"
+                                                        : "Según receta"}
+                                                {cantidadPreparables !== null && (
+                                                    <small>
+                                                        {cantidadPreparables} {unidadCantidadPreparada(producto.unidadVenta, cantidadPreparables)} preparables
+                                                    </small>
+                                                )}
+                                            </span>
+                                        )}
                                     </span>
 
                                     <span>

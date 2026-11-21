@@ -42,6 +42,7 @@ function Recetas() {
 
     const prepararEdicionReceta = (productoId: number) => {
         setProductoSeleccionado(productoId);
+        setFiltroRecetas(productos.find((producto) => producto.id === productoId)?.nombre ?? "");
         setIngredienteEnEdicion(null);
         setMateriaPrimaSeleccionada(null);
         setCantidad("");
@@ -59,6 +60,7 @@ function Recetas() {
 
     const prepararEdicionIngrediente = (productoId: number, materiaPrimaId: number, cantidadActual: number) => {
         setProductoSeleccionado(productoId);
+        setFiltroRecetas(productos.find((producto) => producto.id === productoId)?.nombre ?? "");
         setIngredienteEnEdicion(materiaPrimaId);
         setMateriaPrimaSeleccionada(materiaPrimaId);
         setCantidad(String(cantidadActual));
@@ -258,12 +260,29 @@ function Recetas() {
                     <input
                         type="search"
                         className="recetas-listado-search"
-                        placeholder="Filtrar por producto..."
-                        aria-label="Filtrar recetas por producto"
+                        placeholder="Buscar o seleccionar un producto..."
+                        aria-label="Buscar recetas o seleccionar un producto para editar"
+                        list="productos-recetas-opciones"
                         value={filtroRecetas}
-                        onChange={(event) => setFiltroRecetas(event.target.value)}
+                        onChange={(event) => {
+                            const busqueda = event.target.value;
+                            const productoElegido = productos.find((producto) =>
+                                producto.nombre.trim().toLocaleLowerCase("es-AR") === busqueda.trim().toLocaleLowerCase("es-AR")
+                            );
+                            setFiltroRecetas(busqueda);
+                            setProductoSeleccionado(productoElegido?.id ?? null);
+                            setMateriaPrimaSeleccionada(null);
+                            setCantidad("");
+                            setIngredienteEnEdicion(null);
+                        }}
                     />
-                    <span>{recetas.length} receta(s)</span>
+                    <datalist id="productos-recetas-opciones">
+                        {productos.map((producto) => <option key={producto.id} value={producto.nombre} />)}
+                    </datalist>
+                    <span>{recetas.filter((receta) => {
+                        const nombreProducto = productos.find((item) => item.id === receta.productoId)?.nombre ?? "";
+                        return nombreProducto.toLocaleLowerCase().includes(filtroRecetas.trim().toLocaleLowerCase());
+                    }).length} receta(s)</span>
                 </div>
                 {recetas.length === 0 ? (
                     <p className="recetas-listado-vacio">Todavía no hay recetas cargadas.</p>
@@ -308,60 +327,6 @@ function Recetas() {
                     </div>
                 )}
             </section>
-
-
-            {/* ==========================
-                SELECCIONAR PRODUCTO
-            ========================== */}
-
-            <div className="receta-selector">
-
-                <label>
-                    Producto
-                </label>
-
-                <select
-                    value={
-                        productoSeleccionado ?? ""
-                    }
-                    onChange={(e) => {
-
-                        const valor =
-                            Number(
-                                e.target.value
-                            );
-
-                        setProductoSeleccionado(
-                            valor || null
-                        );
-
-                        setMateriaPrimaSeleccionada(
-                            null
-                        );
-
-                        setCantidad("");
-                        setIngredienteEnEdicion(null);
-                    }}
-                >
-
-                    <option value="">
-                        Seleccionar producto
-                    </option>
-
-                    {productos.map(
-                            (producto) => (
-                                <option
-                                    key={producto.id}
-                                    value={producto.id}
-                                >
-                                    {producto.nombre}{producto.activo ? "" : " (producto inactivo)"}
-                                </option>
-                            )
-                        )}
-
-                </select>
-
-            </div>
 
 
             {productoSeleccionado !== null && (

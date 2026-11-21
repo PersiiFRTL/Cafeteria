@@ -74,7 +74,7 @@ Los listados aceptan `page` (por defecto 1) y `limit` (por defecto 20, máximo 1
 | `POST /api/stock/movimientos` | un artículo, tipo entrada/salida, cantidad y descripción opcional | 201 movimiento | 400 datos inválidos |
 | `GET /api/producciones` | `desde`, `hasta`, `orden=recientes|antiguos`, paginación (`page`, `limit`; default 10, máximo 100) | 200 producciones con ingredientes consumidos y metadatos `pagination`; recientes por defecto, orden estable por ID | 400 filtros/orden inválidos |
 | `POST /api/producciones` | `{ productoId, cantidad }` | 201 producción | 400 datos inválidos |
-| `GET /api/informes/ventas?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` | fechas obligatorias, inclusivas | 200 `{ totalComandas, comandasFinalizadas, productosVendidos, ventasEstimadas, productosMasVendidos[], ventasPorDia[] }` | 400 rango inválido; 502 error de base |
+| `GET /api/informes/ventas?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` | fechas obligatorias, inclusivas | 200 `{ totalComandas, comandasFinalizadas, comandasCanceladas, productosVendidos, ventasEstimadas, productosMasVendidos[], ventasPorDia[] }` | 400 rango inválido; 502 error de base |
 | `GET /api/auditoria` | `usuarioId`, `accion`, `desde`, `hasta`, paginación | 200 eventos paginados, más recientes primero | 400 filtros inválidos; 401/403 |
 
 Los informes cuentan todas las comandas creadas en el rango. Ventas, unidades y ranking se calculan sobre comandas finalizadas y conservan los precios registrados en cada comanda. `ventasPorDia` agrupa por fecha de creación de la comanda.
