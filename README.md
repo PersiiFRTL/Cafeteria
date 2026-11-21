@@ -2,6 +2,8 @@
 
 Sistema web de gestión interna para una cafetería.
 
+Para una instalación completa, desde la descarga del repositorio y la configuración de Supabase hasta el despliegue, consultá el [Manual de implementación](MANUAL_IMPLEMENTACION.md).
+
 ## Tecnologías
 
 ### Frontend

@@ -1,11 +1,11 @@
 const express = require("express");
 const controller = require("../controllers/empleadosController");
-const { autenticar, requiereRol } = require("../middlewares/auth");
+const { autenticar, requierePermiso } = require("../middlewares/auth");
 const { asyncHandler } = require("../middlewares/responses");
 const router = express.Router();
-router.use(autenticar, requiereRol("ADMINISTRADOR"));
-router.get("/", asyncHandler(controller.listar));
-router.post("/", asyncHandler(controller.crear));
-router.patch("/:id", asyncHandler(controller.editar));
-router.patch("/:id/estado", asyncHandler(controller.estado));
+router.use(autenticar);
+router.get("/", requierePermiso("empleados"), asyncHandler(controller.listar));
+router.post("/", requierePermiso("empleados","interactuar"), asyncHandler(controller.crear));
+router.patch("/:id", requierePermiso("empleados","interactuar"), asyncHandler(controller.editar));
+router.patch("/:id/estado", requierePermiso("empleados","interactuar"), asyncHandler(controller.estado));
 module.exports = router;

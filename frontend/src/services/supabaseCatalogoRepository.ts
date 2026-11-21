@@ -1,4 +1,4 @@
-import { solicitarApiAutenticada } from "./apiAutenticada";
+import { ErrorApiAutenticada, solicitarApiAutenticada } from "./apiAutenticada";
 import type { ElementoMapa } from "../types/mapa";
 
 interface Producto {
@@ -206,6 +206,89 @@ function mapearMovimientoStock(row: Record<string, unknown>): Record<string, unk
 
 /** Lee los datos operativos persistidos en Supabase. */
 export const repositorioSupabaseCatalogo = {
+    async listarProduccionesPagina(opciones: {
+        page: number;
+        limit?: number;
+        orden: "recientes" | "antiguos";
+        desde?: string;
+        hasta?: string;
+    }): Promise<{
+        producciones: Array<Record<string, unknown>>;
+        pagination: { page: number; limit: number; total: number; totalPages: number };
+    }> {
+        type RegistroRemoto = Record<string, unknown>;
+        const parametros = new URLSearchParams({
+            page: String(opciones.page),
+            limit: String(opciones.limit ?? 10),
+            orden: opciones.orden
+        });
+        if (opciones.desde) parametros.set("desde", opciones.desde);
+        if (opciones.hasta) parametros.set("hasta", opciones.hasta);
+        const [respuestaProducciones, perfiles] = await Promise.all([
+            solicitarApiAutenticada<{
+                data: RegistroRemoto[];
+                pagination: { page: number; limit: number; total: number; totalPages: number };
+            }>(`/api/producciones?${parametros.toString()}`),
+            solicitarApiAutenticada<{ data: Array<{ id: string; nombre: string }> }>("/api/perfiles/nombres")
+                .catch(() => ({ data: [] }))
+        ]);
+
+        const nombresPorId = new Map(perfiles.data.map((perfil) => [perfil.id, perfil.nombre]));
+        return {
+            producciones: respuestaProducciones.data.map((produccion) => {
+                const creadorId = typeof produccion.creada_por === "string" ? produccion.creada_por : null;
+                const ingredientes = (produccion.ingredientes ?? []) as RegistroRemoto[];
+                return {
+                    id: Number(produccion.id),
+                    productoId: Number(produccion.producto_id),
+                    cantidad: Number(produccion.cantidad),
+                    fecha: String(produccion.fecha),
+                    ...(creadorId && nombresPorId.has(creadorId) ? { responsableNombre: nombresPorId.get(creadorId) } : {}),
+                    ingredientes: ingredientes.map((movimiento) => ({
+                        materiaPrimaId: Number(movimiento.materia_prima_id),
+                        cantidad: Number(movimiento.cantidad)
+                    }))
+                };
+            }),
+            pagination: respuestaProducciones.pagination
+        };
+    },
+
+    async listarOperacionesStockPagina(opciones: {
+        page: number;
+        limit?: number;
+        orden: "recientes" | "antiguos";
+        tipo?: "produccion" | "comanda" | "entrada" | "salida" | "";
+        desde?: string;
+        hasta?: string;
+    }): Promise<{
+        operaciones: Array<Record<string, unknown>>;
+        pagination: { page: number; limit: number; total: number; totalPages: number };
+    }> {
+        type RegistroRemoto = Record<string, unknown>;
+        const query = new URLSearchParams({
+            page: String(opciones.page),
+            limit: String(opciones.limit ?? 10),
+            orden: opciones.orden
+        });
+        if (opciones.tipo) query.set("tipo", opciones.tipo);
+        if (opciones.desde) query.set("desde", opciones.desde);
+        if (opciones.hasta) query.set("hasta", opciones.hasta);
+        const [respuesta, perfiles] = await Promise.all([
+            solicitarApiAutenticada<{
+                data: RegistroRemoto[];
+                pagination: { page: number; limit: number; total: number; totalPages: number };
+            }>(`/api/stock/movimientos?${query.toString()}`),
+            solicitarApiAutenticada<{ data: Array<{ id: string; nombre: string }> }>("/api/perfiles/nombres")
+                .catch(() => ({ data: [] }))
+        ]);
+        const nombresPorId = new Map(perfiles.data.map((perfil) => [perfil.id, perfil.nombre]));
+        return {
+            operaciones: respuesta.data.map((operacion) => mapearOperacionStock(operacion, nombresPorId)),
+            pagination: respuesta.pagination
+        };
+    },
+
     async obtenerInformeVentas(desde: string, hasta: string): Promise<{
         totalComandas: number;
         comandasFinalizadas: number;
@@ -282,15 +365,19 @@ export const repositorioSupabaseCatalogo = {
     async cargarDatosIniciales(): Promise<DatosCafeteriaConMapa> {
         type RegistroRemoto = Record<string, unknown>;
         type Pagina<T> = { data: T[] };
+        const opcional = <T,>(consulta: Promise<T>, vacio: T): Promise<T> => consulta.catch((error: unknown) => {
+            if (error instanceof ErrorApiAutenticada && error.status === 403) return vacio;
+            throw error;
+        });
         const consultas = await Promise.all([
-            solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/productos?limit=100"),
-            solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/materias-primas?limit=100"),
-            solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/recetas?limit=100"),
-            solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/mesas?limit=100"),
-            solicitarApiAutenticada<{ data: { mesas: RegistroRemoto[]; elementos: RegistroRemoto[] } }>("/api/mapa"),
-            solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/comandas?limit=100"),
-            solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/stock/movimientos?limit=100"),
-            solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/producciones?limit=100"),
+            opcional(solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/productos?limit=100"), { data: [] }),
+            opcional(solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/materias-primas?limit=100"), { data: [] }),
+            opcional(solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/recetas?limit=100"), { data: [] }),
+            opcional(solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/mesas?limit=100"), { data: [] }),
+            opcional(solicitarApiAutenticada<{ data: { mesas: RegistroRemoto[]; elementos: RegistroRemoto[] } }>("/api/mapa"), { data: { mesas: [], elementos: [] } }),
+            opcional(solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/comandas?limit=100"), { data: [] }),
+            opcional(solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/stock/movimientos?limit=100"), { data: [] }),
+            opcional(solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/producciones?limit=100"), { data: [] }),
             solicitarApiAutenticada<{ data: Array<{ id: string; nombre: string }> }>("/api/perfiles/nombres").catch(() => ({ data: [] })),
             solicitarApiAutenticada<Pagina<RegistroRemoto>>("/api/auditoria?limit=100").then((resultado) => ({ ...resultado, disponible: true })).catch(() => ({ data: [], disponible: false }))
         ]);

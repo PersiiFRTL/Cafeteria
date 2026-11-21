@@ -39,10 +39,10 @@ function Mesas() {
     } = useComandas();
 
     const puedeEditarMapa = usuario
-        ? tienePermiso(usuario.rol, "mapa")
+        ? tienePermiso(usuario.permisos, "mapa")
         : false;
     const puedeCrearComanda = usuario
-        ? tienePermiso(usuario.rol, "nueva-comanda")
+        ? tienePermiso(usuario.permisos, "nueva-comanda", "interactuar")
         : false;
 
     const [mesaSeleccionada, setMesaSeleccionada] =

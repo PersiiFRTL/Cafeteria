@@ -2,7 +2,9 @@
 
 Todas las respuestas JSON usan un contrato común. Los éxitos devuelven `{ "data": ... }`; los listados paginados agregan `pagination` con `page`, `limit`, `total` y `totalPages`. Los errores devuelven `{ "error": { "code": "...", "message": "..." } }`. `details` puede aparecer en errores con información de validación.
 
-Excepto `GET /` y `POST /api/auth/login`, las rutas requieren `Authorization: Bearer <access_token>`. El acceso administrativo además requiere rol `ADMINISTRADOR`. Los identificadores inexistentes responden `404`; payloads o filtros inválidos `400`; falta de sesión `401`; falta de permisos `403`; y fallos de dependencias `502` o `503`.
+Excepto `GET /` y `POST /api/auth/login`, las rutas requieren `Authorization: Bearer <access_token>`. Los endpoints aplican permisos por módulo tanto en Express como en Supabase RLS/RPC; la gestión de roles y la asignación del rol `ADMINISTRADOR` siguen reservadas al administrador. Los identificadores inexistentes responden `404`; payloads o filtros inválidos `400`; falta de sesión `401`; falta de permisos `403`; conflictos de nombre `409`; y fallos de dependencias `502` o `503`.
+
+El backend no confía en el rol, permisos ni ID de usuario del body: obtiene identidad con el token verificado y carga rol/permisos desde `perfiles` y `roles`. `POST /api/empleados` admite crear con rol base `EMPLEADO` para responsables autorizados; asignar o cambiar roles y cambiar credenciales exige administrador. Las respuestas de API usan `Cache-Control: no-store` y cabeceras HTTP de protección.
 
 ## Sesión y personal
 
@@ -17,6 +19,10 @@ Excepto `GET /` y `POST /api/auth/login`, las rutas requieren `Authorization: Be
 | `POST /api/empleados` | 201 | empleado creado | 400 datos inválidos; 401/403; 503 administración de cuentas |
 | `PATCH /api/empleados/:id` | 200 | empleado actualizado | 400 datos inválidos; 404 empleado inexistente; 401/403 |
 | `PATCH /api/empleados/:id/estado` | 200 | empleado actualizado | 400 estado/ID inválido; 401/403; 404 |
+| `GET /api/roles` | 200 | roles `{ nombre, descripcion, permisos, sistema }[]` | 401 sesión ausente; 403 sin permiso para gestionar empleados |
+| `POST /api/roles` | 201 | rol creado `{ nombre, descripcion, permisos, sistema }` | 400 nombre/permisos inválidos; 401; 403 no administrador; 409 nombre duplicado |
+
+Cada permiso del rol tiene la forma `{ "ver": boolean, "interactuar": boolean }`. Interactuar implica ver. El conjunto de módulos validado por el servidor es `dashboard`, `mesas`, `comandas`, `nueva-comanda`, `preparacion`, `productos`, `materias-primas`, `stock`, `produccion`, `recetas`, `mapa`, `informes` y `empleados`. El token de sesión devuelve el rol y sus permisos actuales en `usuario.permisos`.
 
 ## Catálogo y operación
 
@@ -64,9 +70,9 @@ Los listados aceptan `page` (por defecto 1) y `limit` (por defecto 20, máximo 1
 
 | Método y ruta | Filtros / cuerpo | Éxito | Errores principales |
 |---|---|---:|---|
-| `GET /api/stock/movimientos` | `desde`, `hasta`, `tipo`, paginación | 200 operaciones con movimientos, orden descendente por fecha | 400 filtros inválidos |
+| `GET /api/stock/movimientos` | `desde`, `hasta`, `tipo`, `orden=recientes|antiguos`, paginación (`page`, `limit`; default 10, máximo 100) | 200 operaciones con movimientos y metadatos `pagination`; recientes por defecto, con orden estable por ID | 400 filtros/orden inválidos |
 | `POST /api/stock/movimientos` | un artículo, tipo entrada/salida, cantidad y descripción opcional | 201 movimiento | 400 datos inválidos |
-| `GET /api/producciones` | `desde`, `hasta`, paginación | 200 producciones, orden descendente | 400 filtros inválidos |
+| `GET /api/producciones` | `desde`, `hasta`, `orden=recientes|antiguos`, paginación (`page`, `limit`; default 10, máximo 100) | 200 producciones con ingredientes consumidos y metadatos `pagination`; recientes por defecto, orden estable por ID | 400 filtros/orden inválidos |
 | `POST /api/producciones` | `{ productoId, cantidad }` | 201 producción | 400 datos inválidos |
 | `GET /api/informes/ventas?desde=YYYY-MM-DD&hasta=YYYY-MM-DD` | fechas obligatorias, inclusivas | 200 `{ totalComandas, comandasFinalizadas, productosVendidos, ventasEstimadas, productosMasVendidos[], ventasPorDia[] }` | 400 rango inválido; 502 error de base |
 | `GET /api/auditoria` | `usuarioId`, `accion`, `desde`, `hasta`, paginación | 200 eventos paginados, más recientes primero | 400 filtros inválidos; 401/403 |

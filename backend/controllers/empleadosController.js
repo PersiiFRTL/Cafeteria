@@ -1,19 +1,17 @@
 const { crearClienteAdministrador, secretKeyConfigurada } = require("../config/supabase");
 const { enviarDatos, enviarError, mapearErrorSupabase } = require("../middlewares/responses");
-const { idPositivo } = require("../validators/common");
+const { idPositivo, paginacion } = require("../validators/common");
 
-const ROLES = new Set(["ADMINISTRADOR", "EMPLEADO", "COCINA"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i;
 const claveValida = (password) => /^(?=.*[A-Za-z])(?=.*\d).{8,128}$/.test(password);
 
 exports.listar = async (req, res) => {
-    const page = Number.parseInt(req.query.page ?? "1", 10);
-    const limit = Number.parseInt(req.query.limit ?? "20", 10);
-    if (!Number.isInteger(page) || page < 1 || !Number.isInteger(limit) || limit < 1 || limit > 100) return enviarError(res, 400, "INVALID_PAGINATION", "Los parámetros page y limit no son válidos.");
+    const page = paginacion(req.query);
+    if (!page) return enviarError(res, 400, "INVALID_PAGINATION", "Los parámetros page y limit no son válidos.");
     const { data, error, count } = await req.supabaseUsuario.from("perfiles")
-        .select("id,nombre,email,rol,activo", { count: "exact" }).order("nombre").range((page - 1) * limit, page * limit - 1);
+        .select("id,nombre,email,rol,activo", { count: "exact" }).order("nombre").range(page.from, page.to);
     if (error) { const mapped = mapearErrorSupabase(error, "No se pudo cargar el personal."); return enviarError(res, mapped.status, mapped.code, mapped.message); }
-    return enviarDatos(res, data ?? [], 200, { page, limit, total: count ?? 0, totalPages: Math.ceil((count ?? 0) / limit) });
+    return enviarDatos(res, data ?? [], 200, { page: page.page, limit: page.limit, total: count ?? 0, totalPages: Math.ceil((count ?? 0) / page.limit) });
 };
 
 exports.crear = async (req, res) => {
@@ -21,7 +19,8 @@ exports.crear = async (req, res) => {
     const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
     const password = req.body?.password;
     const rol = req.body?.rol;
-    if (!nombre || nombre.length > 120 || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !ROLES.has(rol) || typeof password !== "string" || !claveValida(password)) return enviarError(res, 400, "INVALID_EMPLOYEE", "Nombre, email, rol o contraseña no válidos.");
+    if (!nombre || nombre.length > 120 || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof rol !== "string" || !rol.trim() || typeof password !== "string" || !claveValida(password)) return enviarError(res, 400, "INVALID_EMPLOYEE", "Nombre, email, rol o contraseña no válidos.");
+    if (req.usuarioPerfil.rol !== "ADMINISTRADOR" && rol !== "EMPLEADO") return enviarError(res, 403, "ROLE_ASSIGNMENT_FORBIDDEN", "Solo un administrador puede asignar roles al crear empleados.");
     if (!secretKeyConfigurada) return enviarError(res, 503, "ADMIN_KEY_REQUIRED", "La administración de cuentas no está configurada en el servidor.");
     let created;
     try {
@@ -49,12 +48,16 @@ exports.editar = async (req, res) => {
     const email = typeof req.body?.email === "string" ? req.body.email.trim().toLowerCase() : "";
     const password = typeof req.body?.password === "string" ? req.body.password : "";
     const rol = req.body?.rol;
-    if (!UUID.test(id) || !nombre || nombre.length > 120 || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || !ROLES.has(rol) || (password && !claveValida(password))) return enviarError(res, 400, "INVALID_EMPLOYEE", "El ID, nombre, email, rol o contraseña no son válidos.");
+    if (!UUID.test(id) || !nombre || nombre.length > 120 || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof rol !== "string" || !rol.trim() || (password && !claveValida(password))) return enviarError(res, 400, "INVALID_EMPLOYEE", "El ID, nombre, email, rol o contraseña no son válidos.");
     const { data: actual, error: readError } = await req.supabaseUsuario.from("perfiles").select("id,nombre,email,rol,activo").eq("id", id).maybeSingle();
     if (readError) { const mapped = mapearErrorSupabase(readError, "No se pudo consultar el empleado."); return enviarError(res, mapped.status, mapped.code, mapped.message); }
     if (!actual) return enviarError(res, 404, "NOT_FOUND", "No se encontró el empleado.");
-    if (id === req.usuarioId && rol !== "ADMINISTRADOR") return enviarError(res, 400, "SELF_DEMOTION", "No podés quitarte el rol de administrador desde tu propia cuenta.");
     const cambiaEmail = email !== (actual.email ?? "").toLowerCase();
+    const cambiaRol = rol !== actual.rol;
+    const esAdministrador = req.usuarioPerfil.rol === "ADMINISTRADOR";
+    if (id === req.usuarioId && cambiaRol) return enviarError(res, 403, "SELF_ROLE_CHANGE_FORBIDDEN", "No podés cambiar tu propio rol.");
+    if (cambiaRol && !esAdministrador) return enviarError(res, 403, "ROLE_ASSIGNMENT_FORBIDDEN", "Solo un administrador puede cambiar el rol de un empleado.");
+    if ((cambiaEmail || password) && !esAdministrador) return enviarError(res, 403, "CREDENTIAL_CHANGE_FORBIDDEN", "Solo un administrador puede cambiar el email o la contraseña de un empleado.");
     if ((cambiaEmail || password) && !secretKeyConfigurada) return enviarError(res, 503, "ADMIN_KEY_REQUIRED", "La administración de credenciales no está configurada.");
     const { data: actualizado, error } = await req.supabaseUsuario.rpc("actualizar_perfil_empleado_seguro", {
         p_empleado_id: id, p_nombre: nombre, p_email: email, p_rol: rol

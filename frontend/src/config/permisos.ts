@@ -1,7 +1,4 @@
-export type RolEmpleado =
-    | "ADMINISTRADOR"
-    | "EMPLEADO"
-    | "COCINA";
+export type RolEmpleado = string;
 
 
 export type Modulo =
@@ -11,6 +8,7 @@ export type Modulo =
     | "nueva-comanda"
     | "preparacion"
     | "productos"
+    | "materias-primas"
     | "stock"
     | "recetas"
     | "produccion"
@@ -19,48 +17,8 @@ export type Modulo =
     |"informes";
 
 
-export const permisosPorRol: Record<
-    RolEmpleado,
-    Modulo[]
-> = {
+export type PermisoModulo = { ver: boolean; interactuar: boolean };
+export type PermisosRol = Partial<Record<Modulo, PermisoModulo>>;
 
-    ADMINISTRADOR: [
-        "dashboard",
-        "mesas",
-        "comandas",
-        "nueva-comanda",
-        "preparacion",
-        "productos",
-        "stock",
-        "recetas",
-        "produccion",
-        "empleados",
-        "mapa",
-        "informes"
-    ],
-
-    EMPLEADO: [
-        "dashboard",
-        "mesas",
-        "comandas",
-        "nueva-comanda"
-    ],
-
-    COCINA: [
-        "dashboard",
-        "preparacion"
-    ]
-
-};
-
-
-export const tienePermiso = (
-    rol: RolEmpleado,
-    modulo: Modulo
-): boolean => {
-
-    return permisosPorRol[rol].includes(
-        modulo
-    );
-
-};
+export const tienePermiso = (permisos: PermisosRol | undefined, modulo: Modulo, accion: keyof PermisoModulo = "ver"): boolean =>
+    permisos?.[modulo]?.[accion] === true;

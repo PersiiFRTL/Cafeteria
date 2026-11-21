@@ -22,7 +22,7 @@ import {
 // TIPOS
 // ==========================
 
-type RolEmpleado = "ADMINISTRADOR" | "EMPLEADO" | "COCINA";
+type RolEmpleado = string;
 
 interface Empleado {
     id: string;
@@ -527,13 +527,13 @@ export function CafeteriaProvider({
         setActividad(datos.actividad);
         setAuditoriaDisponible(datos.auditoriaDisponible);
         setProducciones(datos.producciones);
-        if (usuario?.rol === "ADMINISTRADOR" && cargarPersonal) {
+        if (usuario?.permisos.empleados?.ver && cargarPersonal) {
             const personal = await repositorioPersonal.listar();
             setEmpleados(personal);
-        } else if (usuario?.rol !== "ADMINISTRADOR") {
+        } else if (!usuario?.permisos.empleados?.ver) {
             setEmpleados([]);
         }
-    }, [usuario?.rol]);
+    }, [usuario?.permisos]);
 
     const recargarDatos = useCallback(async () => {
         setEstadoDatos("cargando");

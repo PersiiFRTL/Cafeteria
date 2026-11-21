@@ -15,7 +15,6 @@ import {
     X,
 } from "lucide-react";
 import { tienePermiso } from "../config/permisos";
-import type { RolEmpleado } from "../config/permisos";
 import { useAuth } from "../context/AuthContext";
 
 function Sidebar() {
@@ -26,7 +25,7 @@ function Sidebar() {
         return null;
     }
 
-    const rolActual: RolEmpleado = usuario.rol;
+    const permisos = usuario.permisos;
 
     return (
         <aside className={`sidebar ${menuAbierto ? "mobile-open" : ""}`}>
@@ -50,7 +49,7 @@ function Sidebar() {
             <nav id="sidebar-navigation" onClick={() => setMenuAbierto(false)}>
                 <ul>
 
-                    {tienePermiso(rolActual, "dashboard") && (
+                    {tienePermiso(permisos, "dashboard") && (
                         <li>
                             <NavLink to="/">
                                 <Home className="sidebar-nav-icon" aria-hidden="true" />
@@ -60,7 +59,7 @@ function Sidebar() {
                     )}
 
 
-                    {tienePermiso(rolActual, "mesas") && (
+                    {tienePermiso(permisos, "mesas") && (
                         <li>
                             <NavLink to="/mesas">
                                 <Armchair className="sidebar-nav-icon" aria-hidden="true" />
@@ -69,7 +68,7 @@ function Sidebar() {
                         </li>
                     )}
 
-                    {tienePermiso(rolActual, "comandas") && (
+                    {tienePermiso(permisos, "comandas") && (
                         <li>
                             <NavLink to="/comandas">
                                 <ClipboardList className="sidebar-nav-icon" aria-hidden="true" />
@@ -78,7 +77,7 @@ function Sidebar() {
                         </li>
                     )}
 
-                    {tienePermiso(rolActual, "preparacion") && (
+                    {tienePermiso(permisos, "preparacion") && (
                         <li>
                             <NavLink to="/preparacion">
                                 <Clock3 className="sidebar-nav-icon" aria-hidden="true" />
@@ -87,7 +86,7 @@ function Sidebar() {
                         </li>
                     )}
 
-                    {tienePermiso(rolActual, "productos") && (
+                    {tienePermiso(permisos, "productos") && (
                         <li>
                             <NavLink to="/productos">
                                 <ShoppingBag className="sidebar-nav-icon" aria-hidden="true" />
@@ -96,7 +95,7 @@ function Sidebar() {
                         </li>
                     )}
 
-                    {tienePermiso(rolActual, "recetas") && (
+                    {tienePermiso(permisos, "recetas") && (
                         <li>
                             <NavLink to="/recetas">
                                 <BookOpen className="sidebar-nav-icon" aria-hidden="true" />
@@ -105,7 +104,7 @@ function Sidebar() {
                         </li>
                     )}
 
-                    {tienePermiso(rolActual, "stock") && (
+                    {tienePermiso(permisos, "stock") && (
                         <li>
                             <NavLink to="/stock">
                                 <Package className="sidebar-nav-icon" aria-hidden="true" />
@@ -114,7 +113,7 @@ function Sidebar() {
                         </li>
                     )}
 
-                    {tienePermiso(rolActual, "produccion") && (
+                    {tienePermiso(permisos, "produccion") && (
                         <li>
                             <NavLink to="/produccion">
                                 <Factory className="sidebar-nav-icon" aria-hidden="true" />
@@ -123,7 +122,7 @@ function Sidebar() {
                         </li>
                     )}
 
-                    {tienePermiso(rolActual, "empleados") && (
+                    {tienePermiso(permisos, "empleados") && (
                         <li>
                             <NavLink to="/empleados">
                                 <UsersRound className="sidebar-nav-icon" aria-hidden="true" />
@@ -131,7 +130,7 @@ function Sidebar() {
                             </NavLink>
                         </li>
                     )}
-                    {tienePermiso(rolActual, "informes") && (
+                    {tienePermiso(permisos, "informes") && (
                         <li>
                             <NavLink to="/informes">
                                 <ChartNoAxesColumnIncreasing className="sidebar-nav-icon" aria-hidden="true" />

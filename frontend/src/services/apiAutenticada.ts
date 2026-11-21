@@ -3,6 +3,15 @@ import { urlApi } from "./urlApi";
 
 let lecturaSesionEnCurso: Promise<string | null> | null = null;
 
+export class ErrorApiAutenticada extends Error {
+    readonly status: number;
+    constructor(message: string, status: number) {
+        super(message);
+        this.status = status;
+        this.name = "ErrorApiAutenticada";
+    }
+}
+
 async function obtenerTokenSesion(): Promise<string | null> {
     if (!lecturaSesionEnCurso) {
         lecturaSesionEnCurso = supabase.auth.getSession()
@@ -33,7 +42,7 @@ export async function solicitarApiAutenticada<T>(
 
     const datos = await respuesta.json().catch(() => ({})) as { error?: { message?: string } };
     if (!respuesta.ok) {
-        throw new Error(datos.error?.message || "No se pudo completar la operación en el servidor.");
+        throw new ErrorApiAutenticada(datos.error?.message || "No se pudo completar la operación en el servidor.", respuesta.status);
     }
     return datos as T;
 }

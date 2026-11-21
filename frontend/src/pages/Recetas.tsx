@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Power, Trash2 } from "lucide-react";
+import { Pencil, Power, Trash2, X } from "lucide-react";
 import { useCatalogo } from "../context/useCatalogo";
 import { numeroValido } from "../validaciones";
 import { useToast } from "../context/useToast";
@@ -45,7 +45,16 @@ function Recetas() {
         setIngredienteEnEdicion(null);
         setMateriaPrimaSeleccionada(null);
         setCantidad("");
+        setErrorCantidad("");
         requestAnimationFrame(() => document.getElementById("editor-receta")?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    };
+
+    const cerrarEditorReceta = () => {
+        setProductoSeleccionado(null);
+        setIngredienteEnEdicion(null);
+        setMateriaPrimaSeleccionada(null);
+        setCantidad("");
+        setErrorCantidad("");
     };
 
     const prepararEdicionIngrediente = (productoId: number, materiaPrimaId: number, cantidadActual: number) => {
@@ -372,11 +381,24 @@ function Recetas() {
                                     ? `Receta de ${productoActual?.nombre ?? "producto"}`
                                     : `Editando ingrediente de ${productoActual?.nombre ?? "la receta"}`}</h2>
                             </div>
-                            {recetaActual && (
-                                <span className={`receta-estado ${recetaActual.activo ? "activo" : "inactivo"}`}>
-                                    {recetaActual.activo ? "Activa" : "Deshabilitada"}
-                                </span>
-                            )}
+                            <div className="receta-editor-actions">
+                                {recetaActual && (
+                                    <span className={`receta-estado ${recetaActual.activo ? "activo" : "inactivo"}`}>
+                                        {recetaActual.activo ? "Activa" : "Deshabilitada"}
+                                    </span>
+                                )}
+                                <button
+                                    type="button"
+                                    className="receta-editor-cerrar"
+                                    aria-label="Cancelar y cerrar editor de receta"
+                                    title="Cancelar y cerrar"
+                                    data-shortcut-close
+                                    disabled={guardandoReceta}
+                                    onClick={cerrarEditorReceta}
+                                >
+                                    <X className="ui-icon" aria-hidden="true" />
+                                </button>
+                            </div>
                         </div>
 
                         <h3 className="receta-form-subtitulo">

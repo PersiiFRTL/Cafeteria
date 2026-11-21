@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useStock } from "../context/useStock";
 import { numeroValido } from "../validaciones";
 import { useToast } from "../context/useToast";
+import { repositorioSupabaseCatalogo } from "../services/supabaseCatalogoRepository";
+
+const PRODUCCIONES_POR_PAGINA = 10;
 
 function Produccion() {
     const { mostrarToast } = useToast();
@@ -30,6 +33,44 @@ function Produccion() {
 
     const [produccionDetalleId, setProduccionDetalleId] =
         useState<number | null>(null);
+    const [paginaHistorial, setPaginaHistorial] = useState(1);
+    const [ordenHistorial, setOrdenHistorial] = useState<"antiguos" | "recientes">("antiguos");
+    const [produccionesPagina, setProduccionesPagina] = useState<typeof producciones>([]);
+    const [totalProducciones, setTotalProducciones] = useState(0);
+    const [totalPaginasHistorial, setTotalPaginasHistorial] = useState(1);
+    const [cargandoHistorial, setCargandoHistorial] = useState(true);
+    const [errorHistorial, setErrorHistorial] = useState("");
+    const [revisionHistorial, setRevisionHistorial] = useState(0);
+    const idProduccionMasReciente = producciones.reduce((idMaximo, produccion) => Math.max(idMaximo, produccion.id), 0);
+
+    useEffect(() => {
+        let vigente = true;
+        Promise.resolve().then(() => {
+            if (!vigente) return;
+            setCargandoHistorial(true);
+            setErrorHistorial("");
+        });
+        repositorioSupabaseCatalogo.listarProduccionesPagina({
+            page: paginaHistorial,
+            limit: PRODUCCIONES_POR_PAGINA,
+            orden: ordenHistorial
+        }).then(({ producciones: pagina, pagination }) => {
+            if (!vigente) return;
+            const paginas = Math.max(1, pagination.totalPages);
+            setProduccionesPagina(pagina as unknown as typeof producciones);
+            setTotalProducciones(pagination.total);
+            setTotalPaginasHistorial(paginas);
+            if (paginaHistorial > paginas) setPaginaHistorial(paginas);
+        }).catch((error: unknown) => {
+            if (!vigente) return;
+            setErrorHistorial(error instanceof Error ? error.message : "No se pudo cargar el historial de producción.");
+            setProduccionesPagina([]);
+            setTotalProducciones(0);
+        }).finally(() => {
+            if (vigente) setCargandoHistorial(false);
+        });
+        return () => { vigente = false; };
+    }, [paginaHistorial, ordenHistorial, idProduccionMasReciente, revisionHistorial]);
 
     // ==========================
     // PRODUCTOS PREELABORADOS
@@ -120,6 +161,9 @@ function Produccion() {
         mostrarToast("Producción registrada correctamente.");
 
         setCantidad("");
+        setPaginaHistorial(1);
+        setProduccionDetalleId(null);
+        setRevisionHistorial((revision) => revision + 1);
     };
 
     return (
@@ -329,7 +373,7 @@ function Produccion() {
             {/* HISTORIAL */}
             {/* ========================== */}
 
-            <div className="produccion-historial">
+            <div className="produccion-historial" aria-busy={cargandoHistorial}>
 
                 <div className="section-header">
 
@@ -338,6 +382,22 @@ function Produccion() {
                             Historial de producción
                         </h2>
                     </div>
+
+                    <label className="produccion-orden-label" htmlFor="orden-historial-produccion">
+                        Ordenar por
+                        <select
+                            id="orden-historial-produccion"
+                            value={ordenHistorial}
+                            onChange={(event) => {
+                                setOrdenHistorial(event.target.value as typeof ordenHistorial);
+                                setPaginaHistorial(1);
+                                setProduccionDetalleId(null);
+                            }}
+                        >
+                            <option value="antiguos">Más antiguas primero</option>
+                            <option value="recientes">Más recientes primero</option>
+                        </select>
+                    </label>
 
                 </div>
 
@@ -365,7 +425,14 @@ function Produccion() {
                     </div>
 
 
-                    {producciones.length === 0 ? (
+                    {cargandoHistorial ? (
+                        <div className="informe-cargando" role="status" aria-live="polite">
+                            <span className="spinner-inline" aria-hidden="true" />
+                            Cargando historial de producción…
+                        </div>
+                    ) : errorHistorial ? (
+                        <div className="produccion-vacia" role="alert">{errorHistorial}</div>
+                    ) : totalProducciones === 0 ? (
 
                         <div className="produccion-vacia">
                             No hay producciones registradas.
@@ -373,9 +440,7 @@ function Produccion() {
 
                     ) : (
 
-                        [...producciones]
-                            .reverse()
-                            .map(
+                        produccionesPagina.map(
                                 (produccion) => {
 
                                     const producto =
@@ -465,6 +530,22 @@ function Produccion() {
                     )}
 
                 </div>
+
+                {!cargandoHistorial && !errorHistorial && totalProducciones > 0 && (
+                    <nav className="informe-paginacion produccion-paginacion" aria-label="Paginación del historial de producción">
+                        <span className="informe-paginacion-total">
+                            {totalProducciones} registro(s) · Página {paginaHistorial} de {totalPaginasHistorial}
+                        </span>
+                        <div className="informe-paginacion-controles">
+                            <button type="button" className="secondary-button" disabled={paginaHistorial <= 1}
+                                onClick={() => { setProduccionDetalleId(null); setPaginaHistorial((pagina) => Math.max(1, pagina - 1)); }}
+                                aria-label="Ver página anterior de producción">Anterior</button>
+                            <button type="button" className="secondary-button" disabled={paginaHistorial >= totalPaginasHistorial}
+                                onClick={() => { setProduccionDetalleId(null); setPaginaHistorial((pagina) => Math.min(totalPaginasHistorial, pagina + 1)); }}
+                                aria-label="Ver página siguiente de producción">Siguiente</button>
+                        </div>
+                    </nav>
+                )}
 
             </div>
 

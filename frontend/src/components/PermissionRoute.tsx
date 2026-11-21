@@ -17,7 +17,7 @@ function PermissionRoute({
         return <Navigate to="/login" replace />;
     }
 
-    if (!tienePermiso(usuario.rol, modulo)) {
+    if (!tienePermiso(usuario.permisos, modulo)) {
         return <Navigate to="/acceso-denegado"  replace />;
     }
 

@@ -1,10 +1,12 @@
 import { urlApi } from "./urlApi";
+import type { PermisosRol } from "../config/permisos";
 
 export interface UsuarioAutenticado {
     id: string;
     nombre: string;
     email: string;
     rol: string;
+    permisos: PermisosRol;
 }
 
 export interface SesionAutenticacion {

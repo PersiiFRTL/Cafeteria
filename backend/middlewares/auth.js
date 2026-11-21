@@ -2,7 +2,6 @@ const { crearClientePublico } = require("../config/supabase");
 const { enviarError } = require("./responses");
 const { createHash } = require("node:crypto");
 
-const ROLES_VALIDOS = new Set(["ADMINISTRADOR", "EMPLEADO", "COCINA"]);
 // Coalesce only simultaneous requests with the same bearer token. No identity or
 // role result is retained after the requests finish, so revocation stays immediate.
 const verificacionesEnCurso = new Map();
@@ -29,10 +28,11 @@ function idUsuarioDelToken(token) {
 
 async function cargarPerfilActivo(cliente, userId) {
     const { data, error } = await cliente.from("perfiles")
-        .select("id,nombre,email,rol,activo").eq("id", userId).maybeSingle();
+        .select("id,nombre,email,rol,activo,roles(permisos)").eq("id", userId).maybeSingle();
     if (error) throw error;
-    return data && data.activo && ROLES_VALIDOS.has(data.rol) ? {
-        id: data.id, nombre: data.nombre, email: data.email ?? "", rol: data.rol
+    const rol = Array.isArray(data?.roles) ? data.roles[0] : data?.roles;
+    return data && data.activo && data.rol && rol?.permisos ? {
+        id: data.id, nombre: data.nombre, email: data.email ?? "", rol: data.rol, permisos: rol.permisos
     } : null;
 }
 
@@ -80,4 +80,23 @@ function requiereRol(...roles) {
         : enviarError(res, 403, "FORBIDDEN", "No tenés permisos para realizar esta operación.");
 }
 
-module.exports = { ROLES_VALIDOS, tokenDeAutorizacion, idUsuarioDelToken, cargarPerfilActivo, autenticar, requiereRol };
+function requierePermiso(modulo, accion = "ver") {
+    return (req, res, next) => {
+        const permiso = req.usuarioPerfil?.permisos?.[modulo];
+        const permitido = req.usuarioPerfil?.rol === "ADMINISTRADOR"
+            || (permiso?.[accion] === true && (accion !== "interactuar" || permiso?.ver === true));
+        return permitido ? next() : enviarError(res, 403, "FORBIDDEN", "No tenés permisos para realizar esta operación.");
+    };
+}
+
+function requiereAlgunPermiso(modulos, accion = "ver") {
+    return (req, res, next) => {
+        const permitido = req.usuarioPerfil?.rol === "ADMINISTRADOR" || modulos.some((modulo) => {
+            const permiso = req.usuarioPerfil?.permisos?.[modulo];
+            return permiso?.[accion] === true && (accion !== "interactuar" || permiso?.ver === true);
+        });
+        return permitido ? next() : enviarError(res, 403, "FORBIDDEN", "No tenés permisos para realizar esta operación.");
+    };
+}
+
+module.exports = { tokenDeAutorizacion, idUsuarioDelToken, cargarPerfilActivo, autenticar, requiereRol, requierePermiso, requiereAlgunPermiso };

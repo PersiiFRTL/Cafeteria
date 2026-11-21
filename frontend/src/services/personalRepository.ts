@@ -1,6 +1,13 @@
 import { solicitarApiAutenticada } from "./apiAutenticada";
 
-export type RolPersonal = "ADMINISTRADOR" | "EMPLEADO" | "COCINA";
+export type RolPersonal = string;
+
+export interface RolPersistido {
+    nombre: string;
+    descripcion: string;
+    permisos: Record<string, { ver: boolean; interactuar: boolean }>;
+    sistema: boolean;
+}
 
 export interface EmpleadoPersistido {
     id: string;
@@ -11,6 +18,18 @@ export interface EmpleadoPersistido {
 }
 
 export const repositorioPersonal = {
+    async listarRoles(): Promise<RolPersistido[]> {
+        const respuesta = await solicitarApiAutenticada<{ data: RolPersistido[] }>("/api/roles");
+        return respuesta.data;
+    },
+
+    async crearRol(rol: Pick<RolPersistido, "nombre" | "descripcion" | "permisos">): Promise<RolPersistido> {
+        const respuesta = await solicitarApiAutenticada<{ data: RolPersistido }>("/api/roles", {
+            method: "POST", body: JSON.stringify(rol)
+        });
+        return respuesta.data;
+    },
+
     async listar(): Promise<EmpleadoPersistido[]> {
         const respuesta = await solicitarApiAutenticada<{ data: EmpleadoPersistido[] }>("/api/empleados");
         return respuesta.data;

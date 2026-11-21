@@ -13,6 +13,9 @@ import {
 import { useStock } from "../context/useStock";
 import { coincideBusqueda, normalizarTexto, numeroValido } from "../validaciones";
 import { useToast } from "../context/useToast";
+import { repositorioSupabaseCatalogo } from "../services/supabaseCatalogoRepository";
+
+const MOVIMIENTOS_POR_PAGINA = 10;
 
 const formatearCantidad = (valor: number) =>
     new Intl.NumberFormat("es-AR", {
@@ -42,6 +45,15 @@ function Stock() {
         "materiasPrimas" | "productos" | "movimientos"
     >("materiasPrimas");
     const [ordenMovimientos, setOrdenMovimientos] = useState<"recientes" | "antiguos">("recientes");
+    const [tipoMovimientoFiltrado, setTipoMovimientoFiltrado] = useState<"" | "produccion" | "comanda" | "entrada" | "salida">("");
+    const [movimientosDesde, setMovimientosDesde] = useState("");
+    const [movimientosHasta, setMovimientosHasta] = useState("");
+    const [paginaMovimientos, setPaginaMovimientos] = useState(1);
+    const [operacionesPagina, setOperacionesPagina] = useState<typeof operacionesStock>([]);
+    const [totalOperaciones, setTotalOperaciones] = useState(0);
+    const [totalPaginasMovimientos, setTotalPaginasMovimientos] = useState(1);
+    const [cargandoMovimientos, setCargandoMovimientos] = useState(false);
+    const [errorMovimientos, setErrorMovimientos] = useState("");
 
     const [materiaPrimaSeleccionada, setMateriaPrimaSeleccionada] =
         useState<number | null>(null);
@@ -53,6 +65,41 @@ function Stock() {
     const [minimoReposicionProducto, setMinimoReposicionProducto] = useState("");
     const [errorGestionProducto, setErrorGestionProducto] = useState("");
     const [guardandoMinimoProducto, setGuardandoMinimoProducto] = useState(false);
+
+    const revisionOperacionesStock = operacionesStock.reduce((idMaximo, operacion) => Math.max(idMaximo, operacion.id), 0);
+
+    useEffect(() => {
+        if (vista !== "movimientos") return;
+        let vigente = true;
+        Promise.resolve().then(() => {
+            if (!vigente) return;
+            setCargandoMovimientos(true);
+            setErrorMovimientos("");
+        });
+        repositorioSupabaseCatalogo.listarOperacionesStockPagina({
+            page: paginaMovimientos,
+            limit: MOVIMIENTOS_POR_PAGINA,
+            orden: ordenMovimientos,
+            tipo: tipoMovimientoFiltrado,
+            desde: movimientosDesde,
+            hasta: movimientosHasta
+        }).then(({ operaciones, pagination }) => {
+            if (!vigente) return;
+            const totalPaginas = Math.max(1, pagination.totalPages);
+            setOperacionesPagina(operaciones as unknown as typeof operacionesStock);
+            setTotalOperaciones(pagination.total);
+            setTotalPaginasMovimientos(totalPaginas);
+            if (paginaMovimientos > totalPaginas) setPaginaMovimientos(totalPaginas);
+        }).catch((error: unknown) => {
+            if (!vigente) return;
+            setErrorMovimientos(error instanceof Error ? error.message : "No se pudieron cargar los movimientos.");
+            setOperacionesPagina([]);
+            setTotalOperaciones(0);
+        }).finally(() => {
+            if (vigente) setCargandoMovimientos(false);
+        });
+        return () => { vigente = false; };
+    }, [vista, paginaMovimientos, ordenMovimientos, tipoMovimientoFiltrado, movimientosDesde, movimientosHasta, revisionOperacionesStock]);
 
     const [mensajeErrorStock, setMensajeErrorStock] = useState("");
     const [mensajeErrorMateriaPrima, setMensajeErrorMateriaPrima] = useState("");
@@ -1195,18 +1242,65 @@ function Stock() {
                 <div className="operaciones-stock">
 
                     <div className="movimientos-toolbar">
+                        <label htmlFor="movimientos-desde">Desde</label>
+                        <input
+                            id="movimientos-desde"
+                            type="date"
+                            value={movimientosDesde}
+                            max={movimientosHasta || undefined}
+                            onChange={(event) => {
+                                setMovimientosDesde(event.target.value);
+                                setPaginaMovimientos(1);
+                            }}
+                        />
+                        <label htmlFor="movimientos-hasta">Hasta</label>
+                        <input
+                            id="movimientos-hasta"
+                            type="date"
+                            value={movimientosHasta}
+                            min={movimientosDesde || undefined}
+                            onChange={(event) => {
+                                setMovimientosHasta(event.target.value);
+                                setPaginaMovimientos(1);
+                            }}
+                        />
+                        <label htmlFor="tipo-movimientos-stock">Tipo de movimiento</label>
+                        <select
+                            id="tipo-movimientos-stock"
+                            value={tipoMovimientoFiltrado}
+                            onChange={(event) => {
+                                setTipoMovimientoFiltrado(event.target.value as typeof tipoMovimientoFiltrado);
+                                setPaginaMovimientos(1);
+                            }}
+                        >
+                            <option value="">Todos</option>
+                            <option value="produccion">Producción</option>
+                            <option value="comanda">Comanda</option>
+                            <option value="entrada">Entrada</option>
+                            <option value="salida">Salida</option>
+                        </select>
                         <label htmlFor="orden-movimientos-stock">Ordenar movimientos</label>
                         <select
                             id="orden-movimientos-stock"
                             value={ordenMovimientos}
-                            onChange={(event) => setOrdenMovimientos(event.target.value as "recientes" | "antiguos")}
+                            onChange={(event) => {
+                                setOrdenMovimientos(event.target.value as "recientes" | "antiguos");
+                                setPaginaMovimientos(1);
+                            }}
                         >
                             <option value="recientes">Más recientes primero</option>
                             <option value="antiguos">Más antiguos primero</option>
                         </select>
                     </div>
 
-                    {operacionesStock.length === 0 ? (
+                    {cargandoMovimientos ? (
+                        <div className="informe-cargando" role="status" aria-live="polite">
+                            <span className="spinner-inline" aria-hidden="true" />
+                            Cargando movimientos…
+                        </div>
+                    ) : errorMovimientos ? (
+                        <p className="form-field-error" role="alert">{errorMovimientos}</p>
+                    ) : totalOperaciones === 0 ? (
 
                         <div className="stock-empty">
 
@@ -1224,15 +1318,7 @@ function Stock() {
 
                     ) : (
 
-                        [...operacionesStock]
-                            .sort((a, b) => {
-                                const diferenciaFecha = new Date(a.fecha).getTime() - new Date(b.fecha).getTime();
-                                const diferencia = Number.isFinite(diferenciaFecha) && diferenciaFecha !== 0
-                                    ? diferenciaFecha
-                                    : a.id - b.id;
-                                return ordenMovimientos === "recientes" ? -diferencia : diferencia;
-                            })
-                            .map((operacion) => {
+                        operacionesPagina.map((operacion) => {
                                 const IconoOperacion = operacion.tipo === "produccion"
                                     ? Factory
                                     : operacion.tipo === "entrada"
@@ -1349,6 +1435,34 @@ function Stock() {
 
                             })
 
+                    )}
+
+                    {!cargandoMovimientos && !errorMovimientos && totalOperaciones > 0 && (
+                        <nav className="informe-paginacion stock-movimientos-paginacion" aria-label="Paginación del registro de movimientos">
+                            <span className="informe-paginacion-total">
+                                {totalOperaciones} registro(s) · Página {paginaMovimientos} de {totalPaginasMovimientos}
+                            </span>
+                            <div className="informe-paginacion-controles">
+                                <button
+                                    type="button"
+                                    className="secondary-button"
+                                    disabled={paginaMovimientos <= 1}
+                                    onClick={() => setPaginaMovimientos((pagina) => Math.max(1, pagina - 1))}
+                                    aria-label="Ver página anterior de movimientos"
+                                >
+                                    Anterior
+                                </button>
+                                <button
+                                    type="button"
+                                    className="secondary-button"
+                                    disabled={paginaMovimientos >= totalPaginasMovimientos}
+                                    onClick={() => setPaginaMovimientos((pagina) => Math.min(totalPaginasMovimientos, pagina + 1))}
+                                    aria-label="Ver página siguiente de movimientos"
+                                >
+                                    Siguiente
+                                </button>
+                            </div>
+                        </nav>
                     )}
 
                 </div>

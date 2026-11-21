@@ -1,0 +1,9 @@
+const express = require("express");
+const controller = require("../controllers/rolesController");
+const { autenticar, requiereRol, requierePermiso } = require("../middlewares/auth");
+const { asyncHandler } = require("../middlewares/responses");
+const router = express.Router();
+router.use(autenticar);
+router.get("/", requierePermiso("empleados", "interactuar"), asyncHandler(controller.listar));
+router.post("/", requiereRol("ADMINISTRADOR"), asyncHandler(controller.crear));
+module.exports = router;

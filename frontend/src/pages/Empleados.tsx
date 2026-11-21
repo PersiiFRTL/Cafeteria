@@ -1,16 +1,32 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Eye, EyeOff, Pencil } from "lucide-react";
 import { usePersonal } from "../context/usePersonal";
 import { contrasenaValida, emailValido } from "../validaciones";
 import { useToast } from "../context/useToast";
+import { useAuth } from "../context/AuthContext";
+import { repositorioPersonal, type RolPersistido } from "../services/personalRepository";
+import type { Modulo, PermisosRol } from "../config/permisos";
 
-type RolEmpleado =
-    | "ADMINISTRADOR"
-    | "EMPLEADO"
-    | "COCINA";
+type RolEmpleado = string;
+
+const MODULOS_ROL: Array<{ id: Modulo; nombre: string }> = [
+    { id: "dashboard", nombre: "Inicio" }, { id: "mesas", nombre: "Mesas" },
+    { id: "comandas", nombre: "Comandas" }, { id: "nueva-comanda", nombre: "Nueva comanda" },
+    { id: "preparacion", nombre: "Preparación" }, { id: "productos", nombre: "Productos" },
+    { id: "materias-primas", nombre: "Materias primas" }, { id: "stock", nombre: "Stock" },
+    { id: "produccion", nombre: "Producción" }, { id: "recetas", nombre: "Recetas" },
+    { id: "mapa", nombre: "Mapa" }, { id: "informes", nombre: "Informes" },
+    { id: "empleados", nombre: "Empleados" }
+];
+
+const permisosVacios = (): PermisosRol => Object.fromEntries(
+    MODULOS_ROL.map(({ id }) => [id, { ver: false, interactuar: false }])
+) as PermisosRol;
 
 function Empleados() {
     const { mostrarToast } = useToast();
+    const { usuario } = useAuth();
+    const esAdministrador = usuario?.rol === "ADMINISTRADOR";
 
     const {
         empleados,
@@ -44,6 +60,45 @@ function Empleados() {
 
     const [rol, setRol] =
         useState<RolEmpleado>("EMPLEADO");
+    const [roles, setRoles] = useState<RolPersistido[]>([]);
+    const [modalRol, setModalRol] = useState(false);
+    const [nombreRol, setNombreRol] = useState("");
+    const [descripcionRol, setDescripcionRol] = useState("");
+    const [permisosRol, setPermisosRol] = useState<PermisosRol>(permisosVacios);
+    const [guardandoRol, setGuardandoRol] = useState(false);
+
+    useEffect(() => {
+        if (usuario?.permisos.empleados?.interactuar) void repositorioPersonal.listarRoles().then(setRoles).catch((error: unknown) => {
+            mostrarToast(error instanceof Error ? error.message : "No se pudieron cargar los roles.", "error");
+        });
+    }, [esAdministrador, mostrarToast, usuario?.permisos.empleados?.interactuar]);
+
+    const cambiarPermiso = (modulo: Modulo, accion: "ver" | "interactuar", activo: boolean) => {
+        setPermisosRol((actuales) => {
+            const fila = actuales[modulo] ?? { ver: false, interactuar: false };
+            return { ...actuales, [modulo]: accion === "interactuar"
+                ? { ver: activo || fila.ver, interactuar: activo }
+                : { ver: activo || fila.interactuar, interactuar: activo ? fila.interactuar : false } };
+        });
+    };
+
+    const guardarRol = async () => {
+        const nombre = nombreRol.trim();
+        if (nombre.length < 2 || nombre.length > 60) {
+            mostrarToast("El nombre del rol debe tener entre 2 y 60 caracteres.", "error");
+            return;
+        }
+        setGuardandoRol(true);
+        try {
+            const creado = await repositorioPersonal.crearRol({ nombre, descripcion: descripcionRol.trim(), permisos: permisosRol });
+            setRoles((actuales) => [...actuales, creado].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+            setRol(creado.nombre);
+            setNombreRol(""); setDescripcionRol(""); setPermisosRol(permisosVacios()); setModalRol(false);
+            mostrarToast("Rol creado correctamente.");
+        } catch (error) {
+            mostrarToast(error instanceof Error ? error.message : "No se pudo crear el rol.", "error");
+        } finally { setGuardandoRol(false); }
+    };
 
 
     const limpiarFormulario = () => {
@@ -227,8 +282,13 @@ function Empleados() {
                 </div>
 
 
-                <button
-                    className="primary-button producto-nuevo-button"
+                <div className="empleados-header-actions">
+                {esAdministrador && <button type="button" className="empleado-nuevo-button" onClick={() => setModalRol(true)}>
+                    + Nuevo rol
+                </button>}
+                {usuario?.permisos.empleados?.interactuar && <button
+                    type="button"
+                    className="primary-button empleado-nuevo-button"
                     onClick={() => {
 
                         setMostrarFormulario(
@@ -243,7 +303,8 @@ function Empleados() {
                     }}
                 >
                     + Nuevo empleado
-                </button>
+                </button>}
+                </div>
 
             </div>
 
@@ -277,6 +338,7 @@ function Empleados() {
                         type="email"
                         required
                         placeholder="Email"
+                        readOnly={!esAdministrador}
                         value={email}
                         onChange={(e) => {
                             setEmail(e.target.value);
@@ -285,7 +347,7 @@ function Empleados() {
                     />
 
 
-                    <div className="empleado-password-field">
+                    {esAdministrador && <div className="empleado-password-field">
                         <input
                             type={mostrarPassword ? "text" : "password"}
                             placeholder="Contraseña"
@@ -310,10 +372,11 @@ function Empleados() {
                         <small className="empleado-password-hint">
                             Mínimo 8 caracteres, con al menos una letra y un número.
                         </small>
-                    </div>
+                    </div>}
 
 
                     <select
+                        disabled={!esAdministrador}
                         value={rol}
                         onChange={(e) =>
                             setRol(
@@ -322,17 +385,7 @@ function Empleados() {
                         }
                     >
 
-                        <option value="ADMINISTRADOR">
-                            Administrador
-                        </option>
-
-                        <option value="EMPLEADO">
-                            Empleado
-                        </option>
-
-                        <option value="COCINA">
-                            Cocina
-                        </option>
+                        {roles.map((opcion) => <option key={opcion.nombre} value={opcion.nombre}>{obtenerNombreRol(opcion.nombre)}</option>)}
 
                     </select>
 
@@ -345,7 +398,8 @@ function Empleados() {
                     <div className="producto-form-actions">
 
                         <button
-                            className="primary-button"
+                            type="button"
+                            className="primary-button empleado-nuevo-button"
                             onClick={
                                 crearEmpleado
                             }
@@ -372,6 +426,32 @@ function Empleados() {
 
                 </div>
 
+            )}
+
+            {modalRol && esAdministrador && (
+                <div className="sistema-modal-overlay" role="presentation" onClick={() => setModalRol(false)}>
+                    <section className="sistema-modal roles-modal" role="dialog" aria-modal="true" aria-labelledby="nuevo-rol-titulo" onClick={(evento) => evento.stopPropagation()}>
+                        <h2 id="nuevo-rol-titulo">Crear rol y permisos</h2>
+                        <label>Nombre del rol<input autoFocus maxLength={60} value={nombreRol} onChange={(evento) => setNombreRol(evento.target.value)} placeholder="Ej. Barista" /></label>
+                        <label>Descripción (opcional)<input maxLength={240} value={descripcionRol} onChange={(evento) => setDescripcionRol(evento.target.value)} placeholder="Responsabilidades del rol" /></label>
+                        <div className="roles-permissions-heading"><strong>Permisos por módulo</strong><span>Interactuar también habilita Ver.</span></div>
+                        <div className="roles-permissions-table">
+                            <div className="roles-permissions-row roles-permissions-header"><span>Módulo</span><span>Ver</span><span>Interactuar</span></div>
+                            {MODULOS_ROL.map(({ id, nombre: etiqueta }) => {
+                                const permiso = permisosRol[id] ?? { ver: false, interactuar: false };
+                                return <div className="roles-permissions-row" key={id}>
+                                    <span>{etiqueta}</span>
+                                    <label><input type="checkbox" checked={permiso.ver} onChange={(evento) => cambiarPermiso(id, "ver", evento.target.checked)} aria-label={`Ver ${etiqueta}`} /></label>
+                                    <label><input type="checkbox" checked={permiso.interactuar} onChange={(evento) => cambiarPermiso(id, "interactuar", evento.target.checked)} aria-label={`Interactuar en ${etiqueta}`} /></label>
+                                </div>;
+                            })}
+                        </div>
+                        <div className="producto-form-actions">
+                            <button className="primary-button" disabled={guardandoRol} onClick={() => void guardarRol()}>{guardandoRol ? "Guardando…" : "Crear rol"}</button>
+                            <button className="secondary-button" disabled={guardandoRol} onClick={() => setModalRol(false)}>Cancelar</button>
+                        </div>
+                    </section>
+                </div>
             )}
 
 
@@ -445,6 +525,7 @@ function Empleados() {
                                         placeholder="Email"
                                         aria-label="Email"
                                         required
+                                        readOnly={!esAdministrador}
                                         value={email}
                                         onChange={(e) => {
                                             setEmail(e.target.value);
@@ -453,7 +534,7 @@ function Empleados() {
                                     />
 
 
-                                    <div className="empleado-password-field" data-label="Nueva contraseña">
+                                    {esAdministrador && <div className="empleado-password-field" data-label="Nueva contraseña">
                                         <input
                                             type={mostrarPassword ? "text" : "password"}
                                             placeholder="Nueva contraseña (opcional)"
@@ -477,12 +558,13 @@ function Empleados() {
                                         <small className="empleado-password-hint">
                                             Dejala vacía para conservarla. Si la cambiás: mínimo 8 caracteres, una letra y un número.
                                         </small>
-                                    </div>
+                                    </div>}
 
 
                                     <select
                                         value={rol}
                                         aria-label="Rol"
+                                        disabled={!esAdministrador}
                                         onChange={(e) =>
                                             setRol(
                                                 e.target.value as RolEmpleado
@@ -490,22 +572,12 @@ function Empleados() {
                                         }
                                     >
 
-                                        <option value="ADMINISTRADOR">
-                                            Administrador
-                                        </option>
-
-                                        <option value="EMPLEADO">
-                                            Empleado
-                                        </option>
-
-                                        <option value="COCINA">
-                                            Cocina
-                                        </option>
+                                        {roles.map((opcion) => <option key={opcion.nombre} value={opcion.nombre}>{obtenerNombreRol(opcion.nombre)}</option>)}
 
                                     </select>
 
 
-                                    <button
+                                    {usuario?.permisos.empleados?.interactuar && <button
                                         data-label="Estado"
                                         className={
                                             empleado.activo
@@ -522,7 +594,7 @@ function Empleados() {
                                         {empleado.activo
                                             ? "Activo"
                                             : "Inactivo"}
-                                    </button>
+                                    </button>}
 
 
                                     <div className="producto-edicion-actions">
@@ -531,14 +603,14 @@ function Empleados() {
                                             <p className="form-field-error" role="alert">{errorFormulario}</p>
                                         )}
 
-                                        <button
+                                        {usuario?.permisos.empleados?.interactuar && <button
                                             className="primary-button"
                                             onClick={
                                                 guardarEdicion
                                             }
                                         >
                                             Guardar
-                                        </button>
+                                        </button>}
 
 
                                         <button
@@ -588,7 +660,7 @@ function Empleados() {
 
                                 <span data-label="Estado">
 
-                                    <button
+                                    {usuario?.permisos.empleados?.interactuar && <button
                                         className={
                                             empleado.activo
                                                 ? "estado-activo"
@@ -604,14 +676,14 @@ function Empleados() {
                                         {empleado.activo
                                             ? "Activo"
                                             : "Inactivo"}
-                                    </button>
+                                    </button>}
 
                                 </span>
 
 
                                 <span data-label="Acciones">
 
-                                    <button
+                                    {usuario?.permisos.empleados?.interactuar && <button
                                         className="editar-producto-button"
                                         onClick={() =>
                                             comenzarEdicion(
@@ -621,7 +693,7 @@ function Empleados() {
                                     >
                                         <Pencil className="ui-icon" aria-hidden="true" />
                                         Editar
-                                    </button>
+                                    </button>}
 
                                 </span>
 

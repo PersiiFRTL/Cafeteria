@@ -1,7 +1,8 @@
 const { enviarDatos, enviarError, mapearErrorSupabase } = require("../middlewares/responses");
 const { idPositivo, paginacion, rangoFechas } = require("../validators/common");
 const { ejecutarRpc } = require("../services/supabaseService");
-const { listarMovimientos, listarProducciones } = require("../services/stockService");
+const { listarMovimientos, listarProducciones, listarMovimientosDeProducciones } = require("../services/stockService");
+const { validarMapa } = require("../validators/payloads");
 
 async function ejecutar(req, res, rpc, params, message = "Operación completada.", status = 200) {
     try {
@@ -84,22 +85,35 @@ exports.cancelarComanda = (req, res) => {
 };
 
 exports.movimientosStock = async (req, res) => {
-    const page = paginacion(req.query);
+    const page = paginacion({ ...req.query, limit: req.query.limit ?? "10" });
     const rango = rangoFechas(req.query);
     if (!page || !rango) return enviarError(res, 400, "INVALID_QUERY", "La paginación o el rango de fechas no son válidos.");
     if (req.query.tipo && !["produccion", "comanda", "entrada", "salida"].includes(req.query.tipo)) return enviarError(res, 400, "INVALID_TYPE", "El tipo de operación no es válido.");
-    const result = await listarMovimientos(req.supabaseUsuario, { ...rango, tipo: req.query.tipo }, page);
+    if (req.query.orden && !["recientes", "antiguos"].includes(req.query.orden)) return enviarError(res, 400, "INVALID_ORDER", "El orden debe ser 'recientes' o 'antiguos'.");
+    const result = await listarMovimientos(req.supabaseUsuario, { ...rango, tipo: req.query.tipo, orden: req.query.orden }, page);
     const total = result.count ?? result.data.length;
     return enviarDatos(res, result.data, 200, { page: page.page, limit: page.limit, total, totalPages: Math.ceil(total / page.limit) });
 };
 
 exports.producciones = async (req, res) => {
-    const page = paginacion(req.query);
+    const page = paginacion({ ...req.query, limit: req.query.limit ?? "10" });
     const rango = rangoFechas(req.query);
     if (!page || !rango) return enviarError(res, 400, "INVALID_QUERY", "La paginación o el rango de fechas no son válidos.");
-    const result = await listarProducciones(req.supabaseUsuario, page, rango);
+    if (req.query.orden && !["recientes", "antiguos"].includes(req.query.orden)) return enviarError(res, 400, "INVALID_ORDER", "El orden debe ser 'recientes' o 'antiguos'.");
+    const result = await listarProducciones(req.supabaseUsuario, page, rango, req.query.orden);
+    const movimientos = await listarMovimientosDeProducciones(req.supabaseUsuario, result.data.map((produccion) => produccion.id));
+    const movimientosPorProduccion = new Map(movimientos.map((operacion) => [
+        Number(operacion.produccion_id),
+        (operacion.movimientos ?? [])
+            .filter((movimiento) => movimiento.materia_prima_id !== null)
+            .map((movimiento) => ({ materia_prima_id: movimiento.materia_prima_id, cantidad: movimiento.cantidad }))
+    ]));
+    const data = result.data.map((produccion) => ({
+        ...produccion,
+        ingredientes: movimientosPorProduccion.get(Number(produccion.id)) ?? []
+    }));
     const total = result.count ?? result.data.length;
-    return enviarDatos(res, result.data, 200, { page: page.page, limit: page.limit, total, totalPages: Math.ceil(total / page.limit) });
+    return enviarDatos(res, data, 200, { page: page.page, limit: page.limit, total, totalPages: Math.ceil(total / page.limit) });
 };
 
 exports.registrarMovimiento = (req, res) => {
@@ -138,7 +152,7 @@ exports.obtenerMapa = async (req, res) => {
 
 exports.guardarMapa = (req, res) => {
     const { mesas, elementos, idsEliminar = [] } = req.body ?? {};
-    if (!Array.isArray(mesas) || !Array.isArray(elementos) || !Array.isArray(idsEliminar)) return enviarError(res, 400, "INVALID_MAP", "El mapa debe incluir listas válidas de mesas, elementos e IDs eliminados.");
+    if (!validarMapa(mesas, elementos, idsEliminar)) return enviarError(res, 400, "INVALID_MAP", "El mapa contiene mesas, elementos o IDs eliminados inválidos.");
     return ejecutar(req, res, "guardar_mapa", { p_mesas: mesas, p_elementos: elementos, p_ids_eliminar: idsEliminar }, "Mapa guardado.");
 };
 

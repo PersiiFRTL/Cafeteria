@@ -26,7 +26,7 @@ async function cambiarEstadoReceta(db, productoId, activo) {
         .select("id,producto_id,activo").maybeSingle(), "No se pudo actualizar el estado de la receta.");
 }
 async function listarNombresPerfiles(db) {
-    const { data, error } = await db.from("perfiles").select("id,nombre").order("nombre");
+    const { data, error } = await db.from("perfiles").select("id,nombre").eq("activo", true).order("nombre");
     if (error) throw Object.assign(new Error(error.message), error);
     return data ?? [];
 }

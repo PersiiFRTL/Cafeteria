@@ -9,7 +9,7 @@ import {
 import type { ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 
-import type { RolEmpleado } from "../config/permisos";
+import type { PermisosRol, RolEmpleado } from "../config/permisos";
 import { supabase } from "../services/supabase";
 import { consultarSesion, solicitarCierreSesion, solicitarInicioSesion } from "../services/autenticacion";
 
@@ -18,6 +18,7 @@ interface UsuarioAutenticado {
     nombre: string;
     email: string;
     rol: RolEmpleado;
+    permisos: PermisosRol;
 }
 
 
