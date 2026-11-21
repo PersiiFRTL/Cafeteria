@@ -9,12 +9,12 @@ const { solicitarInicioSesion } = require("../services/autenticacion.ts");
 
 describe("operaciones principales de la cafetería", () => {
     test("1. acepta el login cuando la respuesta simulada es correcta", async () => {
-        const usuario = { id: 1, nombre: "Ana", email: "ana@cafeteria.com", rol: "admin" };
+        const usuario = { id: "1", nombre: "Ana", email: "ana@cafeteria.com", rol: "ADMINISTRADOR", permisos: {} };
         const session = { access_token: "access-token", refresh_token: "refresh-token" };
         const solicitar = jest.fn().mockResolvedValue({
             ok: true,
             status: 200,
-            json: async () => ({ usuario, session })
+            json: async () => ({ data: { usuario, session } })
         });
 
         const resultado = await solicitarInicioSesion("ana@cafeteria.com", "clave", solicitar);

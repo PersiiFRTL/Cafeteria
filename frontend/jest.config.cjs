@@ -4,6 +4,9 @@ module.exports = {
     transform: {
         "^.+\\.ts$": "<rootDir>/jest.transformer.cjs"
     },
+    moduleNameMapper: {
+        "^\\./urlApi$": "<rootDir>/test/mocks/urlApi.cjs"
+    },
     clearMocks: true,
     collectCoverageFrom: [
         "src/domain/operacionesCafeteria.ts",

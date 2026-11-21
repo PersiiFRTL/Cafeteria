@@ -22,6 +22,8 @@ after(async () => {
 test("GET / responde que el backend está activo", async () => {
     const response = await fetch(`${baseUrl}/`);
     assert.equal(response.status, 200);
+    assert.equal(response.headers.get("x-content-type-options"), "nosniff");
+    assert.equal(response.headers.get("x-frame-options"), "DENY");
     assert.deepEqual(await response.json(), { data: { mensaje: "Backend de Cafetería funcionando" } });
 });
 
@@ -72,6 +74,10 @@ test("Las rutas de datos y catálogo requieren una sesión autenticada", async (
         ["PATCH", "/api/recetas/1/estado"],
         ["GET", "/api/stock/movimientos"],
         ["GET", "/api/producciones"],
+        ["GET", "/api/roles"],
+        ["POST", "/api/roles"],
+        ["GET", "/api/perfiles/nombres"],
+        ["PUT", "/api/mapa"],
         ["POST", "/api/productos"],
         ["PATCH", "/api/productos/1"],
         ["PATCH", "/api/productos/1/stock-minimo"],
@@ -94,6 +100,16 @@ test("Las rutas de datos y catálogo requieren una sesión autenticada", async (
             assert.deepEqual(await response.json(), { error: { code: "AUTH_REQUIRED", message: "Falta la sesión de usuario." } });
         });
     }
+});
+
+test("Los permisos de rol requieren todos los módulos y normalizan interactuar como ver", () => {
+    const { MODULOS, validarPermisos } = require("./validators/rolePermissions");
+    const permisos = Object.fromEntries(MODULOS.map((modulo) => [modulo, { ver: false, interactuar: false }]));
+    permisos.stock = { ver: false, interactuar: true };
+
+    assert.equal(validarPermisos(permisos).stock.ver, true);
+    assert.equal(validarPermisos({ ...permisos, moduloDesconocido: { ver: true, interactuar: false } }), null);
+    assert.equal(validarPermisos({ ...permisos, stock: { ver: true, interactuar: false, admin: true } }), null);
 });
 
 test("POST /api/auth/login valida los datos antes de consultar Supabase", async () => {
