@@ -4,11 +4,13 @@ import App from './App.tsx'
 import './index.css'
 import { ToastProvider } from './context/ToastContext.tsx'
 import './registerSW'
+import { AvisoActualizacionPwa } from './components/AvisoActualizacionPwa'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ToastProvider>
       <App />
+      <AvisoActualizacionPwa />
     </ToastProvider>
   </StrictMode>,
 )

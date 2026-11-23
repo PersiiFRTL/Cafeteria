@@ -6,4 +6,5 @@ const router = express.Router();
 router.use(autenticar);
 router.get("/", requierePermiso("empleados", "interactuar"), asyncHandler(controller.listar));
 router.post("/", requiereRol("ADMINISTRADOR"), asyncHandler(controller.crear));
+router.patch("/:nombre", requiereRol("ADMINISTRADOR"), asyncHandler(controller.editar));
 module.exports = router;

@@ -32,7 +32,7 @@ export default defineConfig({
     react(),
 
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       // El manifest vive en public/ y se enlaza explícitamente desde index.html.
       // Evita que el plugin genere un segundo manifest/link automáticamente.
       manifest: false

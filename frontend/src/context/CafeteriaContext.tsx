@@ -507,6 +507,10 @@ export function CafeteriaProvider({
 
     const [auditoriaDisponible, setAuditoriaDisponible] = useState(false);
 
+    // La renovación del token puede recrear el objeto `usuario` sin cambiar sus
+    // permisos. Solo hace falta recargar el catálogo si cambia este permiso puntual.
+    const puedeVerPersonal = Boolean(usuario?.permisos.empleados?.ver);
+
     const cargarEstadoRemoto = useCallback(async (cargarPersonal = false) => {
         const datos = await repositorioSupabaseCatalogo.cargarDatosIniciales();
         const mapaGuardado = cargarMapa();
@@ -527,13 +531,13 @@ export function CafeteriaProvider({
         setActividad(datos.actividad);
         setAuditoriaDisponible(datos.auditoriaDisponible);
         setProducciones(datos.producciones);
-        if (usuario?.permisos.empleados?.ver && cargarPersonal) {
+        if (puedeVerPersonal && cargarPersonal) {
             const personal = await repositorioPersonal.listar();
             setEmpleados(personal);
-        } else if (!usuario?.permisos.empleados?.ver) {
+        } else if (!puedeVerPersonal) {
             setEmpleados([]);
         }
-    }, [usuario?.permisos]);
+    }, [puedeVerPersonal]);
 
     const recargarDatos = useCallback(async () => {
         setEstadoDatos("cargando");

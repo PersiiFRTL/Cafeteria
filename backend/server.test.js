@@ -76,6 +76,7 @@ test("Las rutas de datos y catálogo requieren una sesión autenticada", async (
         ["GET", "/api/producciones"],
         ["GET", "/api/roles"],
         ["POST", "/api/roles"],
+        ["PATCH", "/api/roles/Barista"],
         ["GET", "/api/perfiles/nombres"],
         ["PUT", "/api/mapa"],
         ["POST", "/api/productos"],
@@ -162,4 +163,59 @@ test("Deshabilitar receta valida un booleano activo explícito", () => {
             message: "El ID del producto y el estado activo (true o false) son obligatorios."
         }
     });
+});
+
+test("Editar roles permite cambiar permisos de Empleado sin modificar su nombre", async () => {
+    const controller = require("./controllers/rolesController");
+    const { MODULOS } = require("./validators/rolePermissions");
+    const permisos = Object.fromEntries(MODULOS.map((modulo) => [modulo, { ver: false, interactuar: false }]));
+    let status;
+    let body;
+    let actualizacion;
+    const rolBase = { nombre: "EMPLEADO", descripcion: "Base", permisos, sistema: true, creado_en: "2026-01-01" };
+    const req = {
+        params: { nombre: "EMPLEADO" },
+        body: { nombre: "EMPLEADO", descripcion: "Acceso operativo", permisos },
+        supabaseUsuario: {
+            from() {
+                return {
+                    select() { return { eq() { return { maybeSingle: async () => ({ data: rolBase, error: null }) }; } }; },
+                    update(valores) {
+                        actualizacion = valores;
+                        return { eq() { return { select() { return { single: async () => ({ data: { ...rolBase, ...valores }, error: null }) }; } }; } };
+                    }
+                };
+            }
+        }
+    };
+    const res = { status(value) { status = value; return this; }, json(value) { body = value; return this; } };
+
+    await controller.editar(req, res);
+
+    assert.equal(status, 200);
+    assert.equal(body.data.nombre, "EMPLEADO");
+    assert.equal(actualizacion.descripcion, "Acceso operativo");
+});
+
+test("Editar rol mantiene protegido Administrador", async () => {
+    const controller = require("./controllers/rolesController");
+    const { MODULOS } = require("./validators/rolePermissions");
+    const permisos = Object.fromEntries(MODULOS.map((modulo) => [modulo, { ver: false, interactuar: false }]));
+    let status;
+    let body;
+    const req = {
+        params: { nombre: "ADMINISTRADOR" },
+        body: { nombre: "ADMINISTRADOR", descripcion: "", permisos },
+        supabaseUsuario: {
+            from() {
+                return { select() { return { eq() { return { maybeSingle: async () => ({ data: { nombre: "ADMINISTRADOR", sistema: true }, error: null }) }; } }; } };
+            }
+        }
+    };
+    const res = { status(value) { status = value; return this; }, json(value) { body = value; return this; } };
+
+    await controller.editar(req, res);
+
+    assert.equal(status, 403);
+    assert.equal(body.error.code, "SYSTEM_ROLE_IMMUTABLE");
 });

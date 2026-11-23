@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Pencil, Power, Trash2, X } from "lucide-react";
+import { useState, type KeyboardEvent } from "react";
+import { ChevronDown, Pencil, Power, Search, Trash2, X } from "lucide-react";
 import { useCatalogo } from "../context/useCatalogo";
 import { numeroValido } from "../validaciones";
 import { useToast } from "../context/useToast";
@@ -28,6 +28,8 @@ function Recetas() {
         useState("");
     const [ingredienteEnEdicion, setIngredienteEnEdicion] = useState<number | null>(null);
     const [filtroRecetas, setFiltroRecetas] = useState("");
+    const [mostrarSugerenciasProducto, setMostrarSugerenciasProducto] = useState(false);
+    const [sugerenciaProductoActiva, setSugerenciaProductoActiva] = useState(-1);
     const [guardandoReceta, setGuardandoReceta] = useState(false);
 
     const ejecutarGuardadoReceta = async (accion: () => Promise<boolean>) => {
@@ -234,6 +236,60 @@ function Recetas() {
         (materia) => materia.id === materiaPrimaSeleccionada
     );
 
+    const productosSugeridos = productos.filter((producto) =>
+        producto.nombre.toLocaleLowerCase("es-AR").includes(filtroRecetas.trim().toLocaleLowerCase("es-AR"))
+    );
+    const productoSugeridoActivo = productosSugeridos[sugerenciaProductoActiva];
+
+    const seleccionarProductoParaReceta = (productoId: number) => {
+        const producto = productos.find((item) => item.id === productoId);
+        if (!producto) return;
+
+        setFiltroRecetas(producto.nombre);
+        setProductoSeleccionado(producto.id);
+        setMateriaPrimaSeleccionada(null);
+        setCantidad("");
+        setIngredienteEnEdicion(null);
+        setMostrarSugerenciasProducto(false);
+        setSugerenciaProductoActiva(-1);
+    };
+
+    const manejarTeclasBusquedaRecetas = (event: KeyboardEvent<HTMLInputElement>) => {
+        if (event.key === "Escape") {
+            setMostrarSugerenciasProducto(false);
+            setSugerenciaProductoActiva(-1);
+            return;
+        }
+
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            if (productosSugeridos.length === 0) return;
+            event.preventDefault();
+            setMostrarSugerenciasProducto(true);
+            setSugerenciaProductoActiva((actual) => {
+                if (actual < 0) return event.key === "ArrowDown" ? 0 : productosSugeridos.length - 1;
+                return event.key === "ArrowDown"
+                    ? (actual + 1) % productosSugeridos.length
+                    : (actual - 1 + productosSugeridos.length) % productosSugeridos.length;
+            });
+            return;
+        }
+
+        if (event.key === "Enter" && mostrarSugerenciasProducto && productosSugeridos.length > 0) {
+            event.preventDefault();
+            const indice = sugerenciaProductoActiva < 0 ? 0 : sugerenciaProductoActiva;
+            seleccionarProductoParaReceta(productosSugeridos[indice].id);
+        }
+    };
+
+    const limpiarBusquedaRecetas = () => {
+        setFiltroRecetas("");
+        setProductoSeleccionado(null);
+        setMateriaPrimaSeleccionada(null);
+        setCantidad("");
+        setIngredienteEnEdicion(null);
+        setSugerenciaProductoActiva(-1);
+    };
+
     return (
         <div className="dashboard-content">
 
@@ -257,28 +313,103 @@ function Recetas() {
             <section className="recetas-listado" aria-label="Listado de recetas">
                 <div className="recetas-listado-header">
                     <h2>Recetas cargadas</h2>
-                    <input
-                        type="search"
-                        className="recetas-listado-search"
-                        placeholder="Buscar o seleccionar un producto..."
-                        aria-label="Buscar recetas o seleccionar un producto para editar"
-                        list="productos-recetas-opciones"
-                        value={filtroRecetas}
-                        onChange={(event) => {
-                            const busqueda = event.target.value;
-                            const productoElegido = productos.find((producto) =>
-                                producto.nombre.trim().toLocaleLowerCase("es-AR") === busqueda.trim().toLocaleLowerCase("es-AR")
-                            );
-                            setFiltroRecetas(busqueda);
-                            setProductoSeleccionado(productoElegido?.id ?? null);
-                            setMateriaPrimaSeleccionada(null);
-                            setCantidad("");
-                            setIngredienteEnEdicion(null);
+                    <div
+                        className="recetas-listado-search-wrap"
+                        onBlur={(event) => {
+                            if (!(event.relatedTarget instanceof Node) || !event.currentTarget.contains(event.relatedTarget)) {
+                                setMostrarSugerenciasProducto(false);
+                                setSugerenciaProductoActiva(-1);
+                            }
                         }}
-                    />
-                    <datalist id="productos-recetas-opciones">
-                        {productos.map((producto) => <option key={producto.id} value={producto.nombre} />)}
-                    </datalist>
+                    >
+                        <Search className="recetas-listado-search-icon" aria-hidden="true" />
+                        <input
+                            id="recetas-listado-search"
+                            type="text"
+                            className="recetas-listado-search"
+                            placeholder="Buscar o seleccionar un producto..."
+                            aria-label="Buscar recetas o seleccionar un producto para editar"
+                            role="combobox"
+                            aria-autocomplete="list"
+                            aria-expanded={mostrarSugerenciasProducto}
+                            aria-controls="productos-recetas-opciones"
+                            aria-activedescendant={mostrarSugerenciasProducto && productoSugeridoActivo
+                                ? `producto-receta-opcion-${productoSugeridoActivo.id}`
+                                : undefined}
+                            value={filtroRecetas}
+                            onFocus={() => {
+                                if (!mostrarSugerenciasProducto) setMostrarSugerenciasProducto(true);
+                            }}
+                            onChange={(event) => {
+                                const busqueda = event.target.value;
+                                const productoElegido = productos.find((producto) =>
+                                    producto.nombre.trim().toLocaleLowerCase("es-AR") === busqueda.trim().toLocaleLowerCase("es-AR")
+                                );
+                                setFiltroRecetas(busqueda);
+                                setProductoSeleccionado(productoElegido?.id ?? null);
+                                setMateriaPrimaSeleccionada(null);
+                                setCantidad("");
+                                setIngredienteEnEdicion(null);
+                                setMostrarSugerenciasProducto(true);
+                                setSugerenciaProductoActiva(-1);
+                            }}
+                            onKeyDown={manejarTeclasBusquedaRecetas}
+                        />
+                        {filtroRecetas && (
+                            <button
+                                type="button"
+                                className="recetas-listado-search-clear"
+                                aria-label="Limpiar búsqueda"
+                                onClick={() => {
+                                    limpiarBusquedaRecetas();
+                                    document.getElementById("recetas-listado-search")?.focus();
+                                }}
+                            >
+                                <X className="ui-icon" aria-hidden="true" />
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            className="recetas-listado-search-toggle"
+                            aria-label={mostrarSugerenciasProducto ? "Ocultar productos" : "Mostrar productos"}
+                            aria-expanded={mostrarSugerenciasProducto}
+                            aria-controls="productos-recetas-opciones"
+                            onClick={() => {
+                                const mostrar = !mostrarSugerenciasProducto;
+                                setMostrarSugerenciasProducto(mostrar);
+                                setSugerenciaProductoActiva(-1);
+                                document.getElementById("recetas-listado-search")?.focus();
+                            }}
+                        >
+                            <ChevronDown className="ui-icon" aria-hidden="true" />
+                        </button>
+                        <div
+                            className="recetas-listado-search-options"
+                            id="productos-recetas-opciones"
+                            role="listbox"
+                            aria-label="Productos para seleccionar"
+                            hidden={!mostrarSugerenciasProducto}
+                        >
+                            {productosSugeridos.length > 0 ? productosSugeridos.map((producto, index) => (
+                                <div
+                                    key={producto.id}
+                                    id={`producto-receta-opcion-${producto.id}`}
+                                    className={`recetas-listado-search-option${index === sugerenciaProductoActiva ? " activa" : ""}`}
+                                    role="option"
+                                    aria-selected={index === sugerenciaProductoActiva}
+                                    onMouseDown={(event) => event.preventDefault()}
+                                    onMouseEnter={() => setSugerenciaProductoActiva(index)}
+                                    onClick={() => seleccionarProductoParaReceta(producto.id)}
+                                >
+                                    {producto.nombre}
+                                </div>
+                            )) : (
+                                <div className="recetas-listado-search-empty" role="status">
+                                    No hay productos que coincidan.
+                                </div>
+                            )}
+                        </div>
+                    </div>
                     <span>{recetas.filter((receta) => {
                         const nombreProducto = productos.find((item) => item.id === receta.productoId)?.nombre ?? "";
                         return nombreProducto.toLocaleLowerCase().includes(filtroRecetas.trim().toLocaleLowerCase());

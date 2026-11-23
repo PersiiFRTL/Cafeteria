@@ -30,6 +30,13 @@ export const repositorioPersonal = {
         return respuesta.data;
     },
 
+    async editarRol(nombreAnterior: string, rol: Pick<RolPersistido, "nombre" | "descripcion" | "permisos">): Promise<RolPersistido> {
+        const respuesta = await solicitarApiAutenticada<{ data: RolPersistido }>(`/api/roles/${encodeURIComponent(nombreAnterior)}`, {
+            method: "PATCH", body: JSON.stringify(rol)
+        });
+        return respuesta.data;
+    },
+
     async listar(): Promise<EmpleadoPersistido[]> {
         const respuesta = await solicitarApiAutenticada<{ data: EmpleadoPersistido[] }>("/api/empleados");
         return respuesta.data;

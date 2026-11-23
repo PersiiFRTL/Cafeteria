@@ -790,6 +790,69 @@ h6,
 .secondary-button:hover {
     background-color: #fffdfb;
 }
+
+.pwa-update-banner {
+    position: fixed;
+    z-index: 10000;
+    right: 20px;
+    bottom: 20px;
+    display: flex;
+    width: min(520px, calc(100vw - 40px));
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 16px;
+    border: 1px solid #d8c9bb;
+    border-radius: 10px;
+    background: #fffdfb;
+    box-shadow: 0 8px 28px rgb(73 61 53 / 18%);
+    color: #493d35;
+}
+
+.pwa-update-copy p {
+    margin-top: 4px;
+    color: #75665c;
+    font-size: 14px;
+}
+
+.pwa-update-actions {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+}
+
+.pwa-update-actions button {
+    width: auto;
+    min-height: 40px;
+    padding: 9px 12px;
+}
+
+.pwa-update-actions button:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+.pwa-update-error {
+    display: block;
+    margin-top: 6px;
+    color: #b42318;
+    font-size: 13px;
+}
+
+@media (max-width: 560px) {
+    .pwa-update-banner {
+        right: 12px;
+        bottom: 12px;
+        width: calc(100vw - 24px);
+        align-items: stretch;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .pwa-update-actions button {
+        flex: 1;
+    }
+}
 /* NUEVA COMANDA */
 
 .comanda-header {
@@ -1885,10 +1948,131 @@ h6,
 .empleados-header-actions {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
     gap: 10px;
 }
 
-.empleados-header-actions > button { width: auto; }
+.empleados-header-actions > button {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: auto;
+    min-height: 44px;
+    white-space: nowrap;
+}
+
+.empleados-header-actions > button:focus-visible,
+.roles-admin-edit:focus-visible {
+    outline: 2px solid var(--color-brand-dark);
+    outline-offset: 3px;
+}
+
+.roles-admin-panel {
+    margin: 0 0 24px;
+    padding: clamp(16px, 2.4vw, 24px);
+    border: 1px solid var(--color-line);
+    border-radius: 14px;
+    background: var(--color-surface);
+    box-shadow: var(--shadow-soft);
+    scroll-margin-top: 20px;
+}
+
+.roles-admin-panel-heading h2,
+.roles-admin-card-heading h3 {
+    margin: 0;
+    color: var(--color-ink);
+}
+
+.roles-admin-panel-heading p {
+    margin: 5px 0 0;
+    color: var(--color-muted);
+}
+
+.roles-admin-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(250px, 100%), 1fr));
+    gap: 16px;
+    margin-top: 20px;
+}
+
+.roles-admin-card {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+    border: 1px solid #e9ded3;
+    border-radius: 12px;
+    background: #fffefa;
+}
+
+.roles-admin-card-heading,
+.roles-admin-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.roles-admin-card-heading h3 {
+    overflow-wrap: anywhere;
+    font-size: 1rem;
+}
+
+.roles-admin-card > p {
+    flex: 1;
+    margin: 0;
+    color: var(--color-muted);
+    font-size: .92rem;
+}
+
+.roles-admin-badge {
+    flex: 0 0 auto;
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: .75rem;
+    font-weight: 700;
+}
+
+.roles-admin-badge.sistema {
+    background: #eee7e0;
+    color: #625448;
+}
+
+.roles-admin-badge.personalizado {
+    background: #e9f5ec;
+    color: #28633c;
+}
+
+.roles-admin-card-footer small,
+.roles-admin-protegido {
+    color: var(--color-muted);
+    font-size: .82rem;
+}
+
+.roles-admin-edit {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: auto;
+    min-height: 44px;
+}
+
+.roles-admin-loading,
+.roles-admin-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    min-height: 100px;
+    margin: 16px 0 0;
+    color: var(--color-muted);
+    text-align: center;
+}
 
 .roles-modal {
     width: min(100%, 720px);
@@ -1911,6 +2095,12 @@ h6,
     border-radius: 7px;
     background: #fff;
     color: #493d35;
+}
+
+.roles-modal > .roles-base-ayuda {
+    display: block;
+    margin-top: -6px;
+    color: var(--color-muted);
 }
 
 .roles-permissions-heading {
@@ -1941,8 +2131,10 @@ h6,
 .roles-permissions-header { background: #f5eee8; color: #493d35; font-weight: 700; }
 
 @media (max-width: 600px) {
-    .empleados-header-actions { width: 100%; }
-    .empleados-header-actions > button { flex: 1; }
+    .empleados-header-actions { width: 100%; justify-content: stretch; }
+    .empleados-header-actions > button { flex: 1 1 calc(50% - 10px); }
+    .roles-admin-panel { padding: 15px; }
+    .roles-admin-card-footer { align-items: flex-start; flex-direction: column; }
     .roles-permissions-row { grid-template-columns: 1fr 56px 95px; }
     .roles-permissions-heading { align-items: flex-start; flex-direction: column; gap: 3px; }
 }
@@ -2327,7 +2519,7 @@ h6,
 
 .stock-row {
     display: grid;
-    grid-template-columns: 1.7fr 1.1fr 1.3fr 1.1fr 1.25fr 1.2fr 1.5fr;
+    grid-template-columns: 1.7fr 1.1fr 1.3fr 1.1fr 1.25fr 1.5fr;
     padding: 18px 20px;
     border-bottom: 1px solid #fdf2e8;
     align-items: center;
@@ -2685,16 +2877,122 @@ h6,
     margin-bottom: 15px;
 }
 
-.recetas-listado-search {
+.recetas-listado-search-wrap {
+    position: relative;
+    flex: 1 1 300px;
     width: min(100%, 300px);
-    min-height: 40px;
+    max-width: 300px;
     margin-left: auto;
-    padding: 8px 12px;
-    border: 1px solid #e9ded3;
-    border-radius: 7px;
-    background: #fffdfb;
-    color: #493d35;
+}
+
+.recetas-listado-search {
+    width: 100%;
+    min-height: 44px;
+    padding: 9px 76px 9px 40px;
+    border: 1px solid var(--color-line);
+    border-radius: 9px;
+    background-color: var(--color-surface);
+    color: var(--color-ink);
     font: inherit;
+    box-shadow: 0 1px 2px rgba(73, 61, 53, 0.06);
+    transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.recetas-listado-search-icon {
+    position: absolute;
+    top: 50%;
+    left: 13px;
+    width: 17px;
+    height: 17px;
+    color: var(--color-muted);
+    pointer-events: none;
+    transform: translateY(-50%);
+}
+
+.recetas-listado-search-clear,
+.recetas-listado-search-toggle {
+    position: absolute;
+    top: 50%;
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--color-muted);
+    cursor: pointer;
+    transform: translateY(-50%);
+}
+
+.recetas-listado-search-clear {
+    right: 39px;
+}
+
+.recetas-listado-search-toggle {
+    right: 5px;
+}
+
+.recetas-listado-search-clear:hover,
+.recetas-listado-search-toggle:hover {
+    background: #f3ede7;
+    color: var(--color-ink);
+}
+
+.recetas-listado-search-toggle[aria-expanded="true"] .ui-icon {
+    transform: rotate(180deg);
+}
+
+.recetas-listado-search-options {
+    position: absolute;
+    z-index: 20;
+    top: calc(100% + 6px);
+    right: 0;
+    left: 0;
+    max-height: 260px;
+    overflow-y: auto;
+    padding: 5px;
+    border: 1px solid var(--color-line);
+    border-radius: 9px;
+    background: var(--color-surface);
+    box-shadow: 0 8px 20px rgba(73, 61, 53, 0.14);
+}
+
+.recetas-listado-search-option {
+    padding: 9px 11px;
+    border-radius: 6px;
+    color: var(--color-ink);
+    cursor: pointer;
+}
+
+.recetas-listado-search-option:hover,
+.recetas-listado-search-option.activa {
+    background: #f3ede7;
+}
+
+.recetas-listado-search-empty {
+    padding: 9px 11px;
+    color: var(--color-muted);
+    font-size: 14px;
+}
+
+.recetas-listado-search:hover {
+    border-color: var(--color-brand);
+    background-color: #fffefa;
+}
+
+.recetas-listado-search:focus-visible {
+    border-color: var(--color-brand-dark);
+    outline: 2px solid rgba(167, 138, 116, 0.28);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(167, 138, 116, 0.12);
+}
+
+.recetas-listado-search::placeholder {
+    color: var(--color-muted);
+    opacity: 1;
 }
 
 .recetas-listado-header span {

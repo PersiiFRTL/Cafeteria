@@ -21,6 +21,7 @@ El backend no confía en el rol, permisos ni ID de usuario del body: obtiene ide
 | `PATCH /api/empleados/:id/estado` | 200 | empleado actualizado | 400 estado/ID inválido; 401/403; 404 |
 | `GET /api/roles` | 200 | roles `{ nombre, descripcion, permisos, sistema }[]` | 401 sesión ausente; 403 sin permiso para gestionar empleados |
 | `POST /api/roles` | 201 | rol creado `{ nombre, descripcion, permisos, sistema }` | 400 nombre/permisos inválidos; 401; 403 no administrador; 409 nombre duplicado |
+| `PATCH /api/roles/:nombre` | 200 | rol actualizado `{ nombre, descripcion, permisos, sistema }` | 400 datos inválidos o cambio de nombre base; 401; 403 no administrador o rol Administrador protegido; 404 rol inexistente; 409 nombre duplicado |
 
 Cada permiso del rol tiene la forma `{ "ver": boolean, "interactuar": boolean }`. Interactuar implica ver. El conjunto de módulos validado por el servidor es `dashboard`, `mesas`, `comandas`, `nueva-comanda`, `preparacion`, `productos`, `materias-primas`, `stock`, `produccion`, `recetas`, `mapa`, `informes` y `empleados`. El token de sesión devuelve el rol y sus permisos actuales en `usuario.permisos`.
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Eye, EyeOff, Pencil } from "lucide-react";
+import { ChevronUp, Eye, EyeOff, Pencil, Plus } from "lucide-react";
 import { usePersonal } from "../context/usePersonal";
 import { contrasenaValida, emailValido } from "../validaciones";
 import { useToast } from "../context/useToast";
@@ -18,6 +18,7 @@ const MODULOS_ROL: Array<{ id: Modulo; nombre: string }> = [
     { id: "mapa", nombre: "Mapa" }, { id: "informes", nombre: "Informes" },
     { id: "empleados", nombre: "Empleados" }
 ];
+const ROLES_BASE_EDITABLES = new Set(["EMPLEADO", "COCINA"]);
 
 const permisosVacios = (): PermisosRol => Object.fromEntries(
     MODULOS_ROL.map(({ id }) => [id, { ver: false, interactuar: false }])
@@ -61,16 +62,38 @@ function Empleados() {
     const [rol, setRol] =
         useState<RolEmpleado>("EMPLEADO");
     const [roles, setRoles] = useState<RolPersistido[]>([]);
+    const [mostrarPanelRoles, setMostrarPanelRoles] = useState(false);
+    const [cargandoRoles, setCargandoRoles] = useState(false);
+    const [errorCargaRoles, setErrorCargaRoles] = useState("");
     const [modalRol, setModalRol] = useState(false);
+    const [rolEditando, setRolEditando] = useState<string | null>(null);
+    const [rolesRenombrados, setRolesRenombrados] = useState<Record<string, string>>({});
     const [nombreRol, setNombreRol] = useState("");
     const [descripcionRol, setDescripcionRol] = useState("");
     const [permisosRol, setPermisosRol] = useState<PermisosRol>(permisosVacios);
     const [guardandoRol, setGuardandoRol] = useState(false);
 
     useEffect(() => {
-        if (usuario?.permisos.empleados?.interactuar) void repositorioPersonal.listarRoles().then(setRoles).catch((error: unknown) => {
-            mostrarToast(error instanceof Error ? error.message : "No se pudieron cargar los roles.", "error");
+        const puedeGestionar = esAdministrador || usuario?.permisos.empleados?.interactuar;
+        if (!puedeGestionar) return;
+        let vigente = true;
+        void Promise.resolve().then(() => {
+            if (!vigente) return;
+            setCargandoRoles(true);
+            setErrorCargaRoles("");
         });
+        void repositorioPersonal.listarRoles().then((rolesCargados) => {
+            if (!vigente) return;
+            setRoles(rolesCargados);
+        }).catch((error: unknown) => {
+            if (!vigente) return;
+            const mensaje = error instanceof Error ? error.message : "No se pudieron cargar los roles.";
+            setErrorCargaRoles(mensaje);
+            mostrarToast(mensaje, "error");
+        }).finally(() => {
+            if (vigente) setCargandoRoles(false);
+        });
+        return () => { vigente = false; };
     }, [esAdministrador, mostrarToast, usuario?.permisos.empleados?.interactuar]);
 
     const cambiarPermiso = (modulo: Modulo, accion: "ver" | "interactuar", activo: boolean) => {
@@ -82,6 +105,38 @@ function Empleados() {
         });
     };
 
+    const abrirCreacionRol = () => {
+        setRolEditando(null);
+        setNombreRol("");
+        setDescripcionRol("");
+        setPermisosRol(permisosVacios());
+        setModalRol(true);
+    };
+
+    const abrirEdicionRol = (rolExistente: RolPersistido) => {
+        setRolEditando(rolExistente.nombre);
+        setNombreRol(rolExistente.nombre);
+        setDescripcionRol(rolExistente.descripcion);
+        setPermisosRol({ ...permisosVacios(), ...rolExistente.permisos } as PermisosRol);
+        setModalRol(true);
+    };
+
+    const cerrarModalRol = () => {
+        if (guardandoRol) return;
+        setModalRol(false);
+        setRolEditando(null);
+    };
+
+    const resolverNombreRol = (nombre: string) => {
+        let actual = nombre;
+        const visitados = new Set<string>();
+        while (rolesRenombrados[actual] && !visitados.has(actual)) {
+            visitados.add(actual);
+            actual = rolesRenombrados[actual];
+        }
+        return actual;
+    };
+
     const guardarRol = async () => {
         const nombre = nombreRol.trim();
         if (nombre.length < 2 || nombre.length > 60) {
@@ -90,13 +145,25 @@ function Empleados() {
         }
         setGuardandoRol(true);
         try {
-            const creado = await repositorioPersonal.crearRol({ nombre, descripcion: descripcionRol.trim(), permisos: permisosRol });
-            setRoles((actuales) => [...actuales, creado].sort((a, b) => a.nombre.localeCompare(b.nombre)));
-            setRol(creado.nombre);
-            setNombreRol(""); setDescripcionRol(""); setPermisosRol(permisosVacios()); setModalRol(false);
-            mostrarToast("Rol creado correctamente.");
+            const datosRol = { nombre, descripcion: descripcionRol.trim(), permisos: permisosRol };
+            const anterior = rolEditando;
+            const guardado = anterior
+                ? await repositorioPersonal.editarRol(anterior, datosRol)
+                : await repositorioPersonal.crearRol(datosRol);
+            setRoles((actuales) => {
+                const restantes = anterior ? actuales.filter((item) => item.nombre !== anterior) : actuales;
+                return [...restantes, guardado].sort((a, b) => a.nombre.localeCompare(b.nombre));
+            });
+            setErrorCargaRoles("");
+            if (anterior && anterior !== guardado.nombre) {
+                setRolesRenombrados((actuales) => ({ ...actuales, [anterior]: guardado.nombre }));
+            }
+            if (!anterior || rol === anterior) setRol(guardado.nombre);
+            setNombreRol(""); setDescripcionRol(""); setPermisosRol(permisosVacios()); setModalRol(false); setRolEditando(null);
+            if (!anterior) setMostrarPanelRoles(true);
+            mostrarToast(anterior ? "Rol actualizado correctamente." : "Rol creado correctamente.");
         } catch (error) {
-            mostrarToast(error instanceof Error ? error.message : "No se pudo crear el rol.", "error");
+            mostrarToast(error instanceof Error ? error.message : "No se pudo guardar el rol.", "error");
         } finally { setGuardandoRol(false); }
     };
 
@@ -164,7 +231,7 @@ function Empleados() {
 
         setErrorFormulario("");
 
-        setRol(empleado.rol);
+        setRol(resolverNombreRol(empleado.rol));
     };
 
 
@@ -242,7 +309,8 @@ function Empleados() {
         rol: RolEmpleado
     ) => {
 
-        switch (rol) {
+        const nombreRolActual = resolverNombreRol(rol);
+        switch (nombreRolActual) {
 
             case "ADMINISTRADOR":
                 return "Administrador";
@@ -254,8 +322,14 @@ function Empleados() {
                 return "Cocina";
 
             default:
-                return rol;
+                return nombreRolActual;
         }
+    };
+
+    const alternarPanelRoles = () => {
+        const mostrar = !mostrarPanelRoles;
+        setMostrarPanelRoles(mostrar);
+        if (mostrar) requestAnimationFrame(() => document.getElementById("roles-admin-panel")?.scrollIntoView({ behavior: "smooth", block: "start" }));
     };
 
 
@@ -283,8 +357,20 @@ function Empleados() {
 
 
                 <div className="empleados-header-actions">
-                {esAdministrador && <button type="button" className="empleado-nuevo-button" onClick={() => setModalRol(true)}>
-                    + Nuevo rol
+                {esAdministrador && (
+                    <button
+                        type="button"
+                        className="primary-button empleados-accion-header"
+                        aria-expanded={mostrarPanelRoles}
+                        aria-controls={mostrarPanelRoles ? "roles-admin-panel" : undefined}
+                        onClick={alternarPanelRoles}
+                    >
+                        {mostrarPanelRoles ? <ChevronUp className="ui-icon" aria-hidden="true" /> : <Pencil className="ui-icon" aria-hidden="true" />}
+                        {mostrarPanelRoles ? "Ocultar roles" : "Editar rol"}
+                    </button>
+                )}
+                {esAdministrador && <button type="button" className="primary-button empleados-accion-header" onClick={abrirCreacionRol}>
+                    <Plus className="ui-icon" aria-hidden="true" /> Nuevo rol
                 </button>}
                 {usuario?.permisos.empleados?.interactuar && <button
                     type="button"
@@ -302,12 +388,50 @@ function Empleados() {
                         limpiarFormulario();
                     }}
                 >
-                    + Nuevo empleado
+                    <Plus className="ui-icon" aria-hidden="true" /> Nuevo empleado
                 </button>}
                 </div>
 
             </div>
 
+            {esAdministrador && mostrarPanelRoles && (
+                <section className="roles-admin-panel" id="roles-admin-panel" aria-label="Administrar roles">
+                    <div className="roles-admin-panel-heading">
+                        <div>
+                            <h2>Roles y permisos</h2>
+                            <p>Podés editar los roles Empleado, Cocina y los personalizados. Administrador permanece protegido.</p>
+                        </div>
+                    </div>
+                    {errorCargaRoles && <p className="form-field-error" role="alert">No se pudieron cargar los roles: {errorCargaRoles}</p>}
+                    {cargandoRoles ? (
+                        <div className="roles-admin-loading" role="status"><span className="spinner-inline" aria-hidden="true" /> Cargando roles…</div>
+                    ) : roles.length === 0 ? (
+                        errorCargaRoles ? null : <p className="roles-admin-empty">Todavía no hay roles disponibles.</p>
+                    ) : <div className="roles-admin-grid">
+                        {roles.map((rolDisponible) => (
+                            <article className="roles-admin-card" key={rolDisponible.nombre}>
+                                <div className="roles-admin-card-heading">
+                                    <h3>{obtenerNombreRol(rolDisponible.nombre)}</h3>
+                                    <span className={rolDisponible.sistema ? "roles-admin-badge sistema" : "roles-admin-badge personalizado"}>
+                                        {rolDisponible.sistema ? "Base" : "Personalizado"}
+                                    </span>
+                                </div>
+                                <p>{rolDisponible.descripcion || "Sin descripción."}</p>
+                                <div className="roles-admin-card-footer">
+                                    <small>{Object.values(rolDisponible.permisos).filter((permiso) => permiso.ver || permiso.interactuar).length} módulos habilitados</small>
+                                    {rolDisponible.sistema && !ROLES_BASE_EDITABLES.has(rolDisponible.nombre) ? (
+                                        <span className="roles-admin-protegido">Protegido</span>
+                                    ) : (
+                                        <button type="button" className="primary-button roles-admin-edit" onClick={() => abrirEdicionRol(rolDisponible)}>
+                                            <Pencil className="ui-icon" aria-hidden="true" /> Editar rol
+                                        </button>
+                                    )}
+                                </div>
+                            </article>
+                        ))}
+                    </div>}
+                </section>
+            )}
 
             {/* ==========================
                 FORMULARIO NUEVO EMPLEADO
@@ -429,10 +553,11 @@ function Empleados() {
             )}
 
             {modalRol && esAdministrador && (
-                <div className="sistema-modal-overlay" role="presentation" onClick={() => setModalRol(false)}>
-                    <section className="sistema-modal roles-modal" role="dialog" aria-modal="true" aria-labelledby="nuevo-rol-titulo" onClick={(evento) => evento.stopPropagation()}>
-                        <h2 id="nuevo-rol-titulo">Crear rol y permisos</h2>
-                        <label>Nombre del rol<input autoFocus maxLength={60} value={nombreRol} onChange={(evento) => setNombreRol(evento.target.value)} placeholder="Ej. Barista" /></label>
+                <div className="sistema-modal-overlay" role="presentation" onClick={cerrarModalRol}>
+                    <section className="sistema-modal roles-modal" role="dialog" aria-modal="true" aria-labelledby="gestionar-rol-titulo" onClick={(evento) => evento.stopPropagation()}>
+                        <h2 id="gestionar-rol-titulo">{rolEditando ? `Editar rol: ${rolEditando}` : "Crear rol y permisos"}</h2>
+                        <label>Nombre del rol<input autoFocus maxLength={60} value={nombreRol} disabled={Boolean(roles.find((opcion) => opcion.nombre === rolEditando)?.sistema)} onChange={(evento) => setNombreRol(evento.target.value)} placeholder="Ej. Barista" /></label>
+                        {roles.find((opcion) => opcion.nombre === rolEditando)?.sistema && <small className="roles-base-ayuda">Los roles base conservan su nombre; podés cambiar su descripción y permisos.</small>}
                         <label>Descripción (opcional)<input maxLength={240} value={descripcionRol} onChange={(evento) => setDescripcionRol(evento.target.value)} placeholder="Responsabilidades del rol" /></label>
                         <div className="roles-permissions-heading"><strong>Permisos por módulo</strong><span>Interactuar también habilita Ver.</span></div>
                         <div className="roles-permissions-table">
@@ -447,8 +572,8 @@ function Empleados() {
                             })}
                         </div>
                         <div className="producto-form-actions">
-                            <button className="primary-button" disabled={guardandoRol} onClick={() => void guardarRol()}>{guardandoRol ? "Guardando…" : "Crear rol"}</button>
-                            <button className="secondary-button" disabled={guardandoRol} onClick={() => setModalRol(false)}>Cancelar</button>
+                            <button className="primary-button" disabled={guardandoRol} onClick={() => void guardarRol()}>{guardandoRol ? "Guardando…" : rolEditando ? "Guardar cambios" : "Crear rol"}</button>
+                            <button className="secondary-button" disabled={guardandoRol} onClick={cerrarModalRol}>Cancelar</button>
                         </div>
                     </section>
                 </div>

@@ -1,4 +1,5 @@
 import {
+    useCallback,
     useRef,
     useState,
     type ReactNode
@@ -16,15 +17,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     const [toasts, setToasts] = useState<Toast[]>([]);
     const siguienteId = useRef(0);
 
-    const quitarToast = (id: number) => {
+    const quitarToast = useCallback((id: number) => {
         setToasts((actuales) => actuales.filter((toast) => toast.id !== id));
-    };
+    }, []);
 
-    const mostrarToast = (mensaje: string, tipo: TipoToast = "exito") => {
+    const mostrarToast = useCallback((mensaje: string, tipo: TipoToast = "exito") => {
         const id = ++siguienteId.current;
         setToasts((actuales) => [...actuales, { id, mensaje, tipo }]);
         window.setTimeout(() => quitarToast(id), 4000);
-    };
+    }, [quitarToast]);
 
     return (
         <ToastContext.Provider value={{ mostrarToast }}>

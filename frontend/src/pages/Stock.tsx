@@ -1102,14 +1102,10 @@ function Stock() {
                             Tipo
                         </span>
 
-                        <span>Disponible</span>
+                        <span>Stock</span>
 
                         <span>
                             Mínimo para reponer
-                        </span>
-
-                        <span>
-                            Control
                         </span>
 
                         <span>
@@ -1206,26 +1202,6 @@ function Stock() {
                                             : "—"}
                                     </span>
 
-
-                                    <span>
-
-                                        <span
-                                            className={
-                                                !controlaStockPropio
-                                                    ? "stock-sin-stock-propio"
-                                                    : stockBajo
-                                                        ? "stock-bajo"
-                                                        : "stock-normal"
-                                            }
-                                        >
-                                            {!controlaStockPropio
-                                                ? cantidadPreparables === null ? "Revisar receta" : "Según receta"
-                                                : stockBajo
-                                                    ? "Stock bajo"
-                                                    : "Normal"}
-                                        </span>
-
-                                    </span>
 
                                     <span>
                                         {controlaStockPropio ? (
