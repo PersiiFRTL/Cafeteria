@@ -156,6 +156,15 @@ h6,
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.login-password-input-wrap {
+    position: relative;
+    width: 100%;
+}
+
+.login-password-input-wrap input {
+    padding-right: 48px;
+}
+
 .login-field input:focus {
     outline: none;
     border-color: #a78a74;

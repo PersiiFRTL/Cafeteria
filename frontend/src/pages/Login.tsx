@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { emailValido } from "../validaciones";
 
@@ -18,6 +19,7 @@ function Login() {
 
     const [password, setPassword] =
         useState("");
+    const [mostrarPassword, setMostrarPassword] = useState(false);
     const [iniciandoSesion, setIniciandoSesion] = useState(false);
 
     const [errores, setErrores] = useState<{
@@ -141,21 +143,34 @@ function Login() {
                             Contraseña
                         </label>
 
-                        <input
-                            id="login-password"
-                            type="password"
-                            required
-                            placeholder="Ingresá tu contraseña"
-                            value={password}
-                            aria-invalid={Boolean(errores.password)}
-                            aria-describedby={errores.password ? "login-password-error" : undefined}
-                            onChange={(e) => {
-                                setPassword(
-                                    e.target.value
-                                );
-                                setErrores({});
-                            }}
-                        />
+                        <div className="login-password-input-wrap">
+                            <input
+                                id="login-password"
+                                type={mostrarPassword ? "text" : "password"}
+                                autoComplete="current-password"
+                                required
+                                placeholder="Ingresá tu contraseña"
+                                value={password}
+                                aria-invalid={Boolean(errores.password)}
+                                aria-describedby={errores.password ? "login-password-error" : undefined}
+                                onChange={(e) => {
+                                    setPassword(
+                                        e.target.value
+                                    );
+                                    setErrores({});
+                                }}
+                            />
+                            <button
+                                type="button"
+                                className="password-visibility-button"
+                                aria-label={mostrarPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                aria-controls="login-password"
+                                title={mostrarPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                                onClick={() => setMostrarPassword((mostrar) => !mostrar)}
+                            >
+                                {mostrarPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                            </button>
+                        </div>
 
                         {errores.password && (
                             <p className="login-field-error" id="login-password-error" role="alert">
