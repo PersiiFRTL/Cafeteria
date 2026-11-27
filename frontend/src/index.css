@@ -165,6 +165,12 @@ h6,
     padding-right: 48px;
 }
 
+/* Evita que Edge muestre su control nativo junto al botón de la aplicación. */
+#login-password::-ms-reveal,
+#login-password::-ms-clear {
+    display: none;
+}
+
 .login-field input:focus {
     outline: none;
     border-color: #a78a74;
